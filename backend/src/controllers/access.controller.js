@@ -56,13 +56,16 @@ const create = (req, res) => {
     const { deviceId, message } = req.body;
     const userId = req.user.id;
 
-    // Verifica se usuário já tem acesso geral
-    const user = User.findById(userId);
-    if (user && user.has_access) {
-      return res.status(400).json({
-        success: false,
-        message: 'Você já possui acesso ao sistema'
-      });
+    // Se não especificou deviceId, é uma solicitação geral
+    // Verifica se usuário já tem acesso geral apenas nesse caso
+    if (!deviceId) {
+      const user = User.findById(userId);
+      if (user && user.has_access) {
+        return res.status(400).json({
+          success: false,
+          message: 'Você já possui acesso ao sistema'
+        });
+      }
     }
 
     // Verifica se já tem solicitação pendente
@@ -74,11 +77,21 @@ const create = (req, res) => {
     }
 
     // Se especificou deviceId, verifica se dispositivo existe
-    if (deviceId && !Device.findById(deviceId)) {
-      return res.status(404).json({
-        success: false,
-        message: 'Dispositivo não encontrado'
-      });
+    if (deviceId) {
+      if (!Device.findById(deviceId)) {
+        return res.status(404).json({
+          success: false,
+          message: 'Dispositivo não encontrado'
+        });
+      }
+      
+      // Verifica se usuário já tem acesso a este dispositivo específico
+      if (Device.userHasAccess(deviceId, userId)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Você já possui acesso a este dispositivo'
+        });
+      }
     }
 
     const request = AccessRequest.create(userId, deviceId, message);
