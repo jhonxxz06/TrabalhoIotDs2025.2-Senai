@@ -62,6 +62,12 @@ initDatabase()
     app.listen(PORT, () => {
       console.log(`🚀 Servidor rodando em http://localhost:${PORT}`);
       console.log(`📡 Health check: http://localhost:${PORT}/api/health`);
+      
+      // Inicializa conexões MQTT após servidor estar pronto
+      const { initMqttConnections } = require('./config/mqtt');
+      setTimeout(() => {
+        initMqttConnections();
+      }, 1000);
     });
   })
   .catch((err) => {

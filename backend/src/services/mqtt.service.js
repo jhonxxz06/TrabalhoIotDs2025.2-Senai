@@ -20,12 +20,14 @@ const MqttService = {
       return connections.get(id);
     }
 
+    // Usar protocolo TCP padrão (compatível com testclient-cloud.mqtt.cool)
     const brokerUrl = `mqtt://${mqtt_broker}:${mqtt_port || 1883}`;
     
     const options = {
       clientId: `iot_dashboard_${id}_${Date.now()}`,
       clean: true,
       reconnectPeriod: 5000,
+      keepalive: 60,
     };
 
     // Adiciona auth se configurado
@@ -39,12 +41,13 @@ const MqttService = {
     client.on('connect', () => {
       console.log(`[MQTT] ✅ Device ${id} conectado a ${mqtt_broker}`);
       
-      // Subscribe no tópico do dispositivo
-      client.subscribe(mqtt_topic, (err) => {
+      // Subscribe no tópico do dispositivo com QoS 1
+      client.subscribe(mqtt_topic, { qos: 1 }, (err) => {
         if (err) {
           console.error(`[MQTT] Erro ao subscrever ${mqtt_topic}:`, err);
         } else {
-          console.log(`[MQTT] 📡 Subscrito em: ${mqtt_topic}`);
+          console.log(`[MQTT] 📡 Subscrito em: ${mqtt_topic} (QoS 1)`);
+          console.log(`[MQTT] 👂 Aguardando mensagens...`);
         }
       });
     });
@@ -52,7 +55,10 @@ const MqttService = {
     client.on('message', (topic, message) => {
       try {
         const payload = message.toString();
-        console.log(`[MQTT] 📥 ${topic}: ${payload}`);
+        console.log(`\n[MQTT] 📥 MENSAGEM RECEBIDA!`);
+        console.log(`[MQTT] Device ID: ${id}`);
+        console.log(`[MQTT] Tópico: ${topic}`);
+        console.log(`[MQTT] Payload: ${payload}`);
         
         // Salva no cache
         latestData.set(topic, {
@@ -62,6 +68,7 @@ const MqttService = {
 
         // Salva no banco
         this.saveData(id, topic, payload);
+        console.log(`[MQTT] ✅ Dados salvos no banco!\n`);
       } catch (error) {
         console.error('[MQTT] Erro ao processar mensagem:', error);
       }

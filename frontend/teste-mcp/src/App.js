@@ -302,10 +302,12 @@ function App() {
     try {
       const response = await api.mqtt.getWeekData(selectedDevice.id);
       console.log('Dados para Excel:', response.data);
+      console.log('Primeiro registro:', response.data[0]);
       
       // Converter para CSV
       if (response.data && response.data.length > 0) {
         const csvContent = convertToCSV(response.data);
+        console.log('CSV gerado (primeiras 500 chars):', csvContent.substring(0, 500));
         downloadCSV(csvContent, `${selectedDevice.name}_${chartType}.csv`);
       } else {
         alert('Nenhum dado disponível para download');
@@ -320,20 +322,83 @@ function App() {
   const convertToCSV = (data) => {
     if (!data.length) return '';
     
-    const headers = Object.keys(data[0]);
-    const rows = data.map(row => 
-      headers.map(header => {
-        const value = row[header];
-        return typeof value === 'object' ? JSON.stringify(value) : value;
-      }).join(',')
-    );
+    console.log('Convertendo dados:', data.length, 'registros');
+    console.log('Estrutura do primeiro registro:', data[0]);
     
-    return [headers.join(','), ...rows].join('\n');
+    // Expandir o campo 'payload' (JSON) para colunas separadas
+    const allDataKeys = new Set();
+    data.forEach(row => {
+      const payloadField = row.payload || row.data;
+      if (payloadField) {
+        try {
+          let parsed = payloadField;
+          // Se for string, parsear
+          if (typeof payloadField === 'string') {
+            parsed = JSON.parse(payloadField);
+          }
+          // Adicionar todas as chaves
+          Object.keys(parsed).forEach(key => allDataKeys.add(key));
+        } catch (e) {
+          console.error('Erro ao parsear payload:', e, payloadField);
+        }
+      }
+    });
+    
+    console.log('Campos encontrados no payload:', Array.from(allDataKeys));
+    
+    // Usar ponto-e-vírgula como separador (padrão brasileiro)
+    const separator = ';';
+    
+    // Cabeçalhos: Data, Hora, Timestamp + campos do payload MQTT
+    const headers = ['Data', 'Hora', 'Timestamp', ...Array.from(allDataKeys)];
+    
+    const rows = data.map(row => {
+      const timestamp = row.received_at || row.timestamp;
+      const date = new Date(timestamp);
+      const dataFormatada = date.toLocaleDateString('pt-BR');
+      const horaFormatada = date.toLocaleTimeString('pt-BR');
+      
+      // Parsear o campo 'payload' ou 'data'
+      let parsedData = {};
+      const payloadField = row.payload || row.data;
+      if (payloadField) {
+        try {
+          // Se já for objeto, usar direto
+          if (typeof payloadField === 'object') {
+            parsedData = payloadField;
+          } else if (typeof payloadField === 'string') {
+            parsedData = JSON.parse(payloadField);
+          }
+        } catch (e) {
+          parsedData = {};
+        }
+      }
+      
+      // Criar linha com cada campo em sua coluna
+      const values = [
+        dataFormatada,
+        horaFormatada,
+        timestamp,
+        ...Array.from(allDataKeys).map(key => {
+          const value = parsedData[key];
+          return value !== undefined && value !== null ? value : '';
+        })
+      ];
+      
+      return values.join(separator);
+    });
+    
+    console.log('CSV Headers:', headers);
+    console.log('Primeira linha de dados:', rows[0]);
+    
+    return [headers.join(separator), ...rows].join('\n');
   };
 
   // Helper para download de CSV
   const downloadCSV = (content, filename) => {
-    const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+    // Adicionar BOM UTF-8 para Excel reconhecer corretamente
+    const BOM = '\uFEFF';
+    const blob = new Blob([BOM + content], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
     link.download = filename;

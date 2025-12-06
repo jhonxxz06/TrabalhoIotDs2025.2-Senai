@@ -1,4 +1,5 @@
 const Device = require('../models/Device');
+const MqttService = require('../services/mqtt.service');
 
 /**
  * Lista dispositivos públicos (para tela de cadastro - sem autenticação)
@@ -124,6 +125,16 @@ const create = (req, res) => {
     const devicePublic = Device.toPublic(device);
     devicePublic.assignedUsers = Device.getAssignedUsers(device.id);
 
+    // Auto-conectar ao MQTT se tiver configuração
+    if (device.mqtt_broker && device.mqtt_topic) {
+      try {
+        MqttService.connect(device);
+        console.log(`✅ Device ${device.id} (${device.name}) auto-conectado ao MQTT`);
+      } catch (error) {
+        console.warn(`⚠️ Erro ao auto-conectar MQTT do device ${device.id}:`, error.message);
+      }
+    }
+
     res.status(201).json({
       success: true,
       message: 'Dispositivo criado com sucesso',
@@ -172,6 +183,17 @@ const update = (req, res) => {
     const devicePublic = Device.toPublic(updatedDevice);
     devicePublic.assignedUsers = Device.getAssignedUsers(id);
 
+    // Reconectar ao MQTT se as configurações mudaram
+    if (updatedDevice.mqtt_broker && updatedDevice.mqtt_topic) {
+      try {
+        MqttService.disconnect(parseInt(id));
+        MqttService.connect(updatedDevice);
+        console.log(`✅ Device ${id} (${updatedDevice.name}) reconectado ao MQTT`);
+      } catch (error) {
+        console.warn(`⚠️ Erro ao reconectar MQTT do device ${id}:`, error.message);
+      }
+    }
+
     res.json({
       success: true,
       message: 'Dispositivo atualizado com sucesso',
@@ -199,6 +221,14 @@ const remove = (req, res) => {
         success: false,
         message: 'Dispositivo não encontrado'
       });
+    }
+
+    // Desconectar MQTT antes de excluir
+    try {
+      MqttService.disconnect(parseInt(id));
+      console.log(`✅ Device ${id} desconectado do MQTT antes da exclusão`);
+    } catch (error) {
+      console.warn(`⚠️ Erro ao desconectar MQTT:`, error.message);
     }
 
     Device.delete(id);

@@ -14,8 +14,6 @@ const DeviceFormModal = ({
     mqttBroker: '',
     mqttPort: '1883',
     mqttTopic: '',
-    mqttUsername: '',
-    mqttPassword: '',
     assignedUsers: []
   });
 
@@ -31,8 +29,6 @@ const DeviceFormModal = ({
         mqttBroker: device.mqttBroker || '',
         mqttPort: device.mqttPort || '1883',
         mqttTopic: device.mqttTopic || '',
-        mqttUsername: device.mqttUsername || '',
-        mqttPassword: device.mqttPassword || '',
         assignedUsers: userIds
       });
     } else {
@@ -41,8 +37,6 @@ const DeviceFormModal = ({
         mqttBroker: '',
         mqttPort: '1883',
         mqttTopic: '',
-        mqttUsername: '',
-        mqttPassword: '',
         assignedUsers: []
       });
     }
@@ -149,31 +143,6 @@ const DeviceFormModal = ({
                 placeholder="Ex: esp32/sensor/data"
                 required
               />
-            </div>
-
-            <div className="form-row">
-              <div className="form-group">
-                <label htmlFor="mqttUsername">Usuário (opcional)</label>
-                <input
-                  type="text"
-                  id="mqttUsername"
-                  name="mqttUsername"
-                  value={formData.mqttUsername}
-                  onChange={handleChange}
-                  placeholder="Usuário do broker"
-                />
-              </div>
-              <div className="form-group">
-                <label htmlFor="mqttPassword">Senha (opcional)</label>
-                <input
-                  type="password"
-                  id="mqttPassword"
-                  name="mqttPassword"
-                  value={formData.mqttPassword}
-                  onChange={handleChange}
-                  placeholder="Senha do broker"
-                />
-              </div>
             </div>
           </div>
 
