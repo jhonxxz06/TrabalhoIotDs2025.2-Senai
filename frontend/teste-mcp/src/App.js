@@ -312,7 +312,10 @@ function App() {
     try {
       const response = await api.mqtt.getWeekData(selectedDevice.id);
       console.log('Dados para Excel:', response.data);
-      console.log('Primeiro registro:', response.data[0]);
+      console.log('Primeiro registro completo:', JSON.stringify(response.data[0], null, 2));
+      console.log('Data do primeiro registro:', response.data[0]?.Data);
+      console.log('Hora do primeiro registro:', response.data[0]?.Hora);
+      console.log('Timestamp do primeiro registro:', response.data[0]?.timestamp);
       
       // Converter para CSV
       if (response.data && response.data.length > 0) {
@@ -337,6 +340,8 @@ function App() {
     
     // Expandir o campo 'payload' (JSON) para colunas separadas
     const allDataKeys = new Set();
+    const excludedKeys = ['Data', 'Hora', 'Timestamp', 'data', 'hora', 'timestamp']; // Excluir campos de data/hora que já estão nas colunas principais
+    
     data.forEach(row => {
       const payloadField = row.payload || row.data;
       if (payloadField) {
@@ -346,8 +351,12 @@ function App() {
           if (typeof payloadField === 'string') {
             parsed = JSON.parse(payloadField);
           }
-          // Adicionar todas as chaves
-          Object.keys(parsed).forEach(key => allDataKeys.add(key));
+          // Adicionar todas as chaves exceto as de data/hora
+          Object.keys(parsed).forEach(key => {
+            if (!excludedKeys.includes(key)) {
+              allDataKeys.add(key);
+            }
+          });
         } catch (e) {
           console.error('Erro ao parsear payload:', e, payloadField);
         }
@@ -363,10 +372,19 @@ function App() {
     const headers = ['Data', 'Hora', 'Timestamp', ...Array.from(allDataKeys)];
     
     const rows = data.map(row => {
-      const timestamp = row.received_at || row.timestamp;
-      const date = new Date(timestamp);
-      const dataFormatada = date.toLocaleDateString('pt-BR');
-      const horaFormatada = date.toLocaleTimeString('pt-BR');
+      // Usar Data e Hora que já vêm formatados do backend
+      const dataFormatada = row.Data || '';
+      const horaFormatada = row.Hora || '';
+      
+      // Formatar timestamp como data/hora completa em formato brasileiro
+      const timestamp = row.timestamp || row.receivedAt || '';
+      let timestampFormatado = '';
+      if (timestamp) {
+        const date = new Date(timestamp);
+        if (!isNaN(date.getTime())) {
+          timestampFormatado = `${dataFormatada} ${horaFormatada}`;
+        }
+      }
       
       // Parsear o campo 'payload' ou 'data'
       let parsedData = {};
@@ -388,7 +406,7 @@ function App() {
       const values = [
         dataFormatada,
         horaFormatada,
-        timestamp,
+        timestampFormatado,
         ...Array.from(allDataKeys).map(key => {
           const value = parsedData[key];
           return value !== undefined && value !== null ? value : '';

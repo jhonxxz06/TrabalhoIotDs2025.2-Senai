@@ -98,13 +98,42 @@ const getData = (req, res) => {
 
     // Parse do payload JSON se possível
     const parsedData = data.map(item => {
+      // Garantir que received_at seja uma data válida
+      let date = new Date(item.received_at);
+      
+      // Se a data for inválida, usar data atual
+      if (isNaN(date.getTime())) {
+        date = new Date();
+      }
+      
+      // Ajustar para horário de Brasília (UTC-3)
+      const brasiliaOffset = -3 * 60; // -3 horas em minutos
+      const localOffset = date.getTimezoneOffset(); // offset atual em minutos
+      const offsetDiff = localOffset + brasiliaOffset;
+      
+      const brasiliaDate = new Date(date.getTime() - offsetDiff * 60 * 1000);
+      
+      // Formatar manualmente para garantir formato correto
+      const dia = String(brasiliaDate.getDate()).padStart(2, '0');
+      const mes = String(brasiliaDate.getMonth() + 1).padStart(2, '0');
+      const ano = brasiliaDate.getFullYear();
+      const dataFormatada = `${dia}/${mes}/${ano}`;
+      
+      const hora = String(brasiliaDate.getHours()).padStart(2, '0');
+      const minuto = String(brasiliaDate.getMinutes()).padStart(2, '0');
+      const segundo = String(brasiliaDate.getSeconds()).padStart(2, '0');
+      const horaFormatada = `${hora}:${minuto}:${segundo}`;
+      
       try {
         return {
           id: item.id,
           deviceId: item.device_id,
           topic: item.topic,
           payload: JSON.parse(item.payload),
-          receivedAt: item.received_at
+          receivedAt: item.received_at,
+          timestamp: item.received_at,
+          Data: dataFormatada,
+          Hora: horaFormatada
         };
       } catch {
         return {
@@ -112,7 +141,10 @@ const getData = (req, res) => {
           deviceId: item.device_id,
           topic: item.topic,
           payload: item.payload,
-          receivedAt: item.received_at
+          receivedAt: item.received_at,
+          timestamp: item.received_at,
+          Data: dataFormatada,
+          Hora: horaFormatada
         };
       }
     });

@@ -55,6 +55,9 @@ const DynamicWidget = ({ widget, deviceId, onDownload }) => {
         // Usar campos definidos explicitamente
         const labels = mqttData.map(d => {
           const date = new Date(d.timestamp);
+          if (isNaN(date.getTime())) {
+            return 'N/A';
+          }
           return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
         }).reverse();
         
@@ -106,6 +109,9 @@ const DynamicWidget = ({ widget, deviceId, onDownload }) => {
         if (fields.length > 0) {
           const labels = mqttData.map(d => {
             const date = new Date(d.timestamp);
+            if (isNaN(date.getTime())) {
+              return 'N/A';
+            }
             return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
           }).reverse();
 

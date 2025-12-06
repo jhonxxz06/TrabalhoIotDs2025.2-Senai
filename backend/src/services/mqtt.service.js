@@ -113,10 +113,12 @@ const MqttService = {
    * Salva dados MQTT no banco
    */
   saveData(deviceId, topic, payload) {
+    // Usar timestamp atual em formato ISO para garantir consistência
+    const timestamp = new Date().toISOString();
     run(`
-      INSERT INTO mqtt_data (device_id, topic, payload)
-      VALUES (?, ?, ?)
-    `, [deviceId, topic, payload]);
+      INSERT INTO mqtt_data (device_id, topic, payload, received_at)
+      VALUES (?, ?, ?, ?)
+    `, [deviceId, topic, payload, timestamp]);
   },
 
   /**
