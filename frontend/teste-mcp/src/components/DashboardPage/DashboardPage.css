@@ -1,0 +1,390 @@
+/* ========================================
+   Dashboard Page Styles
+   Baseado no design Figma - User Graph
+   ======================================== */
+
+.dashboard-container {
+  min-height: 100vh;
+  background: #FFFFFF;
+  display: flex;
+  flex-direction: column;
+}
+
+.dashboard-content {
+  flex: 1;
+  padding: 100px 40px 120px;
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+}
+
+/* Welcome Banner */
+.welcome-banner {
+  background: rgba(132, 182, 244, 0.67);
+  padding: 15px 30px;
+  border-radius: 8px;
+  margin-bottom: 10px;
+  animation: fadeInDown 0.5s ease-out;
+}
+
+.welcome-message {
+  font-family: 'Roboto', sans-serif;
+  font-weight: 500;
+  font-size: 24px;
+  line-height: 1.67;
+  letter-spacing: 5px;
+  color: #FFFFFF;
+  margin: 0;
+}
+
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Device Title */
+.device-title {
+  font-family: 'Roboto', sans-serif;
+  font-weight: 500;
+  font-size: 40px;
+  line-height: 1;
+  letter-spacing: 5px;
+  color: #000000;
+  text-align: center;
+  margin: 20px 0;
+  animation: fadeIn 0.5s ease-out 0.2s both;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Charts Grid */
+.charts-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-rows: auto;
+  gap: 30px;
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* Chart Card */
+.chart-card {
+  background: rgba(168, 212, 239, 0.61);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+  animation: fadeInUp 0.5s ease-out both;
+}
+
+.chart-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.chart-card:nth-child(1) { animation-delay: 0.1s; }
+.chart-card:nth-child(2) { animation-delay: 0.2s; }
+.chart-card:nth-child(3) { animation-delay: 0.3s; }
+
+/* Line Chart - Maior */
+.chart-line {
+  grid-column: 1;
+  grid-row: 1;
+  min-height: 250px;
+}
+
+/* Bar Chart */
+.chart-bar {
+  grid-column: 2;
+  grid-row: 1;
+  min-height: 250px;
+}
+
+/* Pie Chart */
+.chart-pie {
+  grid-column: 3;
+  grid-row: 1;
+  min-height: 250px;
+  background: rgba(132, 182, 244, 0.81);
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.chart-title {
+  font-family: 'Roboto', sans-serif;
+  font-weight: 500;
+  font-size: 20px;
+  line-height: 1;
+  letter-spacing: 2px;
+  color: #000000;
+  text-align: center;
+  margin: 0 0 15px 0;
+}
+
+.chart-wrapper {
+  position: relative;
+  width: 100%;
+  height: 200px;
+}
+
+.chart-pie .chart-wrapper {
+  height: 180px;
+}
+
+/* Download Buttons */
+.download-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 80px;
+  margin-top: 30px;
+  flex-wrap: wrap;
+}
+
+.download-button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(168, 212, 239, 0.61);
+  border: none;
+  border-radius: 8px;
+  padding: 12px 20px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  animation: fadeInUp 0.5s ease-out 0.4s both;
+}
+
+.download-button:hover {
+  background: rgba(168, 212, 239, 0.85);
+  transform: translateY(-3px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+.download-button:active {
+  transform: translateY(-1px);
+}
+
+.excel-icon {
+  width: 39px;
+  height: 32px;
+  object-fit: contain;
+}
+
+.download-text-container {
+  background: rgba(132, 182, 244, 0.67);
+  padding: 8px 16px;
+  border-radius: 4px;
+}
+
+.download-text {
+  font-family: 'Roboto', sans-serif;
+  font-weight: 500;
+  font-size: 18px;
+  line-height: 1.67;
+  letter-spacing: 3px;
+  color: #000000;
+}
+
+/* Animation */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ========================================
+   Responsive Design
+   ======================================== */
+
+@media (max-width: 1024px) {
+  .charts-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .chart-line {
+    grid-column: 1 / -1;
+  }
+
+  .chart-pie {
+    border-radius: 12px;
+  }
+
+  .download-buttons {
+    gap: 40px;
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard-content {
+    padding: 80px 20px 100px;
+  }
+
+  .welcome-message {
+    font-size: 18px;
+    letter-spacing: 2px;
+  }
+
+  .device-title {
+    font-size: 28px;
+  }
+
+  .charts-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .chart-card {
+    min-height: 200px;
+  }
+
+  .chart-pie {
+    border-radius: 12px;
+  }
+
+  .download-buttons {
+    gap: 20px;
+  }
+
+  .download-button {
+    padding: 10px 15px;
+  }
+
+  .download-text {
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  .welcome-message {
+    font-size: 14px;
+    letter-spacing: 1px;
+  }
+
+  .device-title {
+    font-size: 22px;
+    letter-spacing: 2px;
+  }
+
+  .chart-title {
+    font-size: 16px;
+  }
+
+  .download-buttons {
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+  }
+
+  .download-button {
+    width: 100%;
+    max-width: 250px;
+    justify-content: center;
+  }
+}
+
+/* ========================================
+   Empty Charts State
+   ======================================== */
+
+.empty-charts {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  background: #f8f9fa;
+  border-radius: 12px;
+  border: 2px dashed #ddd;
+}
+
+.empty-charts-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+  padding: 40px;
+}
+
+.empty-charts-content .empty-icon {
+  color: #ccc;
+}
+
+.empty-charts-content h3 {
+  font-size: 20px;
+  font-weight: 500;
+  color: #666;
+  margin: 0;
+}
+
+.empty-charts-content p {
+  font-size: 14px;
+  color: #999;
+  margin: 0;
+}
+
+/* ========================================
+   Dynamic Widget Styles
+   ======================================== */
+
+.chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.chart-download-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 5px;
+  border-radius: 4px;
+  transition: background 0.3s ease;
+}
+
+.chart-download-btn:hover {
+  background: rgba(132, 182, 244, 0.2);
+}
+
+.excel-icon-small {
+  width: 24px;
+  height: 24px;
+}
+
+/* ========================================
+   Live Indicator
+   ======================================== */
+
+.live-indicator {
+  margin-left: 8px;
+  font-size: 10px;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}

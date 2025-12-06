@@ -1,0 +1,197 @@
+/* ========================================
+   Devices Page Styles
+   Baseado no design Figma - Home user new
+   ======================================== */
+
+.devices-container {
+  min-height: 100vh;
+  background: #FFFFFF;
+  display: flex;
+  flex-direction: column;
+}
+
+.devices-content {
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 100px 40px;
+}
+
+/* Devices Grid */
+.devices-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 40px;
+  max-width: 1200px;
+  width: 100%;
+  padding: 20px;
+}
+
+/* Device Card */
+.device-card {
+  position: relative;
+  background: rgba(168, 212, 239, 0.61);
+  border-radius: 16px;
+  padding: 40px 30px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  min-height: 220px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  animation: fadeInUp 0.5s ease-out both;
+}
+
+.device-card:nth-child(1) { animation-delay: 0.1s; }
+.device-card:nth-child(2) { animation-delay: 0.15s; }
+.device-card:nth-child(3) { animation-delay: 0.2s; }
+.device-card:nth-child(4) { animation-delay: 0.25s; }
+.device-card:nth-child(5) { animation-delay: 0.3s; }
+.device-card:nth-child(6) { animation-delay: 0.35s; }
+
+.device-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 25px rgba(132, 182, 244, 0.4);
+}
+
+/* Device Icon */
+.device-icon {
+  width: 80px;
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #1D1B20;
+  opacity: 0.7;
+  transition: all 0.3s ease;
+}
+
+.device-card:hover .device-icon {
+  opacity: 1;
+}
+
+/* Device Name */
+.device-name {
+  font-family: 'Roboto', sans-serif;
+  font-weight: 500;
+  font-size: 24px;
+  line-height: 1.67;
+  letter-spacing: 2px;
+  color: #000000;
+  text-align: center;
+}
+
+/* Animation */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ========================================
+/* ========================================
+   Empty State
+   ======================================== */
+
+.empty-devices-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 60px 20px;
+  color: #666;
+}
+
+.empty-devices-state .empty-image-container {
+  width: 250px;
+  height: 375px;
+  margin-bottom: 30px;
+}
+
+.empty-devices-state .empty-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.empty-devices-state h2 {
+  font-family: 'Roboto', sans-serif;
+  font-size: 24px;
+  font-weight: 500;
+  color: #84B6F4;
+  margin-bottom: 12px;
+  letter-spacing: 1px;
+}
+
+.empty-devices-state p {
+  font-family: 'Roboto', sans-serif;
+  font-size: 16px;
+  color: #666;
+  line-height: 1.6;
+}
+
+/* ========================================
+   Responsive Design
+   ======================================== */
+
+@media (max-width: 1024px) {
+  .devices-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 40px 60px;
+  }
+}
+
+@media (max-width: 768px) {
+  .devices-content {
+    padding: 100px 20px;
+  }
+
+  .devices-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 30px;
+  }
+
+  .device-card {
+    min-height: 180px;
+    padding: 30px 20px;
+  }
+
+  .device-icon {
+    width: 60px;
+    height: 60px;
+  }
+
+  .device-icon svg {
+    width: 45px;
+    height: 45px;
+  }
+
+  .device-name {
+    font-size: 18px;
+  }
+}
+
+@media (max-width: 480px) {
+  .devices-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .device-card {
+    min-height: 150px;
+    padding: 25px 20px;
+  }
+
+  .device-name {
+    font-size: 16px;
+  }
+}

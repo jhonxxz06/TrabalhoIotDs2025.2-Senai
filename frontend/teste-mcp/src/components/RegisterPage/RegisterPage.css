@@ -1,0 +1,494 @@
+/* ========================================
+   Register Page Styles
+   Baseado no design Figma - Cadastro
+   ======================================== */
+
+/* Container Principal */
+.register-container {
+  position: relative;
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+}
+
+/* Background Image */
+.register-container .background-image {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 100%;
+  height: 100%;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  z-index: 0;
+}
+
+.register-container .background-image::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    135deg,
+    rgba(0, 0, 0, 0.3) 0%,
+    rgba(0, 0, 0, 0.1) 100%
+  );
+}
+
+/* Register Card */
+.register-card {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 650px;
+  padding: 50px 60px;
+  background: rgba(217, 217, 217, 0.52);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 59px;
+  box-shadow: 0px 8px 32px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 30px;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  animation: fadeInUp 0.6s ease-out;
+}
+
+.register-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0px 12px 40px rgba(0, 0, 0, 0.2);
+}
+
+/* Logo */
+.register-card .logo-container {
+  width: 140px;
+  height: 140px;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0px 4px 16px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease;
+  animation: fadeInUp 0.6s ease-out 0.1s both;
+}
+
+.register-card .logo-container:hover {
+  transform: scale(1.05);
+}
+
+.register-card .logo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Form */
+.register-form {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Text Field */
+.register-form .text-field {
+  width: 100%;
+  border-radius: 4px 4px 0 0;
+  overflow: hidden;
+  transition: box-shadow 0.3s ease;
+  animation: fadeInUp 0.6s ease-out both;
+}
+
+.register-form .text-field:nth-child(1) { animation-delay: 0.15s; }
+.register-form .text-field:nth-child(2) { animation-delay: 0.2s; }
+.register-form .text-field:nth-child(3) { animation-delay: 0.25s; }
+
+.register-form .text-field:focus-within {
+  box-shadow: 0px 2px 8px rgba(132, 182, 244, 0.4);
+}
+
+.register-form .text-field-container {
+  display: flex;
+  align-items: center;
+  background: rgba(132, 182, 244, 0.67);
+  padding: 8px 4px 8px 16px;
+  gap: 4px;
+  border-radius: 4px 4px 0 0;
+  transition: background-color 0.3s ease;
+}
+
+.register-form .text-field:hover .text-field-container {
+  background: rgba(132, 182, 244, 0.8);
+}
+
+.register-form .text-field-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 4px 0;
+  gap: 2px;
+}
+
+.register-form .text-field-label {
+  font-family: 'Roboto', sans-serif;
+  font-weight: 400;
+  font-size: 12px;
+  line-height: 1.33;
+  letter-spacing: 0.4px;
+  color: #49454F;
+  transition: color 0.3s ease;
+}
+
+.register-form .text-field:focus-within .text-field-label {
+  color: #1D1B20;
+}
+
+.register-form .text-field-input {
+  width: 100%;
+  border: none;
+  background: transparent;
+  font-family: 'Roboto', sans-serif;
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 1.5;
+  letter-spacing: 0.5px;
+  color: #1D1B20;
+  outline: none;
+}
+
+.register-form .text-field-input::placeholder {
+  color: #49454F;
+  opacity: 0.7;
+}
+
+/* Trailing Icon Button */
+.register-form .trailing-icon {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: transparent;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.register-form .trailing-icon:hover {
+  background: rgba(0, 0, 0, 0.08);
+  transform: scale(1.1);
+}
+
+/* Active Indicator */
+.register-form .active-indicator {
+  height: 1px;
+  width: 100%;
+  background: #49454F;
+  transition: height 0.3s ease, background-color 0.3s ease;
+}
+
+.register-form .text-field:focus-within .active-indicator {
+  height: 2px;
+  background: #1D1B20;
+}
+
+/* Menu Item - Dispositivos */
+.menu-item {
+  width: 100%;
+  background: #BBF5FB;
+  border-radius: 4px;
+  padding: 2px 4px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  animation: fadeInUp 0.6s ease-out 0.3s both;
+}
+
+.menu-item:hover {
+  background: #9aedf5;
+  transform: translateX(5px);
+}
+
+.menu-item-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 4px;
+}
+
+.menu-item-leading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.menu-item-label {
+  flex: 1;
+  font-family: 'Roboto', sans-serif;
+  font-weight: 500;
+  font-size: 14px;
+  line-height: 1.43;
+  letter-spacing: 0.1px;
+  color: #1D1B20;
+}
+
+.menu-item-trailing {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Register Button */
+.register-button {
+  width: 100%;
+  height: 80px;
+  margin-top: 10px;
+  background: rgba(168, 212, 239, 0.61);
+  border: none;
+  border-radius: 128px;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: all 0.3s ease;
+  box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.1);
+  animation: fadeInUp 0.6s ease-out 0.35s both;
+}
+
+.register-button:hover:not(:disabled) {
+  background: rgba(168, 212, 239, 0.85);
+  transform: translateY(-2px);
+  box-shadow: 0px 6px 20px rgba(0, 0, 0, 0.15);
+}
+
+.register-button:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0px 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.register-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.register-button.loading {
+  position: relative;
+}
+
+.register-button.loading::after {
+  content: '';
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  border: 3px solid transparent;
+  border-top-color: #000;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-left: 12px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.register-button .button-text {
+  font-family: 'Roboto', sans-serif;
+  font-weight: 500;
+  font-size: 18px;
+  line-height: 1.43;
+  letter-spacing: 0.13px;
+  color: #000000;
+  text-align: center;
+}
+
+/* Back to Login Link */
+.back-to-login {
+  text-align: center;
+  margin-top: 16px;
+  font-family: 'Roboto', sans-serif;
+  font-size: 15px;
+  color: #1D1B20;
+  font-weight: 500;
+}
+
+.back-to-login-link {
+  background: none;
+  border: none;
+  color: #1565C0;
+  font-family: 'Roboto', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+  margin-left: 4px;
+  transition: color 0.2s ease;
+}
+
+.back-to-login-link:hover {
+  color: #0D47A1;
+}
+
+/* Animation */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ========================================
+   Device Selector Dropdown
+   ======================================== */
+
+.device-selector {
+  position: relative;
+  width: 100%;
+}
+
+.device-selector .menu-item {
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.device-selector .menu-item:hover {
+  background-color: rgba(132, 182, 244, 0.1);
+}
+
+.device-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  z-index: 100;
+  max-height: 200px;
+  overflow-y: auto;
+  margin-top: 4px;
+  animation: dropdownSlide 0.2s ease;
+}
+
+@keyframes dropdownSlide {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.device-dropdown-empty {
+  padding: 16px;
+  text-align: center;
+  color: #666;
+  font-size: 14px;
+}
+
+.device-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.device-dropdown-item:last-child {
+  border-bottom: none;
+}
+
+.device-dropdown-item:hover {
+  background-color: rgba(132, 182, 244, 0.1);
+}
+
+.device-dropdown-item.selected {
+  background-color: rgba(132, 182, 244, 0.15);
+}
+
+.device-checkbox {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #ccc;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.device-dropdown-item.selected .device-checkbox {
+  border-color: #84B6F4;
+  background-color: rgba(132, 182, 244, 0.2);
+}
+
+.device-name {
+  font-size: 14px;
+  color: #333;
+  flex: 1;
+}
+
+/* ========================================
+   Responsive Design
+   ======================================== */
+
+@media (max-width: 768px) {
+  .register-card {
+    max-width: 90%;
+    padding: 40px 30px;
+    border-radius: 40px;
+    gap: 24px;
+  }
+
+  .register-card .logo-container {
+    width: 120px;
+    height: 120px;
+  }
+
+  .register-button {
+    height: 70px;
+  }
+}
+
+@media (max-width: 480px) {
+  .register-card {
+    padding: 30px 20px;
+    border-radius: 30px;
+    gap: 20px;
+  }
+
+  .register-card .logo-container {
+    width: 100px;
+    height: 100px;
+  }
+
+  .register-form .text-field-input {
+    font-size: 14px;
+  }
+
+  .register-button {
+    height: 60px;
+  }
+
+  .register-button .button-text {
+    font-size: 16px;
+  }
+}

@@ -1,0 +1,386 @@
+/* ========================================
+   Admin Dashboard Page Styles
+   ======================================== */
+
+.admin-dashboard-container {
+  min-height: 100vh;
+  background: #FFFFFF;
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-dashboard-content {
+  flex: 1;
+  padding: 100px 40px 100px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 30px;
+}
+
+/* ========================================
+   Device Title Section
+   ======================================== */
+
+.admin-device-title-section {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 10px;
+}
+
+.admin-device-title {
+  font-family: 'Roboto', sans-serif;
+  font-weight: 500;
+  font-size: 40px;
+  color: #000000;
+  letter-spacing: 5px;
+}
+
+.mqtt-connect-btn {
+  padding: 12px 24px;
+  background: linear-gradient(135deg, #4CAF50, #66BB6A);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-family: 'Roboto', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+}
+
+.mqtt-connect-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(76, 175, 80, 0.4);
+}
+
+.mqtt-connect-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.admin-device-title-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.title-action-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 2px solid;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  background: transparent;
+}
+
+.title-action-btn.edit {
+  border-color: #1976D2;
+  color: #1976D2;
+}
+
+.title-action-btn.edit:hover {
+  background: #1976D2;
+  color: white;
+  transform: scale(1.1);
+}
+
+.title-action-btn.delete {
+  border-color: #d32f2f;
+  color: #d32f2f;
+}
+
+.title-action-btn.delete:hover {
+  background: #d32f2f;
+  color: white;
+  transform: scale(1.1);
+}
+
+/* ========================================
+   Charts Whiteboard (Miro Style)
+   ======================================== */
+
+.admin-charts-whiteboard {
+  position: relative;
+  width: 100%;
+  max-width: 1200px;
+  height: 500px;
+  background: 
+    radial-gradient(circle, rgba(132, 182, 244, 0.1) 1px, transparent 1px);
+  background-size: 20px 20px;
+  border: 2px dashed rgba(132, 182, 244, 0.3);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.admin-chart-card {
+  position: absolute;
+  width: 340px;
+  background: rgba(168, 212, 239, 0.85);
+  border-radius: 16px;
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  transition: box-shadow 0.2s ease;
+  cursor: grab;
+  user-select: none;
+}
+
+.admin-chart-card:hover {
+  box-shadow: 0 8px 25px rgba(132, 182, 244, 0.4);
+}
+
+.admin-chart-card:hover .chart-actions {
+  opacity: 1;
+}
+
+.admin-chart-card.dragging {
+  cursor: grabbing;
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2);
+  transform: scale(1.02);
+  z-index: 1000 !important;
+}
+
+/* Chart Card Header */
+.chart-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  margin-bottom: 15px;
+}
+
+.chart-actions {
+  display: flex;
+  gap: 8px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.chart-action-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.chart-action-btn:hover {
+  transform: scale(1.15);
+}
+
+.chart-action-btn.edit {
+  color: #1976D2;
+}
+
+.chart-action-btn.edit:hover {
+  background: #1976D2;
+  color: white;
+}
+
+.chart-action-btn.delete {
+  color: #d32f2f;
+}
+
+.chart-action-btn.delete:hover {
+  background: #d32f2f;
+  color: white;
+}
+
+.chart-action-btn.download {
+  color: #2e7d32;
+}
+
+.chart-action-btn.download:hover {
+  background: #2e7d32;
+}
+
+.chart-action-btn.download:hover .chart-action-icon {
+  filter: brightness(0) invert(1);
+}
+
+.chart-action-icon {
+  width: 16px;
+  height: 16px;
+  transition: filter 0.2s ease;
+}
+
+.pie-chart-card {
+  background: rgba(132, 182, 244, 0.85);
+}
+
+.admin-chart-title {
+  font-family: 'Roboto', sans-serif;
+  font-weight: 500;
+  font-size: 18px;
+  color: #000000;
+  letter-spacing: 1px;
+  margin: 0;
+}
+
+.admin-chart-container {
+  width: 100%;
+  height: 200px;
+  position: relative;
+}
+
+.pie-container {
+  height: 220px;
+}
+
+/* ========================================
+   Responsive Design
+   ======================================== */
+
+@media (max-width: 1024px) {
+  .admin-charts-whiteboard {
+    height: 400px;
+  }
+
+  .admin-chart-card {
+    width: 280px;
+  }
+}
+
+@media (max-width: 768px) {
+  .admin-dashboard-content {
+    padding: 80px 20px 80px;
+  }
+
+  .admin-device-title {
+    font-size: 28px;
+  }
+
+  .admin-device-title-section {
+    flex-direction: column;
+    gap: 15px;
+  }
+
+  .admin-charts-whiteboard {
+    height: 600px;
+  }
+
+  .admin-chart-card {
+    width: 260px;
+  }
+}
+
+@media (max-width: 480px) {
+  .admin-device-title {
+    font-size: 22px;
+  }
+
+  .title-action-btn {
+    width: 38px;
+    height: 38px;
+  }
+
+  .admin-chart-title {
+    font-size: 18px;
+  }
+
+  .admin-chart-card {
+    width: 220px;
+  }
+}
+
+/* ========================================
+   Empty Whiteboard State
+   ======================================== */
+
+.empty-whiteboard {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  min-height: 400px;
+}
+
+.empty-whiteboard-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  text-align: center;
+  color: #888;
+}
+
+.empty-whiteboard-content .empty-icon {
+  color: #ccc;
+}
+
+.empty-whiteboard-content h3 {
+  font-size: 24px;
+  font-weight: 500;
+  color: #666;
+  margin: 0;
+}
+
+.empty-whiteboard-content p {
+  font-size: 16px;
+  color: #999;
+  margin: 0;
+}
+
+.create-first-graph-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  background: linear-gradient(135deg, #84B6F4, #6BA3E8);
+  border: none;
+  border-radius: 8px;
+  color: white;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: 10px;
+}
+
+.create-first-graph-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(132, 182, 244, 0.4);
+}
+
+/* ========================================
+   Live Indicator & Refresh Button
+   ======================================== */
+
+.live-indicator {
+  margin-left: 8px;
+  font-size: 10px;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.chart-action-btn.refresh {
+  background: transparent;
+}
+
+.chart-action-btn.refresh:hover {
+  background: rgba(76, 175, 80, 0.1);
+}
+
+.chart-action-btn.refresh svg {
+  transition: transform 0.3s ease;
+}
+
+.chart-action-btn.refresh:hover svg {
+  transform: rotate(180deg);
+}
