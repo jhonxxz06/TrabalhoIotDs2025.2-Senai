@@ -7,7 +7,17 @@ const connections = new Map();
 // Armazena último dado recebido por tópico (cache)
 const latestData = new Map();
 
+// Instância do Socket.IO (será injetada)
+let io = null;
+
 const MqttService = {
+  /**
+   * Define instância do Socket.IO para emitir dados em tempo real
+   */
+  setSocketIO(socketIO) {
+    io = socketIO;
+    console.log('[MQTT] Socket.IO configurado para emissão em tempo real');
+  },
   /**
    * Conecta a um broker MQTT para um dispositivo
    */
@@ -55,6 +65,8 @@ const MqttService = {
     client.on('message', (topic, message) => {
       try {
         const payload = message.toString();
+        const timestamp = new Date().toISOString();
+        
         console.log(`\n[MQTT] 📥 MENSAGEM RECEBIDA!`);
         console.log(`[MQTT] Device ID: ${id}`);
         console.log(`[MQTT] Tópico: ${topic}`);
@@ -63,12 +75,25 @@ const MqttService = {
         // Salva no cache
         latestData.set(topic, {
           payload,
-          timestamp: new Date().toISOString()
+          timestamp
         });
 
         // Salva no banco
         this.saveData(id, topic, payload);
-        console.log(`[MQTT] ✅ Dados salvos no banco!\n`);
+        console.log(`[MQTT] ✅ Dados salvos no banco!`);
+        
+        // 🔥 Emite dados via WebSocket para clientes conectados
+        if (io) {
+          io.to(`device:${id}`).emit('mqtt:data', {
+            deviceId: id,
+            topic,
+            payload,
+            timestamp
+          });
+          console.log(`[MQTT] 🔌 Dados enviados via WebSocket para device:${id}\n`);
+        } else {
+          console.log(`[MQTT] ⚠️ Socket.IO não configurado - WebSocket desabilitado\n`);
+        }
       } catch (error) {
         console.error('[MQTT] Erro ao processar mensagem:', error);
       }

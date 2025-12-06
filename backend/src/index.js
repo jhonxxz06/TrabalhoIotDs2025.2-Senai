@@ -1,11 +1,22 @@
 require('dotenv').config();
 const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
 const cors = require('cors');
 const helmet = require('helmet');
 const { initDatabase } = require('./config/database');
 
 const app = express();
+const server = http.createServer(app);
 const PORT = process.env.PORT || 3001;
+
+// Configurar Socket.IO com CORS
+const io = new Server(server, {
+  cors: {
+    origin: ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002', 'http://localhost:3003'],
+    credentials: true
+  }
+});
 
 // Middlewares de segurança e parsing
 app.use(helmet());
@@ -14,6 +25,26 @@ app.use(cors({
   credentials: true
 }));
 app.use(express.json());
+
+// Socket.IO - Gerenciar conexões
+io.on('connection', (socket) => {
+  console.log(`🔌 Cliente WebSocket conectado: ${socket.id}`);
+  
+  // Cliente se inscreve em um dispositivo específico
+  socket.on('subscribe:device', (deviceId) => {
+    socket.join(`device:${deviceId}`);
+    console.log(`[WebSocket] Cliente ${socket.id} inscrito no device:${deviceId}`);
+  });
+  
+  socket.on('unsubscribe:device', (deviceId) => {
+    socket.leave(`device:${deviceId}`);
+    console.log(`[WebSocket] Cliente ${socket.id} desinscrito do device:${deviceId}`);
+  });
+  
+  socket.on('disconnect', () => {
+    console.log(`🔌 Cliente WebSocket desconectado: ${socket.id}`);
+  });
+});
 
 // Rota de health check
 app.get('/api/health', (req, res) => {
@@ -59,14 +90,15 @@ app.use((req, res) => {
 // Inicializa o banco de dados e depois inicia o servidor
 initDatabase()
   .then(() => {
-    app.listen(PORT, () => {
+    server.listen(PORT, () => {
       console.log(`🚀 Servidor rodando em http://localhost:${PORT}`);
+      console.log(`🔌 WebSocket pronto na porta ${PORT}`);
       console.log(`📡 Health check: http://localhost:${PORT}/api/health`);
       
       // Inicializa conexões MQTT após servidor estar pronto
       const { initMqttConnections } = require('./config/mqtt');
       setTimeout(() => {
-        initMqttConnections();
+        initMqttConnections(io);
       }, 1000);
     });
   })

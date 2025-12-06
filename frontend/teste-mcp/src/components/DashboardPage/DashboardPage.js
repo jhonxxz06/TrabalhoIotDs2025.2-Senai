@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Chart, registerables } from 'chart.js';
+import { io } from 'socket.io-client';
 import './DashboardPage.css';
 import Header from '../Header';
 import Footer from '../Footer';
@@ -10,14 +11,19 @@ import { mqtt as mqttApi } from '../../services/api';
 // Registrar todos os componentes do Chart.js
 Chart.register(...registerables);
 
+// Inicializar Socket.IO (fora do componente)
+const socket = io('http://localhost:3001', {
+  autoConnect: false
+});
+
 // Componente para renderizar widgets dinâmicos com dados MQTT
 const DynamicWidget = ({ widget, deviceId, onDownload }) => {
   const chartRef = useRef(null);
   const chartInstance = useRef(null);
-  const [mqttData, setMqttData] = useState(null);
+  const [mqttData, setMqttData] = useState([]);
 
-  // Buscar dados MQTT
-  const fetchMqttData = useCallback(async () => {
+  // Buscar dados MQTT iniciais
+  const fetchInitialData = useCallback(async () => {
     if (!deviceId) return;
     
     try {
@@ -30,12 +36,53 @@ const DynamicWidget = ({ widget, deviceId, onDownload }) => {
     }
   }, [deviceId]);
 
-  // Polling para atualizar dados a cada 5 segundos
+  // WebSocket - Conectar e escutar dados em tempo real
   useEffect(() => {
-    fetchMqttData();
-    const interval = setInterval(fetchMqttData, 5000);
-    return () => clearInterval(interval);
-  }, [fetchMqttData]);
+    if (!deviceId) return;
+    
+    // Buscar dados iniciais
+    fetchInitialData();
+    
+    // Conectar ao WebSocket
+    if (!socket.connected) {
+      socket.connect();
+    }
+    
+    // Inscrever-se no dispositivo
+    socket.emit('subscribe:device', deviceId);
+    console.log(`🔌 Conectado ao WebSocket - Device ${deviceId}`);
+    
+    // Listener para dados MQTT em tempo real
+    const handleMqttData = (data) => {
+      console.log('📥 Dados MQTT em tempo real:', data);
+      
+      if (data.deviceId === deviceId) {
+        // Adicionar novo dado ao início do array
+        setMqttData((prevData) => {
+          const newData = [{
+            id: Date.now(),
+            device_id: data.deviceId,
+            topic: data.topic,
+            payload: data.payload,
+            timestamp: data.timestamp,
+            received_at: data.timestamp
+          }, ...prevData];
+          
+          // Manter apenas os últimos 20 registros
+          return newData.slice(0, 20);
+        });
+      }
+    };
+    
+    socket.on('mqtt:data', handleMqttData);
+    
+    // Cleanup
+    return () => {
+      socket.emit('unsubscribe:device', deviceId);
+      socket.off('mqtt:data', handleMqttData);
+      console.log(`🔌 Desconectado do WebSocket - Device ${deviceId}`);
+    };
+  }, [deviceId, fetchInitialData]);
 
   // Criar/atualizar gráfico
   useEffect(() => {
