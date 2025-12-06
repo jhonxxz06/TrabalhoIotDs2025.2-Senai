@@ -25,4 +25,7 @@ router.get('/:id/data', mqttController.getData);
 // GET /api/mqtt/:id/latest - Último dado
 router.get('/:id/latest', mqttController.getLatest);
 
+// GET /api/mqtt/:id/exceedances - Excedências (alertas de thresholds)
+router.get('/:id/exceedances', mqttController.getExceedances);
+
 module.exports = router;

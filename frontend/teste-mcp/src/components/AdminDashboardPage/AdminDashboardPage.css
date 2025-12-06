@@ -109,13 +109,14 @@
   position: relative;
   width: 100%;
   max-width: 1200px;
-  height: 500px;
+  min-height: 600px;
   background: 
     radial-gradient(circle, rgba(132, 182, 244, 0.1) 1px, transparent 1px);
   background-size: 20px 20px;
   border: 2px dashed rgba(132, 182, 244, 0.3);
   border-radius: 16px;
-  overflow: hidden;
+  overflow: visible;
+  padding-bottom: 50px;
 }
 
 .admin-chart-card {
@@ -144,6 +145,18 @@
   box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2);
   transform: scale(1.02);
   z-index: 1000 !important;
+}
+
+/* Table Card (maior que gráfico) */
+.admin-table-card {
+  width: 720px !important;
+  height: 450px !important;
+  padding: 12px;
+}
+
+.admin-table-card .admin-chart-container {
+  height: calc(100% - 50px);
+  max-height: 400px;
 }
 
 /* Chart Card Header */

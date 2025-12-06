@@ -225,11 +225,85 @@ const connectAll = (req, res) => {
   }
 };
 
+/**
+ * Busca excedências (valores fora dos thresholds)
+ */
+const getExceedances = (req, res) => {
+  try {
+    const { id } = req.params;
+    const { limit = 100, since } = req.query;
+
+    // Verifica acesso
+    if (req.user.role !== 'admin' && !Device.userHasAccess(id, req.user.id)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Acesso negado a este dispositivo'
+      });
+    }
+
+    // Thresholds vêm como query params (field1Min, field1Max, field2Min, field2Max, etc.)
+    // Exemplo: ?temperatureMin=15&temperatureMax=30&humidityMin=40&humidityMax=80
+    const thresholds = {};
+    
+    // Extrair thresholds dos query params
+    Object.keys(req.query).forEach(key => {
+      if (key.endsWith('Min') || key.endsWith('Max')) {
+        const field = key.replace(/Min$/, '').replace(/Max$/, '');
+        const type = key.endsWith('Min') ? 'min' : 'max';
+        
+        if (!thresholds[field]) {
+          thresholds[field] = {};
+        }
+        
+        thresholds[field][type] = req.query[key];
+      }
+    });
+
+    const options = {
+      limit: parseInt(limit),
+      since: since || null
+    };
+
+    const data = MqttService.getExceedances(parseInt(id), thresholds, options);
+
+    console.log('[Controller] Dados do service:', data.length, 'registros');
+
+    // Parse do payload se necessário
+    const parsedData = data.map(item => {
+      try {
+        return {
+          ...item,
+          payload: typeof item.payload === 'string' ? JSON.parse(item.payload) : item.payload
+        };
+      } catch {
+        return item;
+      }
+    });
+
+    console.log('[Controller] Dados parseados:', parsedData.length, 'registros');
+    console.log('[Controller] Primeiro item:', JSON.stringify(parsedData[0], null, 2));
+
+    res.json({
+      success: true,
+      data: parsedData,
+      count: parsedData.length,
+      thresholds
+    });
+  } catch (error) {
+    console.error('Erro ao buscar excedências:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro interno do servidor'
+    });
+  }
+};
+
 module.exports = {
   connect,
   disconnect,
   getStatus,
   getData,
   getLatest,
-  connectAll
+  connectAll,
+  getExceedances
 };

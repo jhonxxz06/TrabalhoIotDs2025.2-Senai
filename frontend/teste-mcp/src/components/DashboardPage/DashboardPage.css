@@ -100,6 +100,12 @@
 .chart-card:nth-child(2) { animation-delay: 0.2s; }
 .chart-card:nth-child(3) { animation-delay: 0.3s; }
 
+/* Tabela expandida (ocupa 2 colunas) */
+.table-card-expanded {
+  grid-column: span 2;
+  min-height: 500px;
+}
+
 /* Line Chart - Maior */
 .chart-line {
   grid-column: 1;

@@ -3,6 +3,7 @@ import { Chart, registerables } from 'chart.js';
 import './DashboardPage.css';
 import Header from '../Header';
 import Footer from '../Footer';
+import TableWidget from '../TableWidget';
 import excelIcon from '../../assets/excel-icon.png';
 import { mqtt as mqttApi } from '../../services/api';
 
@@ -59,23 +60,25 @@ const DynamicWidget = ({ widget, deviceId, onDownload }) => {
         
         const datasets = [];
         
-        // Dataset principal (mqttField)
-        const values = mqttData.map(d => {
-          const payload = typeof d.payload === 'string' ? JSON.parse(d.payload) : d.payload;
-          return payload[config.mqttField] || 0;
-        }).reverse();
+        // Dataset principal (mqttField) - somente se preenchido
+        if (config.mqttField && config.mqttField.trim() !== '') {
+          const values = mqttData.map(d => {
+            const payload = typeof d.payload === 'string' ? JSON.parse(d.payload) : d.payload;
+            return payload[config.mqttField] || 0;
+          }).reverse();
 
-        datasets.push({
-          label: config.mqttField,
-          data: values,
-          borderColor: 'rgba(255, 99, 132, 1)',
-          backgroundColor: 'rgba(255, 99, 132, 0.2)',
-          fill: true,
-          tension: 0.4
-        });
+          datasets.push({
+            label: config.mqttField,
+            data: values,
+            borderColor: 'rgba(255, 99, 132, 1)',
+            backgroundColor: 'rgba(255, 99, 132, 0.2)',
+            fill: true,
+            tension: 0.4
+          });
+        }
 
-        // Dataset secundário (mqttField2) se existir
-        if (config.mqttField2) {
+        // Dataset secundário (mqttField2) - SOMENTE se preenchido
+        if (config.mqttField2 && config.mqttField2.trim() !== '') {
           const values2 = mqttData.map(d => {
             const payload = typeof d.payload === 'string' ? JSON.parse(d.payload) : d.payload;
             return payload[config.mqttField2] || 0;
@@ -93,7 +96,7 @@ const DynamicWidget = ({ widget, deviceId, onDownload }) => {
 
         chartData = { labels, datasets };
       } else if (mqttData && mqttData.length > 0) {
-        // Detectar campos automaticamente
+        // Detectar campos automaticamente SOMENTE se não houver mqttField configurado
         const lastPayload = typeof mqttData[0].payload === 'string' 
           ? JSON.parse(mqttData[0].payload) 
           : mqttData[0].payload;
@@ -106,14 +109,15 @@ const DynamicWidget = ({ widget, deviceId, onDownload }) => {
             return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
           }).reverse();
 
-          const datasets = fields.slice(0, 2).map((field, idx) => ({
+          // Usar apenas o primeiro campo quando auto-detectar
+          const datasets = [fields[0]].map((field, idx) => ({
             label: field,
             data: mqttData.map(d => {
               const payload = typeof d.payload === 'string' ? JSON.parse(d.payload) : d.payload;
               return payload[field] || 0;
             }).reverse(),
-            borderColor: idx === 0 ? 'rgba(255, 99, 132, 1)' : 'rgba(54, 162, 235, 1)',
-            backgroundColor: idx === 0 ? 'rgba(255, 99, 132, 0.2)' : 'rgba(54, 162, 235, 0.2)',
+            borderColor: 'rgba(255, 99, 132, 1)',
+            backgroundColor: 'rgba(255, 99, 132, 0.2)',
             fill: true,
             tension: 0.4
           }));
@@ -142,6 +146,24 @@ const DynamicWidget = ({ widget, deviceId, onDownload }) => {
       }
     };
   }, [widget, mqttData]);
+
+  const config = typeof widget.config === 'string' ? JSON.parse(widget.config) : widget.config;
+
+  // Se for tabela, renderizar TableWidget
+  if (config && config.type === 'table') {
+    return (
+      <div className="chart-card table-card-expanded">
+        <div className="chart-header">
+          <h3 className="chart-title">
+            {widget.name || config.title || 'Tabela'}
+          </h3>
+        </div>
+        <div className="chart-wrapper">
+          <TableWidget deviceId={deviceId} config={config} />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="chart-card">

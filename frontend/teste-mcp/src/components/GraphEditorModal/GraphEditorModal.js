@@ -119,6 +119,7 @@ const GraphEditorModal = ({
   const [mqttField, setMqttField] = useState('');
   const [mqttField2, setMqttField2] = useState('');
   const [useMqttData, setUseMqttData] = useState(true);
+  const [thresholds, setThresholds] = useState({});
 
   useEffect(() => {
     if (existingWidget) {
@@ -128,6 +129,7 @@ const GraphEditorModal = ({
       setMqttField(existingWidget.mqttField || '');
       setMqttField2(existingWidget.mqttField2 || '');
       setUseMqttData(existingWidget.mqttField ? true : false);
+      setThresholds(existingWidget.thresholds || {});
       setMode(existingWidget.mqttField ? 'simple' : 'advanced');
     } else {
       setJsonCode('');
@@ -136,6 +138,7 @@ const GraphEditorModal = ({
       setMqttField('temperature');
       setMqttField2('humidity');
       setUseMqttData(true);
+      setThresholds({});
       setMode('simple');
     }
     setError('');
@@ -174,23 +177,88 @@ const GraphEditorModal = ({
 
   const handleSave = () => {
     if (mode === 'simple') {
-      // Criar widget baseado nos campos simples
+      console.log('🔍 Salvando widget - tipo:', chartType, '| mqttField:', mqttField, '| mqttField2:', mqttField2);
+      
+      // Se for tabela, criar estrutura diferente
+      if (chartType === 'table') {
+        // Processar thresholds do state
+        const processedThresholds = {};
+        
+        Object.entries(thresholds).forEach(([field, limits]) => {
+          processedThresholds[field] = {
+            min: limits.min !== '' && limits.min !== undefined ? parseFloat(limits.min) : undefined,
+            max: limits.max !== '' && limits.max !== undefined ? parseFloat(limits.max) : undefined
+          };
+        });
+        
+        const widget = {
+          type: 'table',
+          title: title || 'Tabela de Excedências',
+          mqttField: mqttField || null,
+          useMqttData: true,
+          thresholds: processedThresholds,
+          limit: 50
+        };
+        
+        console.log('📋 Widget tabela:', widget);
+        console.log('📋 Thresholds:', processedThresholds);
+        onSave(widget);
+        onClose();
+        return;
+      }
+      
+      // Criar datasets baseado APENAS nos campos preenchidos (para gráficos)
+      const datasets = [];
+      
+      // Adicionar primeiro campo se preenchido
+      if (mqttField && mqttField.trim() !== '') {
+        console.log('✅ Adicionando dataset 1:', mqttField);
+        datasets.push({
+          label: mqttField,
+          data: [],
+          borderColor: 'rgba(255, 99, 132, 1)',
+          backgroundColor: 'rgba(255, 99, 132, 0.2)',
+          fill: chartType === 'line',
+          tension: 0.4
+        });
+      }
+      
+      // Adicionar segundo campo SOMENTE se preenchido
+      if (mqttField2 && mqttField2.trim() !== '') {
+        console.log('✅ Adicionando dataset 2:', mqttField2);
+        datasets.push({
+          label: mqttField2,
+          data: [],
+          borderColor: 'rgba(54, 162, 235, 1)',
+          backgroundColor: 'rgba(54, 162, 235, 0.2)',
+          fill: chartType === 'line',
+          tension: 0.4
+        });
+      }
+      
+      // Se nenhum campo foi preenchido, criar dataset padrão
+      if (datasets.length === 0) {
+        console.log('⚠️ Nenhum campo preenchido, usando dataset padrão');
+        datasets.push({
+          label: 'Valor',
+          data: [],
+          borderColor: 'rgba(255, 99, 132, 1)',
+          backgroundColor: 'rgba(255, 99, 132, 0.2)',
+          fill: true,
+          tension: 0.4
+        });
+      }
+      
+      // Criar widget com datasets dinâmicos
       const widget = {
         type: chartType,
-        title: title || `Gráfico de ${mqttField}`,
+        title: title || `Gráfico de ${mqttField || 'Dados'}`,
         mqttField: mqttField || null,
         mqttField2: mqttField2 || null,
         useMqttData: useMqttData,
         data: {
           labels: [],
-          datasets: [{
-            label: mqttField || 'Valor',
-            data: [],
-            borderColor: 'rgba(255, 99, 132, 1)',
-            backgroundColor: 'rgba(255, 99, 132, 0.2)',
-            fill: true,
-            tension: 0.4
-          }]
+          datasets: datasets
         },
         options: {
           plugins: { legend: { display: true } },
@@ -198,17 +266,8 @@ const GraphEditorModal = ({
         }
       };
 
-      // Adicionar segundo dataset se tiver segundo campo
-      if (mqttField2) {
-        widget.data.datasets.push({
-          label: mqttField2,
-          data: [],
-          borderColor: 'rgba(54, 162, 235, 1)',
-          backgroundColor: 'rgba(54, 162, 235, 0.2)',
-          fill: true,
-          tension: 0.4
-        });
-      }
+      console.log('📦 Widget final:', widget);
+      console.log('📊 Total de datasets:', datasets.length);
 
       onSave(widget);
       onClose();
@@ -282,7 +341,7 @@ const GraphEditorModal = ({
               <div className="form-group">
                 <label>Tipo de Gráfico</label>
                 <div className="chart-type-buttons">
-                  {['line', 'bar', 'pie', 'doughnut'].map(type => (
+                  {['line', 'bar', 'pie', 'doughnut', 'table'].map(type => (
                     <button
                       key={type}
                       className={`chart-type-btn ${chartType === type ? 'active' : ''}`}
@@ -292,6 +351,7 @@ const GraphEditorModal = ({
                       {type === 'bar' && '📊 Barras'}
                       {type === 'pie' && '🥧 Pizza'}
                       {type === 'doughnut' && '🍩 Rosca'}
+                      {type === 'table' && '📋 Tabela'}
                     </button>
                   ))}
                 </div>
@@ -308,7 +368,7 @@ const GraphEditorModal = ({
                 </label>
               </div>
 
-              {useMqttData && (
+              {useMqttData && chartType !== 'table' && (
                 <>
                   <div className="form-group">
                     <label>Campo do Payload (1º)</label>
@@ -330,6 +390,66 @@ const GraphEditorModal = ({
                       placeholder="Ex: humidity"
                     />
                     <small>Para comparar dois valores no mesmo gráfico</small>
+                  </div>
+                </>
+              )}
+
+              {useMqttData && chartType === 'table' && (
+                <>
+                  <div className="form-group">
+                    <label>Campos para Monitorar (separados por vírgula)</label>
+                    <input
+                      type="text"
+                      value={mqttField}
+                      onChange={(e) => setMqttField(e.target.value)}
+                      placeholder="Ex: temperature,humidity,pressure"
+                    />
+                    <small>Campos do payload que terão thresholds configurados</small>
+                  </div>
+
+                  <div className="thresholds-section">
+                    <h4>⚠️ Configuração de Limites (Thresholds)</h4>
+                    <small style={{ display: 'block', marginBottom: '12px', color: '#666' }}>
+                      Configure os valores mínimos e máximos. Deixe em branco para não monitorar aquele limite.
+                    </small>
+                    {mqttField && mqttField.split(',').filter(f => f.trim()).map(field => {
+                      const fieldTrim = field.trim();
+                      return (
+                        <div key={fieldTrim} className="threshold-config">
+                          <label>{fieldTrim}</label>
+                          <div className="threshold-inputs">
+                            <input
+                              type="number"
+                              placeholder="Mínimo (ex: 15)"
+                              value={thresholds[fieldTrim]?.min ?? ''}
+                              onChange={(e) => {
+                                setThresholds(prev => ({
+                                  ...prev,
+                                  [fieldTrim]: {
+                                    ...prev[fieldTrim],
+                                    min: e.target.value
+                                  }
+                                }));
+                              }}
+                            />
+                            <input
+                              type="number"
+                              placeholder="Máximo (ex: 30)"
+                              value={thresholds[fieldTrim]?.max ?? ''}
+                              onChange={(e) => {
+                                setThresholds(prev => ({
+                                  ...prev,
+                                  [fieldTrim]: {
+                                    ...prev[fieldTrim],
+                                    max: e.target.value
+                                  }
+                                }));
+                              }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </>
               )}
