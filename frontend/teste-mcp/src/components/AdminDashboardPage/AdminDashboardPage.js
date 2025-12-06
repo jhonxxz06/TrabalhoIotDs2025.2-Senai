@@ -80,7 +80,14 @@ const DynamicWidgetCard = ({ widget, deviceId, position, dragging, onMouseDown, 
             borderColor: 'rgba(255, 99, 132, 1)',
             backgroundColor: 'rgba(255, 99, 132, 0.2)',
             fill: true,
-            tension: 0.4
+            tension: 0.4,
+            borderWidth: 3,
+            pointRadius: 4,
+            pointHoverRadius: 8,
+            pointBackgroundColor: 'rgba(255, 99, 132, 1)',
+            pointBorderColor: 'rgba(255, 99, 132, 1)',
+            pointBorderWidth: 0,
+            pointHoverBorderWidth: 0
           });
         }
 
@@ -98,7 +105,14 @@ const DynamicWidgetCard = ({ widget, deviceId, position, dragging, onMouseDown, 
             borderColor: 'rgba(54, 162, 235, 1)',
             backgroundColor: 'rgba(54, 162, 235, 0.2)',
             fill: true,
-            tension: 0.4
+            tension: 0.4,
+            borderWidth: 3,
+            pointRadius: 4,
+            pointHoverRadius: 8,
+            pointBackgroundColor: 'rgba(54, 162, 235, 1)',
+            pointBorderColor: 'rgba(54, 162, 235, 1)',
+            pointBorderWidth: 0,
+            pointHoverBorderWidth: 0
           });
         }
 
@@ -131,7 +145,14 @@ const DynamicWidgetCard = ({ widget, deviceId, position, dragging, onMouseDown, 
             borderColor: 'rgba(255, 99, 132, 1)',
             backgroundColor: 'rgba(255, 99, 132, 0.2)',
             fill: true,
-            tension: 0.4
+            tension: 0.4,
+            borderWidth: 3,
+            pointRadius: 4,
+            pointHoverRadius: 8,
+            pointBackgroundColor: 'rgba(255, 99, 132, 1)',
+            pointBorderColor: 'rgba(255, 99, 132, 1)',
+            pointBorderWidth: 0,
+            pointHoverBorderWidth: 0
           }));
 
           chartData = { labels, datasets };
@@ -145,6 +166,49 @@ const DynamicWidgetCard = ({ widget, deviceId, position, dragging, onMouseDown, 
           responsive: true,
           maintainAspectRatio: false,
           animation: { duration: 300 },
+          interaction: {
+            mode: 'nearest',
+            intersect: false,
+            axis: 'x'
+          },
+          plugins: {
+            tooltip: {
+              enabled: true,
+              backgroundColor: 'rgba(0, 0, 0, 0.8)',
+              padding: 12,
+              titleFont: { size: 14 },
+              bodyFont: { size: 13 },
+              displayColors: true,
+              borderColor: 'rgba(255, 255, 255, 0.3)',
+              borderWidth: 1
+            },
+            legend: {
+              labels: {
+                padding: 15,
+                font: { size: 12 }
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: {
+                display: true,
+                color: 'rgba(0, 0, 0, 0.05)'
+              },
+              ticks: {
+                padding: 8
+              }
+            },
+            y: {
+              grid: {
+                display: true,
+                color: 'rgba(0, 0, 0, 0.05)'
+              },
+              ticks: {
+                padding: 8
+              }
+            }
+          },
           ...(config.options || {})
         }
       });
