@@ -120,8 +120,18 @@ function App() {
     if (isAdmin) return; // Admin não precisa solicitar acesso
     
     try {
-      const response = await api.devices.getPublicList();
-      setPublicDevices(response.devices || []);
+      const [publicResponse, userDevicesResponse] = await Promise.all([
+        api.devices.getPublicList(),
+        api.devices.getAll()
+      ]);
+      
+      const allPublicDevices = publicResponse.devices || [];
+      const userDeviceIds = (userDevicesResponse.devices || []).map(d => d.id);
+      
+      // Filtrar apenas dispositivos que o usuário NÃO tem acesso
+      const availableDevices = allPublicDevices.filter(d => !userDeviceIds.includes(d.id));
+      
+      setPublicDevices(availableDevices);
     } catch (err) {
       console.error('Erro ao carregar dispositivos públicos:', err);
     }

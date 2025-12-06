@@ -149,24 +149,13 @@ const DynamicWidget = ({ widget, deviceId, onDownload }) => {
 
   const config = typeof widget.config === 'string' ? JSON.parse(widget.config) : widget.config;
 
-  // Se for tabela, renderizar TableWidget
+  // Se for tabela, renderizar apenas TableWidget (sem wrapper)
   if (config && config.type === 'table') {
-    return (
-      <div className="chart-card table-card-expanded">
-        <div className="chart-header">
-          <h3 className="chart-title">
-            {widget.name || config.title || 'Tabela'}
-          </h3>
-        </div>
-        <div className="chart-wrapper">
-          <TableWidget deviceId={deviceId} config={config} />
-        </div>
-      </div>
-    );
+    return <TableWidget deviceId={deviceId} config={config} />;
   }
 
   return (
-    <div className="chart-card">
+    <>
       <div className="chart-header">
         <h3 className="chart-title">
           {widget.name || widget.title || 'Gráfico'}
@@ -182,7 +171,7 @@ const DynamicWidget = ({ widget, deviceId, onDownload }) => {
       <div className="chart-wrapper">
         <canvas ref={chartRef}></canvas>
       </div>
-    </div>
+    </>
   );
 };
 
@@ -195,6 +184,43 @@ const DashboardPage = ({
   onBackToDevices,
   onLogout
 }) => {
+  const [widgetPositions, setWidgetPositions] = useState({});
+  const [whiteboardHeight, setWhiteboardHeight] = useState(600);
+
+  // Carregar posições salvas pelo admin
+  useEffect(() => {
+    if (device?.id) {
+      const key = `widgetPositions_${device.id}`;
+      const saved = localStorage.getItem(key);
+      if (saved) {
+        setWidgetPositions(JSON.parse(saved));
+      }
+    }
+  }, [device?.id]);
+
+  // Calcular altura do whiteboard baseado nas posições dos widgets
+  useEffect(() => {
+    if (!widgets || widgets.length === 0) {
+      setWhiteboardHeight(600);
+      return;
+    }
+
+    let maxBottom = 600;
+    
+    widgets.forEach((widget, index) => {
+      const position = widgetPositions[widget.id] || { x: 50 + (index * 370), y: 30 };
+      const config = typeof widget.config === 'string' ? JSON.parse(widget.config) : widget.config;
+      
+      const widgetHeight = config?.type === 'table' ? 450 : 280;
+      const bottom = position.y + widgetHeight + 50;
+      
+      if (bottom > maxBottom) {
+        maxBottom = bottom;
+      }
+    });
+    
+    setWhiteboardHeight(maxBottom);
+  }, [widgets, widgetPositions]);
 
   const handleDownload = (chartType) => {
     if (onDownloadExcel) {
@@ -225,8 +251,8 @@ const DashboardPage = ({
         {/* Device Title */}
         <h2 className="device-title">#{deviceName}</h2>
 
-        {/* Charts Grid */}
-        <div className="charts-grid">
+        {/* Charts Whiteboard */}
+        <div className="charts-whiteboard" style={{ height: `${whiteboardHeight}px`, minHeight: '600px', position: 'relative' }}>
           {widgets.length === 0 ? (
             <div className="empty-charts">
               <div className="empty-charts-content">
@@ -239,14 +265,35 @@ const DashboardPage = ({
               </div>
             </div>
           ) : (
-            widgets.map(widget => (
-              <DynamicWidget
-                key={widget.id}
-                widget={widget}
-                deviceId={device?.id}
-                onDownload={handleDownload}
-              />
-            ))
+            widgets.map((widget, index) => {
+              const config = typeof widget.config === 'string' ? JSON.parse(widget.config) : widget.config;
+              const position = widgetPositions[widget.id] || { x: 50 + (index * 370), y: 30 };
+              const isTable = config?.type === 'table';
+              
+              return (
+                <div
+                  key={widget.id}
+                  className={isTable ? 'chart-card table-card-positioned' : 'chart-card'}
+                  style={{
+                    position: 'absolute',
+                    left: `${position.x}px`,
+                    top: `${position.y}px`,
+                    width: isTable ? '720px' : '350px',
+                    height: isTable ? '450px' : '280px'
+                  }}
+                >
+                  {isTable ? (
+                    <TableWidget deviceId={device?.id} config={config} />
+                  ) : (
+                    <DynamicWidget
+                      widget={widget}
+                      deviceId={device?.id}
+                      onDownload={handleDownload}
+                    />
+                  )}
+                </div>
+              );
+            })
           )}
         </div>
       </main>

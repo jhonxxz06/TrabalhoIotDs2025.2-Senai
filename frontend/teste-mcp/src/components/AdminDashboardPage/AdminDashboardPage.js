@@ -263,6 +263,17 @@ const AdminDashboardPage = ({
   const [whiteboardHeight, setWhiteboardHeight] = useState(600);
   const whiteboardRef = useRef(null);
 
+  // Carregar posições salvas ao montar componente
+  useEffect(() => {
+    if (device?.id) {
+      const key = `widgetPositions_${device.id}`;
+      const saved = localStorage.getItem(key);
+      if (saved) {
+        setWidgetPositions(JSON.parse(saved));
+      }
+    }
+  }, [device?.id]);
+
   // Conectar dispositivo ao MQTT
   const handleConnectMqtt = async () => {
     if (!device || !device.id) return;
@@ -319,6 +330,14 @@ const AdminDashboardPage = ({
   };
 
   const handleMouseUp = () => {
+    if (draggingWidget && device?.id) {
+      // Salvar posição no localStorage quando soltar o widget
+      const key = `widgetPositions_${device.id}`;
+      const saved = localStorage.getItem(key);
+      const positions = saved ? JSON.parse(saved) : {};
+      positions[draggingWidget.id] = widgetPositions[draggingWidget.id];
+      localStorage.setItem(key, JSON.stringify(positions));
+    }
     setDraggingWidget(null);
   };
 
@@ -331,7 +350,7 @@ const AdminDashboardPage = ({
         window.removeEventListener('mouseup', handleMouseUp);
       };
     }
-  }, [draggingWidget]);
+  }, [draggingWidget, widgetPositions]);
 
   // Calcular altura do whiteboard baseado nas posições dos widgets
   useEffect(() => {

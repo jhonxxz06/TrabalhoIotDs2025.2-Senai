@@ -70,7 +70,20 @@
   }
 }
 
-/* Charts Grid */
+/* Charts Whiteboard */
+.charts-whiteboard {
+  position: relative;
+  width: 100%;
+  max-width: 1400px;
+  min-height: 600px;
+  overflow: visible;
+  padding-bottom: 50px;
+  margin: 0 auto;
+  margin-left: calc(50% + 50px);
+  transform: translateX(-50%);
+}
+
+/* Charts Grid (fallback) */
 .charts-grid {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
@@ -92,8 +105,12 @@
 }
 
 .chart-card:hover {
-  transform: translateY(-5px);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.table-card-positioned {
+  background: rgba(255, 255, 255, 0.95);
+  padding: 0;
 }
 
 .chart-card:nth-child(1) { animation-delay: 0.1s; }
