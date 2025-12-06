@@ -326,8 +326,8 @@
 .device-checkbox-item {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px;
+  gap: 50px;
+  padding: 12px 20px 12px 10px;
   cursor: pointer;
   border-radius: 6px;
   transition: background 0.2s;
@@ -343,17 +343,19 @@
   cursor: pointer;
   accent-color: #84B6F4;
   margin: 0;
+  margin-right: 50px !important;
   flex-shrink: 0;
+  vertical-align: middle;
 }
 
 .device-checkbox-name {
   font-family: 'Roboto', sans-serif;
   font-size: 14px;
   color: #333;
-  line-height: 18px;
+  line-height: 1;
   margin: 0;
   padding: 0;
-  transform: translateY(-3px);
+  vertical-align: middle;
 }
 
 .request-modal-body textarea {
