@@ -1,4 +1,4 @@
-const API_URL = 'http://localhost:3001/api';
+const API_URL = 'https://projetocleanair.onrender.com';
 
 // Helpers
 const getToken = () => localStorage.getItem('token');
