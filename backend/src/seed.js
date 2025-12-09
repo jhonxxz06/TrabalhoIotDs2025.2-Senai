@@ -9,20 +9,6 @@ const users = [
     password: 'admin123',
     role: 'admin',
     has_access: 1
-  },
-  {
-    username: 'João Silva',
-    email: 'user@teste.com',
-    password: 'user123',
-    role: 'user',
-    has_access: 0 // aguardando aprovação
-  },
-  {
-    username: 'Maria Demo',
-    email: 'demo@teste.com',
-    password: 'demo123',
-    role: 'user',
-    has_access: 1 // já aprovado
   }
 ];
 
