@@ -11,9 +11,13 @@ import { mqtt as mqttApi } from '../../services/api';
 // Registrar todos os componentes do Chart.js
 Chart.register(...registerables);
 
+// URL do backend (usar variável de ambiente ou fallback para produção/desenvolvimento)
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://projetocleanair.onrender.com';
+
 // Inicializar Socket.IO (fora do componente)
-const socket = io('http://localhost:3001', {
-  autoConnect: false
+const socket = io(BACKEND_URL, {
+  autoConnect: false,
+  transports: ['websocket', 'polling']
 });
 
 // Componente para renderizar widgets dinâmicos com dados MQTT
@@ -304,16 +308,21 @@ const DashboardPage = ({
   const [widgetPositions, setWidgetPositions] = useState({});
   const [whiteboardHeight, setWhiteboardHeight] = useState(600);
 
-  // Carregar posições salvas pelo admin
+  // Carregar posições dos widgets do backend (campo position)
   useEffect(() => {
-    if (device?.id) {
-      const key = `widgetPositions_${device.id}`;
-      const saved = localStorage.getItem(key);
-      if (saved) {
-        setWidgetPositions(JSON.parse(saved));
-      }
+    if (widgets && widgets.length > 0) {
+      const positions = {};
+      widgets.forEach((widget, index) => {
+        // Usar posição salva no backend ou posição padrão
+        if (widget.position && (widget.position.x !== undefined || widget.position.y !== undefined)) {
+          positions[widget.id] = widget.position;
+        } else {
+          positions[widget.id] = { x: 50 + (index * 370), y: 30 };
+        }
+      });
+      setWidgetPositions(positions);
     }
-  }, [device?.id]);
+  }, [widgets]);
 
   // Calcular altura do whiteboard baseado nas posições dos widgets
   useEffect(() => {

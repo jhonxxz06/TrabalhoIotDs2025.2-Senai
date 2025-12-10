@@ -333,16 +333,21 @@ const AdminDashboardPage = ({
   const [whiteboardHeight, setWhiteboardHeight] = useState(600);
   const whiteboardRef = useRef(null);
 
-  // Carregar posições salvas ao montar componente
+  // Carregar posições dos widgets do backend (campo position)
   useEffect(() => {
-    if (device?.id) {
-      const key = `widgetPositions_${device.id}`;
-      const saved = localStorage.getItem(key);
-      if (saved) {
-        setWidgetPositions(JSON.parse(saved));
-      }
+    if (widgets && widgets.length > 0) {
+      const positions = {};
+      widgets.forEach((widget, index) => {
+        // Usar posição salva no backend ou posição padrão
+        if (widget.position && (widget.position.x !== undefined || widget.position.y !== undefined)) {
+          positions[widget.id] = widget.position;
+        } else {
+          positions[widget.id] = { x: 50 + (index * 370), y: 30 };
+        }
+      });
+      setWidgetPositions(positions);
     }
-  }, [device?.id]);
+  }, [widgets]);
 
   // Conectar dispositivo ao MQTT
   const handleConnectMqtt = async () => {
@@ -399,14 +404,18 @@ const AdminDashboardPage = ({
     }));
   };
 
-  const handleMouseUp = () => {
+  const handleMouseUp = async () => {
     if (draggingWidget && device?.id) {
-      // Salvar posição no localStorage quando soltar o widget
-      const key = `widgetPositions_${device.id}`;
-      const saved = localStorage.getItem(key);
-      const positions = saved ? JSON.parse(saved) : {};
-      positions[draggingWidget.id] = widgetPositions[draggingWidget.id];
-      localStorage.setItem(key, JSON.stringify(positions));
+      // Salvar posição no backend quando soltar o widget
+      const newPosition = widgetPositions[draggingWidget.id];
+      if (newPosition) {
+        try {
+          await widgetsApi.update(draggingWidget.id, { position: newPosition });
+          console.log(`✅ Posição do widget ${draggingWidget.id} salva no backend:`, newPosition);
+        } catch (error) {
+          console.error('Erro ao salvar posição do widget:', error);
+        }
+      }
     }
     setDraggingWidget(null);
   };
