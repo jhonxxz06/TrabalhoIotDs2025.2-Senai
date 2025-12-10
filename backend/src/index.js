@@ -10,20 +10,19 @@ const app = express();
 const server = http.createServer(app);
 const PORT = process.env.PORT || 3001;
 
-// Configurar Socket.IO com CORS
+// Configurar Socket.IO com CORS (aceita todas as origens)
 const io = new Server(server, {
   cors: {
-    origin: ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002', 'http://localhost:3003'],
+    origin: '*',
     credentials: true
   }
 });
 
 // Middlewares de segurança e parsing
-app.use(helmet());
-app.use(cors({
-  origin: ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002', 'http://localhost:3003'],
-  credentials: true
+app.use(helmet({
+  crossOriginResourcePolicy: false
 }));
+app.use(cors()); // Aceita qualquer origem
 app.use(express.json());
 
 // Socket.IO - Gerenciar conexões
