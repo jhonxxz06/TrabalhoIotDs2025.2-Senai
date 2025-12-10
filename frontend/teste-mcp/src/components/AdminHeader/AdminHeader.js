@@ -176,9 +176,6 @@ const AdminHeader = ({
           
           {showUserMenu && (
             <div className="admin-user-dropdown">
-              <button onClick={() => setShowUserMenu(false)}>
-                Perfil
-              </button>
               <button onClick={() => { 
                 console.log('Botão Sair clicado, onLogout:', typeof onLogout);
                 setShowUserMenu(false); 

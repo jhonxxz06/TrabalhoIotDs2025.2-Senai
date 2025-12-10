@@ -373,12 +373,22 @@ const AdminDashboardPage = ({
     const rect = widget.getBoundingClientRect();
     const whiteboardRect = whiteboardRef.current.getBoundingClientRect();
     
+    // Identificar se é tabela para calcular limites corretos
+    const widgetData = widgets.find(w => w.id === widgetId);
+    const config = widgetData?.config ? 
+      (typeof widgetData.config === 'string' ? JSON.parse(widgetData.config) : widgetData.config) 
+      : {};
+    const isTable = config?.type === 'table';
+    
     setDraggingWidget({
       id: widgetId,
       offsetX: e.clientX - rect.left,
       offsetY: e.clientY - rect.top,
       whiteboardLeft: whiteboardRect.left,
-      whiteboardTop: whiteboardRect.top
+      whiteboardTop: whiteboardRect.top,
+      isTable: isTable,
+      widgetWidth: isTable ? 720 : 350,
+      widgetHeight: isTable ? 450 : 280
     });
     
     widget.style.zIndex = 1000;
@@ -391,9 +401,9 @@ const AdminDashboardPage = ({
     const newX = e.clientX - whiteboardRect.left - draggingWidget.offsetX;
     const newY = e.clientY - whiteboardRect.top - draggingWidget.offsetY;
     
-    // Limitar dentro do whiteboard
-    const maxX = whiteboardRect.width - 350;
-    const maxY = whiteboardRect.height - 280;
+    // Limitar dentro do whiteboard usando tamanho real do widget
+    const maxX = whiteboardRect.width - draggingWidget.widgetWidth;
+    const maxY = whiteboardRect.height - draggingWidget.widgetHeight;
     
     setWidgetPositions(prev => ({
       ...prev,

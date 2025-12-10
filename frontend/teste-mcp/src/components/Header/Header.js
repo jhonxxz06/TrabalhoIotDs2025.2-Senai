@@ -141,9 +141,6 @@ const Header = ({
             
             {showMenu && (
               <div className="user-dropdown">
-                <button onClick={() => { setShowMenu(false); onUserClick && onUserClick(); }}>
-                  Perfil
-                </button>
                 <button onClick={() => { 
                   setShowMenu(false); 
                   if (onLogout) {
