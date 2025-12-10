@@ -1,4 +1,4 @@
-const API_URL = 'https://projetocleanair.onrender.com';
+const API_URL = 'https://projetocleanair.onrender.com/api';
 
 // Helpers
 const getToken = () => localStorage.getItem('token');
