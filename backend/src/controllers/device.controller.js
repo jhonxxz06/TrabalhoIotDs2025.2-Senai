@@ -117,9 +117,25 @@ const create = (req, res) => {
       });
     }
 
-    // Atribui usuários se informados
+    // ✅ VALIDAÇÃO #3: Garantir que device tenha pelo menos 1 admin
     if (assignedUsers && assignedUsers.length > 0) {
+      const User = require('../models/User');
+      const hasAdmin = assignedUsers.some(userId => {
+        const user = User.findById(userId);
+        return user && user.role === 'admin';
+      });
+
+      if (!hasAdmin) {
+        // Se não tem admin, adicionar o próprio usuário (que é admin)
+        if (!assignedUsers.includes(req.user.id)) {
+          assignedUsers.push(req.user.id);
+        }
+      }
+
       Device.setAssignedUsers(device.id, assignedUsers);
+    } else {
+      // Se não informou usuários, atribuir o próprio admin criador
+      Device.setAssignedUsers(device.id, [req.user.id]);
     }
 
     const devicePublic = Device.toPublic(device);
@@ -175,8 +191,28 @@ const update = (req, res) => {
       mqttPassword
     });
 
-    // Atualiza usuários se informados
+    // ✅ VALIDAÇÃO #3: Atualiza usuários garantindo pelo menos 1 admin
     if (assignedUsers !== undefined) {
+      if (assignedUsers.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Device deve ter pelo menos um administrador atribuído'
+        });
+      }
+
+      const User = require('../models/User');
+      const hasAdmin = assignedUsers.some(userId => {
+        const user = User.findById(userId);
+        return user && user.role === 'admin';
+      });
+
+      if (!hasAdmin) {
+        return res.status(400).json({
+          success: false,
+          message: 'Pelo menos um administrador deve estar vinculado ao device'
+        });
+      }
+
       Device.setAssignedUsers(id, assignedUsers);
     }
 
