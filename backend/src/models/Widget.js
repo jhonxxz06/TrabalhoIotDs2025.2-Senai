@@ -1,105 +1,137 @@
-const { run, query, queryOne } = require('../config/database');
+// ============================================
+// MODEL: WIDGET (Supabase)
+// ============================================
+const { supabase } = require('../config/supabase');
 
 const Widget = {
   /**
-   * Busca widget por ID
+   * Busca widget por UUID
    */
-  findById(id) {
-    return queryOne('SELECT * FROM widgets WHERE id = ?', [id]);
+  async findById(id) {
+    const { data, error } = await supabase
+      .from('widgets')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') return null;
+      throw error;
+    }
+    return data;
   },
 
   /**
    * Lista todos os widgets
    */
-  findAll() {
-    return query('SELECT * FROM widgets ORDER BY created_at DESC');
+  async findAll() {
+    const { data, error } = await supabase
+      .from('widgets')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return data || [];
   },
 
   /**
    * Lista widgets de um dispositivo
    */
-  findByDeviceId(deviceId) {
-    return query('SELECT * FROM widgets WHERE device_id = ? ORDER BY created_at DESC', [deviceId]);
+  async findByDeviceId(deviceId) {
+    const { data, error } = await supabase
+      .from('widgets')
+      .select('*')
+      .eq('device_id', deviceId)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return data || [];
   },
 
   /**
    * Lista widgets acessíveis por um usuário (via dispositivos atribuídos)
    */
-  findByUserId(userId) {
-    return query(`
-      SELECT w.* FROM widgets w
-      INNER JOIN devices d ON w.device_id = d.id
-      INNER JOIN device_users du ON d.id = du.device_id
-      WHERE du.user_id = ?
-      ORDER BY w.created_at DESC
-    `, [userId]);
+  async findByUserId(userId) {
+    const { data, error } = await supabase
+      .from('widgets')
+      .select(`
+        *,
+        devices!inner(
+          id,
+          device_users!inner(user_id)
+        )
+      `)
+      .eq('devices.device_users.user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return data || [];
   },
 
   /**
    * Cria um novo widget
    */
-  create(data) {
+  async create(data) {
     const { name, type, deviceId, config = {}, position = {} } = data;
-    const configJson = JSON.stringify(config);
-    const positionJson = JSON.stringify(position);
 
-    run(`
-      INSERT INTO widgets (name, type, device_id, config, position)
-      VALUES (?, ?, ?, ?, ?)
-    `, [name, type, deviceId, configJson, positionJson]);
+    const { data: widget, error } = await supabase
+      .from('widgets')
+      .insert({
+        name,
+        type,
+        device_id: deviceId,
+        config, // Supabase aceita JSON direto (JSONB)
+        position
+      })
+      .select()
+      .single();
 
-    return queryOne(
-      'SELECT * FROM widgets WHERE device_id = ? AND name = ? ORDER BY id DESC LIMIT 1',
-      [deviceId, name]
-    );
+    if (error) throw error;
+    return widget;
   },
 
   /**
    * Atualiza um widget
    */
-  update(id, data) {
-    const fields = [];
-    const values = [];
+  async update(id, data) {
+    const updates = {};
 
-    if (data.name !== undefined) {
-      fields.push('name = ?');
-      values.push(data.name);
-    }
-    if (data.type !== undefined) {
-      fields.push('type = ?');
-      values.push(data.type);
-    }
-    if (data.deviceId !== undefined) {
-      fields.push('device_id = ?');
-      values.push(data.deviceId);
-    }
-    if (data.config !== undefined) {
-      fields.push('config = ?');
-      values.push(JSON.stringify(data.config));
-    }
-    if (data.position !== undefined) {
-      fields.push('position = ?');
-      values.push(JSON.stringify(data.position));
+    if (data.name !== undefined) updates.name = data.name;
+    if (data.type !== undefined) updates.type = data.type;
+    if (data.deviceId !== undefined) updates.device_id = data.deviceId;
+    if (data.config !== undefined) updates.config = data.config;
+    if (data.position !== undefined) updates.position = data.position;
+
+    if (Object.keys(updates).length === 0) {
+      return this.findById(id);
     }
 
-    if (fields.length === 0) return this.findById(id);
+    const { data: widget, error } = await supabase
+      .from('widgets')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single();
 
-    values.push(id);
-    run(`UPDATE widgets SET ${fields.join(', ')} WHERE id = ?`, values);
-    
-    return this.findById(id);
+    if (error) throw error;
+    return widget;
   },
 
   /**
    * Remove um widget
    */
-  delete(id) {
-    run('DELETE FROM widgets WHERE id = ?', [id]);
+  async delete(id) {
+    const { error } = await supabase
+      .from('widgets')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
     return true;
   },
 
   /**
-   * Converte para formato público (camelCase + parse JSON)
+   * Converte para formato público (camelCase)
    */
   toPublic(widget) {
     if (!widget) return null;
@@ -108,9 +140,10 @@ const Widget = {
       name: widget.name,
       type: widget.type,
       deviceId: widget.device_id,
-      config: typeof widget.config === 'string' ? JSON.parse(widget.config) : widget.config,
-      position: typeof widget.position === 'string' ? JSON.parse(widget.position) : widget.position,
-      createdAt: widget.created_at
+      config: widget.config, // Já vem como objeto (JSONB)
+      position: widget.position, // Já vem como objeto (JSONB)
+      createdAt: widget.created_at,
+      updatedAt: widget.updated_at
     };
   }
 };

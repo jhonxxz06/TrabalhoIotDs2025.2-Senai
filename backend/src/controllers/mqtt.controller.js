@@ -4,10 +4,10 @@ const Device = require('../models/Device');
 /**
  * Conecta a um dispositivo MQTT
  */
-const connect = (req, res) => {
+const connect = async (req, res) => {
   try {
     const { id } = req.params;
-    const device = Device.findById(id);
+    const device = await Device.findById(id);
 
     if (!device) {
       return res.status(404).json({
@@ -37,7 +37,7 @@ const connect = (req, res) => {
 const disconnect = (req, res) => {
   try {
     const { id } = req.params;
-    MqttService.disconnect(parseInt(id));
+    MqttService.disconnect(id);
 
     res.json({
       success: true,
@@ -74,13 +74,13 @@ const getStatus = (req, res) => {
 /**
  * Busca dados históricos de um dispositivo
  */
-const getData = (req, res) => {
+const getData = async (req, res) => {
   try {
     const { id } = req.params;
     const { limit = 100, period } = req.query;
 
     // Verifica acesso
-    if (req.user.role !== 'admin' && !Device.userHasAccess(id, req.user.id)) {
+    if (req.user.role !== 'admin' && !(await Device.userHasAccess(id, req.user.id))) {
       return res.status(403).json({
         success: false,
         message: 'Acesso negado a este dispositivo'
@@ -89,11 +89,11 @@ const getData = (req, res) => {
 
     let data;
     if (period === 'day') {
-      data = MqttService.getDayData(id);
+      data = await MqttService.getDayData(id);
     } else if (period === 'week') {
-      data = MqttService.getWeekData(id);
+      data = await MqttService.getWeekData(id);
     } else {
-      data = MqttService.getData(id, { limit: parseInt(limit) });
+      data = await MqttService.getData(id, { limit: parseInt(limit) });
     }
 
     // Parse do payload JSON se possível
@@ -166,19 +166,19 @@ const getData = (req, res) => {
 /**
  * Busca último dado de um dispositivo
  */
-const getLatest = (req, res) => {
+const getLatest = async (req, res) => {
   try {
     const { id } = req.params;
 
     // Verifica acesso
-    if (req.user.role !== 'admin' && !Device.userHasAccess(id, req.user.id)) {
+    if (req.user.role !== 'admin' && !(await Device.userHasAccess(id, req.user.id))) {
       return res.status(403).json({
         success: false,
         message: 'Acesso negado a este dispositivo'
       });
     }
 
-    const device = Device.findById(id);
+    const device = await Device.findById(id);
     if (!device) {
       return res.status(404).json({
         success: false,
@@ -190,7 +190,7 @@ const getLatest = (req, res) => {
     let data = MqttService.getLatest(device.mqtt_topic);
     
     if (!data) {
-      const dbData = MqttService.getLatestFromDb(id);
+      const dbData = await MqttService.getLatestFromDb(id);
       if (dbData) {
         data = {
           payload: dbData.payload,
@@ -234,9 +234,9 @@ const getLatest = (req, res) => {
 /**
  * Conecta todos os dispositivos (chamado no startup)
  */
-const connectAll = (req, res) => {
+const connectAll = async (req, res) => {
   try {
-    const devices = Device.findAll();
+    const devices = await Device.findAll();
     let connected = 0;
 
     for (const device of devices) {
@@ -260,13 +260,13 @@ const connectAll = (req, res) => {
 /**
  * Busca excedências (valores fora dos thresholds)
  */
-const getExceedances = (req, res) => {
+const getExceedances = async (req, res) => {
   try {
     const { id } = req.params;
     const { limit = 100, since } = req.query;
 
     // Verifica acesso
-    if (req.user.role !== 'admin' && !Device.userHasAccess(id, req.user.id)) {
+    if (req.user.role !== 'admin' && !(await Device.userHasAccess(id, req.user.id))) {
       return res.status(403).json({
         success: false,
         message: 'Acesso negado a este dispositivo'
@@ -296,7 +296,7 @@ const getExceedances = (req, res) => {
       since: since || null
     };
 
-    const data = MqttService.getExceedances(parseInt(id), thresholds, options);
+    const data = await MqttService.getExceedances(id, thresholds, options);
 
     console.log('[Controller] Dados do service:', data.length, 'registros');
 

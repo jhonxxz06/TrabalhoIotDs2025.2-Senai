@@ -25,7 +25,7 @@ const positionSchema = z.object({
 const createWidgetSchema = z.object({
   name: z.string().min(1, 'Nome é obrigatório').max(100),
   type: z.string().min(1, 'Tipo é obrigatório'),
-  deviceId: z.number().int().positive('Device ID inválido'),
+  deviceId: z.string().uuid('Device ID deve ser um UUID válido'),
   config: configSchema.optional().default({}),
   position: positionSchema.optional().default({})
 });

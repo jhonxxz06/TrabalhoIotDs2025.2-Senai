@@ -1,13 +1,14 @@
 const Device = require('../models/Device');
+const Profile = require('../models/Profile');
 const MqttService = require('../services/mqtt.service');
 
 /**
  * Lista dispositivos públicos (para tela de cadastro - sem autenticação)
  * Retorna apenas id e nome
  */
-const getPublicList = (req, res) => {
+const getPublicList = async (req, res) => {
   try {
-    const devices = Device.findAll();
+    const devices = await Device.findAll();
     
     res.json({
       success: true,
@@ -28,14 +29,14 @@ const getPublicList = (req, res) => {
 /**
  * Lista todos os dispositivos (admin) ou só os do usuário
  */
-const getAll = (req, res) => {
+const getAll = async (req, res) => {
   try {
     let devices;
     
     if (req.user.role === 'admin') {
-      devices = Device.findAll();
+      devices = await Device.findAll();
     } else {
-      devices = Device.findByUserId(req.user.id);
+      devices = await Device.findByUserId(req.user.id);
     }
 
     res.json({
@@ -54,10 +55,10 @@ const getAll = (req, res) => {
 /**
  * Busca um dispositivo por ID
  */
-const getById = (req, res) => {
+const getById = async (req, res) => {
   try {
     const { id } = req.params;
-    const device = Device.findById(id);
+    const device = await Device.findById(id);
 
     if (!device) {
       return res.status(404).json({
@@ -67,7 +68,7 @@ const getById = (req, res) => {
     }
 
     // Verifica acesso se não for admin
-    if (req.user.role !== 'admin' && !Device.userHasAccess(id, req.user.id)) {
+    if (req.user.role !== 'admin' && !(await Device.userHasAccess(id, req.user.id))) {
       return res.status(403).json({
         success: false,
         message: 'Acesso negado a este dispositivo'
@@ -78,7 +79,7 @@ const getById = (req, res) => {
     
     // Admin pode ver usuários atribuídos
     if (req.user.role === 'admin') {
-      devicePublic.assignedUsers = Device.getAssignedUsers(id);
+      devicePublic.assignedUsers = await Device.getAssignedUsers(id);
     }
 
     res.json({
@@ -97,17 +98,18 @@ const getById = (req, res) => {
 /**
  * Cria um novo dispositivo (apenas admin)
  */
-const create = (req, res) => {
+const create = async (req, res) => {
   try {
     const { name, mqttBroker, mqttPort, mqttTopic, mqttUsername, mqttPassword, assignedUsers } = req.body;
 
-    const device = Device.create({
+    const device = await Device.create({
       name,
       mqttBroker,
       mqttPort,
       mqttTopic,
       mqttUsername,
-      mqttPassword
+      mqttPassword,
+      ownerId: req.user.id
     });
 
     if (!device) {
@@ -119,11 +121,12 @@ const create = (req, res) => {
 
     // ✅ VALIDAÇÃO #3: Garantir que device tenha pelo menos 1 admin
     if (assignedUsers && assignedUsers.length > 0) {
-      const User = require('../models/User');
-      const hasAdmin = assignedUsers.some(userId => {
-        const user = User.findById(userId);
-        return user && user.role === 'admin';
+      const hasAdminPromises = assignedUsers.map(async userId => {
+        const profile = await Profile.findById(userId);
+        return profile && profile.role === 'admin';
       });
+      const adminChecks = await Promise.all(hasAdminPromises);
+      const hasAdmin = adminChecks.some(isAdmin => isAdmin);
 
       if (!hasAdmin) {
         // Se não tem admin, adicionar o próprio usuário (que é admin)
@@ -132,14 +135,14 @@ const create = (req, res) => {
         }
       }
 
-      Device.setAssignedUsers(device.id, assignedUsers);
+      await Device.setAssignedUsers(device.id, assignedUsers);
     } else {
       // Se não informou usuários, atribuir o próprio admin criador
-      Device.setAssignedUsers(device.id, [req.user.id]);
+      await Device.setAssignedUsers(device.id, [req.user.id]);
     }
 
     const devicePublic = Device.toPublic(device);
-    devicePublic.assignedUsers = Device.getAssignedUsers(device.id);
+    devicePublic.assignedUsers = await Device.getAssignedUsers(device.id);
 
     // Auto-conectar ao MQTT se tiver configuração
     if (device.mqtt_broker && device.mqtt_topic) {
@@ -168,10 +171,10 @@ const create = (req, res) => {
 /**
  * Atualiza um dispositivo (apenas admin)
  */
-const update = (req, res) => {
+const update = async (req, res) => {
   try {
     const { id } = req.params;
-    const device = Device.findById(id);
+    const device = await Device.findById(id);
 
     if (!device) {
       return res.status(404).json({
@@ -182,7 +185,7 @@ const update = (req, res) => {
 
     const { name, mqttBroker, mqttPort, mqttTopic, mqttUsername, mqttPassword, assignedUsers } = req.body;
 
-    const updatedDevice = Device.update(id, {
+    const updatedDevice = await Device.update(id, {
       name,
       mqttBroker,
       mqttPort,
@@ -200,11 +203,12 @@ const update = (req, res) => {
         });
       }
 
-      const User = require('../models/User');
-      const hasAdmin = assignedUsers.some(userId => {
-        const user = User.findById(userId);
-        return user && user.role === 'admin';
+      const hasAdminPromises = assignedUsers.map(async userId => {
+        const profile = await Profile.findById(userId);
+        return profile && profile.role === 'admin';
       });
+      const adminChecks = await Promise.all(hasAdminPromises);
+      const hasAdmin = adminChecks.some(isAdmin => isAdmin);
 
       if (!hasAdmin) {
         return res.status(400).json({
@@ -213,11 +217,11 @@ const update = (req, res) => {
         });
       }
 
-      Device.setAssignedUsers(id, assignedUsers);
+      await Device.setAssignedUsers(id, assignedUsers);
     }
 
     const devicePublic = Device.toPublic(updatedDevice);
-    devicePublic.assignedUsers = Device.getAssignedUsers(id);
+    devicePublic.assignedUsers = await Device.getAssignedUsers(id);
 
     // Reconectar ao MQTT se as configurações mudaram
     if (updatedDevice.mqtt_broker && updatedDevice.mqtt_topic) {
@@ -247,10 +251,10 @@ const update = (req, res) => {
 /**
  * Remove um dispositivo (apenas admin)
  */
-const remove = (req, res) => {
+const remove = async (req, res) => {
   try {
     const { id } = req.params;
-    const device = Device.findById(id);
+    const device = await Device.findById(id);
 
     if (!device) {
       return res.status(404).json({
@@ -261,13 +265,13 @@ const remove = (req, res) => {
 
     // Desconectar MQTT antes de excluir
     try {
-      MqttService.disconnect(parseInt(id));
+      MqttService.disconnect(id);
       console.log(`✅ Device ${id} desconectado do MQTT antes da exclusão`);
     } catch (error) {
       console.warn(`⚠️ Erro ao desconectar MQTT:`, error.message);
     }
 
-    Device.delete(id);
+    await Device.delete(id);
 
     res.json({
       success: true,
@@ -285,12 +289,12 @@ const remove = (req, res) => {
 /**
  * Atualiza apenas os usuários atribuídos (apenas admin)
  */
-const updateUsers = (req, res) => {
+const updateUsers = async (req, res) => {
   try {
     const { id } = req.params;
     const { userIds } = req.body;
 
-    const device = Device.findById(id);
+    const device = await Device.findById(id);
 
     if (!device) {
       return res.status(404).json({
@@ -306,7 +310,7 @@ const updateUsers = (req, res) => {
       });
     }
 
-    const assignedUsers = Device.setAssignedUsers(id, userIds);
+    const assignedUsers = await Device.setAssignedUsers(id, userIds);
 
     res.json({
       success: true,

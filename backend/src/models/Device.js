@@ -1,144 +1,199 @@
-const { run, query, queryOne } = require('../config/database');
+// ============================================
+// MODEL: DEVICE (Supabase)
+// ============================================
+const { supabase } = require('../config/supabase');
 
 const Device = {
   /**
-   * Busca dispositivo por ID
+   * Busca dispositivo por UUID
    */
-  findById(id) {
-    return queryOne('SELECT * FROM devices WHERE id = ?', [id]);
+  async findById(id) {
+    const { data, error } = await supabase
+      .from('devices')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') return null;
+      throw error;
+    }
+    return data;
   },
 
   /**
    * Lista todos os dispositivos
    */
-  findAll() {
-    return query('SELECT * FROM devices ORDER BY created_at DESC');
+  async findAll() {
+    const { data, error } = await supabase
+      .from('devices')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return data || [];
   },
 
   /**
    * Lista dispositivos de um usuário específico
    */
-  findByUserId(userId) {
-    return query(`
-      SELECT d.* FROM devices d
-      INNER JOIN device_users du ON d.id = du.device_id
-      WHERE du.user_id = ?
-      ORDER BY d.created_at DESC
-    `, [userId]);
+  async findByUserId(userId) {
+    const { data, error } = await supabase
+      .from('devices')
+      .select(`
+        *,
+        device_users!inner(user_id)
+      `)
+      .eq('device_users.user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return data || [];
   },
 
   /**
    * Cria um novo dispositivo
    */
-  create(data) {
+  async create(data) {
     const { 
       name, 
       mqttBroker, 
-      mqttPort = '1883', 
+      mqttPort = 1883, 
       mqttTopic, 
-      mqttUsername = '', 
-      mqttPassword = '' 
+      mqttUsername = null, 
+      mqttPassword = null,
+      ownerId = null
     } = data;
 
-    run(`
-      INSERT INTO devices (name, mqtt_broker, mqtt_port, mqtt_topic, mqtt_username, mqtt_password)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `, [name, mqttBroker, mqttPort, mqttTopic, mqttUsername, mqttPassword]);
+    const { data: device, error } = await supabase
+      .from('devices')
+      .insert({
+        name,
+        mqtt_broker: mqttBroker,
+        mqtt_port: mqttPort,
+        mqtt_topic: mqttTopic,
+        mqtt_username: mqttUsername,
+        mqtt_password: mqttPassword,
+        owner_id: ownerId
+      })
+      .select()
+      .single();
 
-    // Busca o dispositivo recém-criado pelo tópico (único por broker)
-    return queryOne(
-      'SELECT * FROM devices WHERE mqtt_broker = ? AND mqtt_topic = ? ORDER BY id DESC LIMIT 1',
-      [mqttBroker, mqttTopic]
-    );
+    if (error) throw error;
+    return device;
   },
 
   /**
    * Atualiza um dispositivo
    */
-  update(id, data) {
-    const fields = [];
-    const values = [];
+  async update(id, data) {
+    const updates = {};
 
-    if (data.name !== undefined) {
-      fields.push('name = ?');
-      values.push(data.name);
-    }
-    if (data.mqttBroker !== undefined) {
-      fields.push('mqtt_broker = ?');
-      values.push(data.mqttBroker);
-    }
-    if (data.mqttPort !== undefined) {
-      fields.push('mqtt_port = ?');
-      values.push(data.mqttPort);
-    }
-    if (data.mqttTopic !== undefined) {
-      fields.push('mqtt_topic = ?');
-      values.push(data.mqttTopic);
-    }
-    if (data.mqttUsername !== undefined) {
-      fields.push('mqtt_username = ?');
-      values.push(data.mqttUsername);
-    }
-    if (data.mqttPassword !== undefined) {
-      fields.push('mqtt_password = ?');
-      values.push(data.mqttPassword);
+    if (data.name !== undefined) updates.name = data.name;
+    if (data.mqttBroker !== undefined) updates.mqtt_broker = data.mqttBroker;
+    if (data.mqttPort !== undefined) updates.mqtt_port = data.mqttPort;
+    if (data.mqttTopic !== undefined) updates.mqtt_topic = data.mqttTopic;
+    if (data.mqttUsername !== undefined) updates.mqtt_username = data.mqttUsername;
+    if (data.mqttPassword !== undefined) updates.mqtt_password = data.mqttPassword;
+
+    if (Object.keys(updates).length === 0) {
+      return this.findById(id);
     }
 
-    if (fields.length === 0) return this.findById(id);
+    const { data: device, error } = await supabase
+      .from('devices')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single();
 
-    values.push(id);
-    run(`UPDATE devices SET ${fields.join(', ')} WHERE id = ?`, values);
-    
-    return this.findById(id);
+    if (error) throw error;
+    return device;
   },
 
   /**
    * Remove um dispositivo
    */
-  delete(id) {
-    run('DELETE FROM devices WHERE id = ?', [id]);
+  async delete(id) {
+    const { error } = await supabase
+      .from('devices')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
     return true;
   },
 
   /**
    * Retorna usuários atribuídos a um dispositivo
    */
-  getAssignedUsers(deviceId) {
-    return query(`
-      SELECT u.id, u.username, u.email 
-      FROM users u
-      INNER JOIN device_users du ON u.id = du.user_id
-      WHERE du.device_id = ?
-    `, [deviceId]);
+  async getAssignedUsers(deviceId) {
+    const { data, error } = await supabase
+      .from('device_users')
+      .select(`
+        user_id,
+        profiles:user_id (
+          id,
+          username,
+          email,
+          role
+        )
+      `)
+      .eq('device_id', deviceId);
+
+    if (error) throw error;
+    
+    // Flatten structure
+    return (data || []).map(item => ({
+      id: item.profiles.id,
+      username: item.profiles.username,
+      email: item.profiles.email,
+      role: item.profiles.role
+    }));
   },
 
   /**
    * Atribui usuários a um dispositivo
    */
-  setAssignedUsers(deviceId, userIds) {
+  async setAssignedUsers(deviceId, userIds) {
     // Remove todos os usuários atuais
-    run('DELETE FROM device_users WHERE device_id = ?', [deviceId]);
-    
+    const { error: deleteError } = await supabase
+      .from('device_users')
+      .delete()
+      .eq('device_id', deviceId);
+
+    if (deleteError) throw deleteError;
+
     // Adiciona os novos usuários
-    for (const userId of userIds) {
-      run(
-        'INSERT INTO device_users (device_id, user_id) VALUES (?, ?)',
-        [deviceId, userId]
-      );
+    if (userIds && userIds.length > 0) {
+      const inserts = userIds.map(userId => ({
+        device_id: deviceId,
+        user_id: userId
+      }));
+
+      const { error: insertError } = await supabase
+        .from('device_users')
+        .insert(inserts);
+
+      if (insertError) throw insertError;
     }
-    
+
     return this.getAssignedUsers(deviceId);
   },
 
   /**
    * Verifica se um usuário tem acesso a um dispositivo
    */
-  userHasAccess(deviceId, userId) {
-    const result = queryOne(
-      'SELECT 1 FROM device_users WHERE device_id = ? AND user_id = ?',
-      [deviceId, userId]
-    );
-    return !!result;
+  async userHasAccess(deviceId, userId) {
+    const { data, error } = await supabase
+      .from('device_users')
+      .select('user_id')
+      .eq('device_id', deviceId)
+      .eq('user_id', userId)
+      .single();
+
+    if (error && error.code !== 'PGRST116') throw error;
+    return !!data;
   },
 
   /**
@@ -154,7 +209,9 @@ const Device = {
       mqttTopic: device.mqtt_topic,
       mqttUsername: device.mqtt_username,
       mqttPassword: device.mqtt_password,
-      createdAt: device.created_at
+      ownerId: device.owner_id,
+      createdAt: device.created_at,
+      updatedAt: device.updated_at
     };
   }
 };

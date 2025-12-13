@@ -1,44 +1,56 @@
-const bcrypt = require('bcryptjs');
-const User = require('../models/User');
+// ============================================
+// AUTH CONTROLLER (Supabase Auth)
+// ============================================
+const { supabase } = require('../config/supabase');
+const Profile = require('../models/Profile');
 const AccessRequest = require('../models/AccessRequest');
-const { generateToken } = require('../services/token.service');
 
 const authController = {
   /**
    * POST /api/auth/register
-   * Cadastra um novo usuário
+   * Cadastra um novo usuário via Supabase Auth
    */
   async register(req, res) {
     try {
       const { username, email, password, requestedDevices } = req.body;
 
-      // Verifica se o email já existe
-      const existingUser = User.findByEmail(email);
-      if (existingUser) {
-        return res.status(400).json({
-          success: false,
-          error: 'E-mail já cadastrado'
-        });
+      // Registra usuário no Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            username,
+            role: 'user',
+            has_access: false
+          }
+        }
+      });
+
+      if (authError) {
+        if (authError.message.includes('already registered')) {
+          return res.status(400).json({
+            success: false,
+            error: 'E-mail já cadastrado'
+          });
+        }
+        throw authError;
       }
 
-      // Hash da senha
-      const hashedPassword = await bcrypt.hash(password, 10);
+      const userId = authData.user.id;
 
-      // Cria o usuário (has_access = false por padrão)
-      const user = User.create({
-        username,
-        email,
-        password: hashedPassword,
-        role: 'user',
-        has_access: 0
-      });
+      // Aguardar trigger criar profile (pequeno delay)
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Buscar profile criado
+      const profile = await Profile.findById(userId);
 
       // Cria solicitações de acesso para os dispositivos selecionados
       if (requestedDevices && requestedDevices.length > 0) {
         for (const deviceId of requestedDevices) {
           try {
-            AccessRequest.create(
-              user.id,
+            await AccessRequest.create(
+              userId,
               deviceId,
               'Solicitação de acesso durante cadastro'
             );
@@ -49,19 +61,11 @@ const authController = {
         }
       }
 
-      // Gera o token
-      const token = generateToken({
-        id: user.id,
-        email: user.email,
-        role: user.role
-      });
-
       return res.status(201).json({
         success: true,
-        message: 'Usuário cadastrado com sucesso',
+        message: 'Usuário cadastrado com sucesso. Aguarde aprovação do administrador.',
         data: {
-          token,
-          user: User.toPublic(user)
+          user: Profile.toPublic(profile)
         }
       });
     } catch (error) {
@@ -75,43 +79,44 @@ const authController = {
 
   /**
    * POST /api/auth/login
-   * Autentica o usuário
+   * Autentica o usuário via Supabase Auth
    */
   async login(req, res) {
     try {
       const { email, password } = req.body;
 
-      // Busca o usuário pelo email
-      const user = User.findByEmail(email);
-      if (!user) {
-        return res.status(401).json({
-          success: false,
-          error: 'E-mail ou senha inválidos'
-        });
-      }
-
-      // Verifica a senha
-      const isValidPassword = await bcrypt.compare(password, user.password);
-      if (!isValidPassword) {
-        return res.status(401).json({
-          success: false,
-          error: 'E-mail ou senha inválidos'
-        });
-      }
-
-      // Gera o token
-      const token = generateToken({
-        id: user.id,
-        email: user.email,
-        role: user.role
+      // Login via Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password
       });
+
+      if (authError) {
+        return res.status(401).json({
+          success: false,
+          error: 'E-mail ou senha inválidos'
+        });
+      }
+
+      // Busca profile do usuário
+      const profile = await Profile.findById(authData.user.id);
+
+      if (!profile) {
+        return res.status(404).json({
+          success: false,
+          error: 'Perfil do usuário não encontrado'
+        });
+      }
+
+      // Token JWT do Supabase
+      const token = authData.session.access_token;
 
       return res.status(200).json({
         success: true,
         message: 'Login realizado com sucesso',
         data: {
           token,
-          user: User.toPublic(user)
+          user: Profile.toPublic(profile)
         }
       });
     } catch (error) {
@@ -130,9 +135,9 @@ const authController = {
   async me(req, res) {
     try {
       // req.user é injetado pelo middleware de autenticação
-      const user = User.findById(req.user.id);
+      const profile = await Profile.findById(req.user.id);
       
-      if (!user) {
+      if (!profile) {
         return res.status(404).json({
           success: false,
           error: 'Usuário não encontrado'
@@ -142,7 +147,7 @@ const authController = {
       return res.status(200).json({
         success: true,
         data: {
-          user: User.toPublic(user)
+          user: Profile.toPublic(profile)
         }
       });
     } catch (error) {

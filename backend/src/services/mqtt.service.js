@@ -1,5 +1,5 @@
 const mqtt = require('mqtt');
-const { run, query, queryOne } = require('../config/database');
+const MqttData = require('../models/MqttData');
 
 // Armazena conexões ativas por dispositivo
 const connections = new Map();
@@ -137,52 +137,43 @@ const MqttService = {
   /**
    * Salva dados MQTT no banco
    */
-  saveData(deviceId, topic, payload) {
-    // Usar timestamp atual em formato ISO para garantir consistência
-    const timestamp = new Date().toISOString();
-    run(`
-      INSERT INTO mqtt_data (device_id, topic, payload, received_at)
-      VALUES (?, ?, ?, ?)
-    `, [deviceId, topic, payload, timestamp]);
+  async saveData(deviceId, topic, payload) {
+    try {
+      await MqttData.create(deviceId, topic, payload);
+    } catch (error) {
+      console.error('[MQTT] Erro ao salvar dados:', error);
+    }
   },
 
   /**
    * Busca dados históricos de um dispositivo
    */
-  getData(deviceId, options = {}) {
+  async getData(deviceId, options = {}) {
     const { limit = 100, since = null } = options;
     
     if (since) {
-      return query(`
-        SELECT * FROM mqtt_data 
-        WHERE device_id = ? AND received_at >= ?
-        ORDER BY received_at DESC
-        LIMIT ?
-      `, [deviceId, since, limit]);
+      // findByDeviceId retorna todos, precisamos filtrar e limitar
+      const allData = await MqttData.findByDeviceId(deviceId, limit);
+      return allData.filter(d => new Date(d.received_at) >= new Date(since));
     }
     
-    return query(`
-      SELECT * FROM mqtt_data 
-      WHERE device_id = ?
-      ORDER BY received_at DESC
-      LIMIT ?
-    `, [deviceId, limit]);
+    return await MqttData.findByDeviceId(deviceId, limit);
   },
 
   /**
    * Busca dados do último dia (para gráficos)
    */
-  getDayData(deviceId) {
+  async getDayData(deviceId) {
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-    return this.getData(deviceId, { since: oneDayAgo, limit: 1000 });
+    return await this.getData(deviceId, { since: oneDayAgo, limit: 1000 });
   },
 
   /**
    * Busca dados da última semana (para Excel)
    */
-  getWeekData(deviceId) {
+  async getWeekData(deviceId) {
     const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-    return this.getData(deviceId, { since: oneWeekAgo, limit: 10000 });
+    return await this.getData(deviceId, { since: oneWeekAgo, limit: 10000 });
   },
 
   /**
@@ -195,13 +186,9 @@ const MqttService = {
   /**
    * Retorna último dado do banco para um dispositivo
    */
-  getLatestFromDb(deviceId) {
-    return queryOne(`
-      SELECT * FROM mqtt_data 
-      WHERE device_id = ?
-      ORDER BY received_at DESC
-      LIMIT 1
-    `, [deviceId]);
+  async getLatestFromDb(deviceId) {
+    const data = await MqttData.findRecent(deviceId, 1);
+    return data.length > 0 ? data[0] : null;
   },
 
   /**
@@ -229,20 +216,20 @@ const MqttService = {
   /**
    * Limpa dados antigos (mais de 7 dias)
    */
-  cleanOldData() {
+  async cleanOldData() {
     const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-    run('DELETE FROM mqtt_data WHERE received_at < ?', [oneWeekAgo]);
+    await MqttData.deleteOld(oneWeekAgo);
     console.log('[MQTT] Dados antigos limpos');
   },
 
   /**
    * Busca excedências (valores fora dos thresholds definidos)
-   * @param {number} deviceId - ID do dispositivo
+   * @param {string} deviceId - ID do dispositivo (UUID)
    * @param {object} thresholds - Limites configurados { field1: {min, max}, field2: {min, max} }
    * @param {object} options - Opções (limit, since)
    * @returns {array} Registros com excedências
    */
-  getExceedances(deviceId, thresholds = {}, options = {}) {
+  async getExceedances(deviceId, thresholds = {}, options = {}) {
     const { limit = 100, since = null } = options;
     
     console.log('[MQTT] getExceedances chamado:', { deviceId, thresholds, options });
@@ -253,85 +240,32 @@ const MqttService = {
       return [];
     }
 
-    // Construir condições WHERE dinamicamente
-    const conditions = [];
-    const params = [deviceId];
+    // Buscar dados recentes do dispositivo
+    const allData = await this.getData(deviceId, { limit, since });
     
-    Object.entries(thresholds).forEach(([field, limits]) => {
-      if (limits.min !== undefined && limits.min !== null && limits.min !== '') {
-        conditions.push(`json_extract(payload, '$.${field}') < ?`);
-        params.push(parseFloat(limits.min));
-      }
-      if (limits.max !== undefined && limits.max !== null && limits.max !== '') {
-        conditions.push(`json_extract(payload, '$.${field}') > ?`);
-        params.push(parseFloat(limits.max));
-      }
+    console.log('[MQTT] Dados encontrados:', allData.length);
+
+    // Filtrar dados que excedem os thresholds
+    const exceedances = allData.filter(row => {
+      const payload = typeof row.payload === 'string' ? JSON.parse(row.payload) : row.payload;
+      
+      // Verificar se algum campo excede os limites
+      return Object.entries(thresholds).some(([field, limits]) => {
+        const value = payload[field];
+        if (value !== undefined && value !== null) {
+          if (limits.min !== undefined && limits.min !== null && limits.min !== '' && value < parseFloat(limits.min)) {
+            return true;
+          }
+          if (limits.max !== undefined && limits.max !== null && limits.max !== '' && value > parseFloat(limits.max)) {
+            return true;
+          }
+        }
+        return false;
+      });
     });
 
-    if (conditions.length === 0) {
-      console.log('[MQTT] Nenhuma condição gerada');
-      return [];
-    }
-
-    console.log('[MQTT] Condições SQL:', conditions);
-    console.log('[MQTT] Parâmetros:', params);
-
-    // Montar query SQL
-    let sql = `
-      SELECT 
-        id,
-        device_id,
-        topic,
-        payload,
-        received_at as timestamp
-      FROM mqtt_data
-      WHERE device_id = ?
-        AND (${conditions.join(' OR ')})
-    `;
-
-    // Adicionar filtro de data se especificado
-    if (since) {
-      sql += ' AND received_at >= ?';
-      params.push(since);
-    }
-
-    sql += ' ORDER BY received_at DESC LIMIT ?';
-    params.push(limit);
-
-    console.log('[MQTT] SQL completo:', sql);
-    console.log('[MQTT] Parâmetros finais:', params);
-
-    const results = query(sql, params);
-    
-    console.log('[MQTT] Resultados encontrados:', results.length);
-    
-    // Buscar TODOS os dados recentes para debug
-    const allRecent = query(
-      'SELECT id, payload, received_at FROM mqtt_data WHERE device_id = ? ORDER BY received_at DESC LIMIT 5',
-      [deviceId]
-    );
-    console.log('[MQTT] Últimos 5 registros no banco:', allRecent.map(r => ({
-      id: r.id,
-      payload: r.payload,
-      received_at: r.received_at
-    })));
-    
-    // Testar manualmente se json_extract está funcionando
-    if (allRecent.length > 0) {
-      const testPayload = allRecent[0].payload;
-      console.log('[MQTT] Teste json_extract com primeiro registro:', testPayload);
-      Object.entries(thresholds).forEach(([field, limits]) => {
-        const testQuery = `SELECT json_extract(?, '$.${field}') as value`;
-        const testResult = query(testQuery, [testPayload]);
-        console.log(`[MQTT] Campo '${field}' extraído:`, testResult[0]?.value, `(tipo: ${typeof testResult[0]?.value})`);
-        if (limits.max) {
-          console.log(`[MQTT] Comparação: ${testResult[0]?.value} > ${limits.max} = ${testResult[0]?.value > parseFloat(limits.max)}`);
-        }
-      });
-    }
-
     // Adicionar informação de qual threshold foi excedido
-    return results.map(row => {
+    return exceedances.map(row => {
       const payload = typeof row.payload === 'string' ? JSON.parse(row.payload) : row.payload;
       const alerts = [];
 
@@ -350,7 +284,7 @@ const MqttService = {
       return {
         id: row.id,
         device_id: row.device_id,
-        timestamp: row.timestamp,
+        timestamp: row.received_at,
         payload: row.payload,
         alerts
       };

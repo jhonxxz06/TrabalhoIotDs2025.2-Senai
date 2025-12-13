@@ -22,7 +22,7 @@ const createDeviceSchema = z.object({
     .string()
     .optional(),
   assignedUsers: z
-    .array(z.number())
+    .array(z.string().uuid())
     .optional()
 });
 

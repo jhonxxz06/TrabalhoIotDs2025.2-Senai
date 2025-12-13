@@ -4,7 +4,6 @@ const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
 const helmet = require('helmet');
-const { initDatabase } = require('./config/database');
 
 const app = express();
 const server = http.createServer(app);
@@ -86,22 +85,15 @@ app.use((req, res) => {
   });
 });
 
-// Inicializa o banco de dados e depois inicia o servidor
-initDatabase()
-  .then(() => {
-    server.listen(PORT, () => {
-      console.log(`🚀 Servidor rodando em http://localhost:${PORT}`);
-      console.log(`🔌 WebSocket pronto na porta ${PORT}`);
-      console.log(`📡 Health check: http://localhost:${PORT}/api/health`);
-      
-      // Inicializa conexões MQTT após servidor estar pronto
-      const { initMqttConnections } = require('./config/mqtt');
-      setTimeout(() => {
-        initMqttConnections(io);
-      }, 1000);
-    });
-  })
-  .catch((err) => {
-    console.error('❌ Erro ao inicializar banco de dados:', err);
-    process.exit(1);
-  });
+// Inicializa o servidor
+server.listen(PORT, () => {
+  console.log(`🚀 Servidor rodando em http://localhost:${PORT}`);
+  console.log(`🔌 WebSocket pronto na porta ${PORT}`);
+  console.log(`📡 Health check: http://localhost:${PORT}/api/health`);
+  
+  // Inicializa conexões MQTT após servidor estar pronto
+  const { initMqttConnections } = require('./config/mqtt');
+  setTimeout(() => {
+    initMqttConnections(io);
+  }, 1000);
+});

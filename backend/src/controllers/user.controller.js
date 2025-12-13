@@ -1,4 +1,7 @@
-const User = require('../models/User');
+// ============================================
+// USER CONTROLLER (usando Profile)
+// ============================================
+const Profile = require('../models/Profile');
 
 const userController = {
   /**
@@ -7,15 +10,12 @@ const userController = {
    */
   async getAll(req, res) {
     try {
-      const users = User.findAll();
+      const profiles = await Profile.findAll();
       
       return res.status(200).json({
         success: true,
         data: {
-          users: users.map(u => ({
-            ...u,
-            hasAccess: Boolean(u.has_access)
-          }))
+          users: profiles.map(Profile.toPublic)
         }
       });
     } catch (error) {
@@ -36,9 +36,9 @@ const userController = {
       const { id } = req.params;
       const { hasAccess } = req.body;
 
-      // Verifica se o usuário existe
-      const user = User.findById(parseInt(id));
-      if (!user) {
+      // Verifica se o perfil existe
+      const profile = await Profile.findById(id);
+      if (!profile) {
         return res.status(404).json({
           success: false,
           error: 'Usuário não encontrado'
@@ -46,7 +46,7 @@ const userController = {
       }
 
       // Não permite alterar o próprio acesso
-      if (user.id === req.user.id) {
+      if (profile.id === req.user.id) {
         return res.status(400).json({
           success: false,
           error: 'Não é possível alterar seu próprio acesso'
@@ -54,13 +54,13 @@ const userController = {
       }
 
       // Atualiza o acesso
-      const updatedUser = User.updateAccess(parseInt(id), hasAccess);
+      const updatedProfile = await Profile.updateAccess(id, hasAccess);
 
       return res.status(200).json({
         success: true,
         message: hasAccess ? 'Acesso concedido' : 'Acesso revogado',
         data: {
-          user: User.toPublic(updatedUser)
+          user: Profile.toPublic(updatedProfile)
         }
       });
     } catch (error) {

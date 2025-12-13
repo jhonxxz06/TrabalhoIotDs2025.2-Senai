@@ -5,7 +5,7 @@ const Device = require('../models/Device');
  * Inicializa conexões MQTT para todos os dispositivos
  * @param {Object} io - Instância do Socket.IO
  */
-function initMqttConnections(io) {
+async function initMqttConnections(io) {
   console.log('\n📡 Inicializando conexões MQTT...');
   
   // Configura Socket.IO no MQTT Service para emissão em tempo real
@@ -14,7 +14,7 @@ function initMqttConnections(io) {
   }
   
   try {
-    const devices = Device.findAll();
+    const devices = await Device.findAll();
     
     if (!devices || devices.length === 0) {
       console.log('⚠️ Nenhum dispositivo encontrado para conectar');

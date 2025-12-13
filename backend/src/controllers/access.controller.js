@@ -1,19 +1,19 @@
 const AccessRequest = require('../models/AccessRequest');
-const User = require('../models/User');
+const Profile = require('../models/Profile');
 const Device = require('../models/Device');
 
 /**
  * Lista solicitações (admin: todas, user: apenas suas)
  */
-const getAll = (req, res) => {
+const getAll = async (req, res) => {
   try {
     const { status } = req.query;
     let requests;
 
     if (req.user.role === 'admin') {
-      requests = AccessRequest.findAll(status);
+      requests = await AccessRequest.findAll(status);
     } else {
-      requests = AccessRequest.findByUserId(req.user.id);
+      requests = await AccessRequest.findByUserId(req.user.id);
     }
 
     res.json({
@@ -32,9 +32,9 @@ const getAll = (req, res) => {
 /**
  * Conta solicitações pendentes (para badge de notificação)
  */
-const countPending = (req, res) => {
+const countPending = async (req, res) => {
   try {
-    const count = AccessRequest.countPending();
+    const count = await AccessRequest.countPending();
     res.json({
       success: true,
       count
@@ -51,7 +51,7 @@ const countPending = (req, res) => {
 /**
  * Cria solicitação de acesso (user sem acesso)
  */
-const create = (req, res) => {
+const create = async (req, res) => {
   try {
     const { deviceId, message } = req.body;
     const userId = req.user.id;
@@ -59,8 +59,8 @@ const create = (req, res) => {
     // Se não especificou deviceId, é uma solicitação geral
     // Verifica se usuário já tem acesso geral apenas nesse caso
     if (!deviceId) {
-      const user = User.findById(userId);
-      if (user && user.has_access) {
+      const profile = await Profile.findById(userId);
+      if (profile && profile.has_access) {
         return res.status(400).json({
           success: false,
           message: 'Você já possui acesso ao sistema'
@@ -69,7 +69,7 @@ const create = (req, res) => {
     }
 
     // Verifica se já tem solicitação pendente
-    if (AccessRequest.hasPendingRequest(userId, deviceId)) {
+    if (await AccessRequest.hasPendingRequest(userId, deviceId)) {
       return res.status(400).json({
         success: false,
         message: 'Você já possui uma solicitação pendente'
@@ -78,7 +78,7 @@ const create = (req, res) => {
 
     // Se especificou deviceId, verifica se dispositivo existe
     if (deviceId) {
-      if (!Device.findById(deviceId)) {
+      if (!(await Device.findById(deviceId))) {
         return res.status(404).json({
           success: false,
           message: 'Dispositivo não encontrado'
@@ -86,7 +86,7 @@ const create = (req, res) => {
       }
       
       // Verifica se usuário já tem acesso a este dispositivo específico
-      if (Device.userHasAccess(deviceId, userId)) {
+      if (await Device.userHasAccess(deviceId, userId)) {
         return res.status(400).json({
           success: false,
           message: 'Você já possui acesso a este dispositivo'
@@ -94,7 +94,7 @@ const create = (req, res) => {
       }
     }
 
-    const request = AccessRequest.create(userId, deviceId, message);
+    const request = await AccessRequest.create(userId, deviceId, message);
 
     res.status(201).json({
       success: true,
@@ -113,10 +113,10 @@ const create = (req, res) => {
 /**
  * Aprova solicitação (admin)
  */
-const approve = (req, res) => {
+const approve = async (req, res) => {
   try {
     const { id } = req.params;
-    const request = AccessRequest.findById(id);
+    const request = await AccessRequest.findById(id);
 
     if (!request) {
       return res.status(404).json({
@@ -133,15 +133,16 @@ const approve = (req, res) => {
     }
 
     // Aprova a solicitação
-    AccessRequest.approve(id);
+    await AccessRequest.approve(id, req.user.id);
 
     // Sempre dá has_access = true ao usuário quando aprovado
-    User.updateAccess(request.user_id, true);
+    await Profile.updateAccess(request.user_id, true);
 
     // Se for para dispositivo específico, adiciona acesso ao device também
     if (request.device_id) {
-      Device.setAssignedUsers(request.device_id, [
-        ...Device.getAssignedUsers(request.device_id).map(u => u.id),
+      const assignedUsers = await Device.getAssignedUsers(request.device_id);
+      await Device.setAssignedUsers(request.device_id, [
+        ...assignedUsers.map(u => u.id),
         request.user_id
       ]);
     }
@@ -162,10 +163,10 @@ const approve = (req, res) => {
 /**
  * Rejeita solicitação (admin)
  */
-const reject = (req, res) => {
+const reject = async (req, res) => {
   try {
     const { id } = req.params;
-    const request = AccessRequest.findById(id);
+    const request = await AccessRequest.findById(id);
 
     if (!request) {
       return res.status(404).json({
@@ -181,7 +182,7 @@ const reject = (req, res) => {
       });
     }
 
-    AccessRequest.reject(id);
+    await AccessRequest.reject(id, req.user.id);
 
     res.json({
       success: true,

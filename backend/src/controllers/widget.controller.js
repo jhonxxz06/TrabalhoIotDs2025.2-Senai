@@ -4,14 +4,14 @@ const Device = require('../models/Device');
 /**
  * Lista widgets (admin: todos, user: apenas dos seus dispositivos)
  */
-const getAll = (req, res) => {
+const getAll = async (req, res) => {
   try {
     let widgets;
     
     if (req.user.role === 'admin') {
-      widgets = Widget.findAll();
+      widgets = await Widget.findAll();
     } else {
-      widgets = Widget.findByUserId(req.user.id);
+      widgets = await Widget.findByUserId(req.user.id);
     }
 
     res.json({
@@ -30,12 +30,12 @@ const getAll = (req, res) => {
 /**
  * Busca widgets por dispositivo
  */
-const getByDevice = (req, res) => {
+const getByDevice = async (req, res) => {
   try {
     const { deviceId } = req.params;
     
     // Verifica se dispositivo existe
-    const device = Device.findById(deviceId);
+    const device = await Device.findById(deviceId);
     if (!device) {
       return res.status(404).json({
         success: false,
@@ -44,14 +44,14 @@ const getByDevice = (req, res) => {
     }
 
     // Verifica acesso se não for admin
-    if (req.user.role !== 'admin' && !Device.userHasAccess(deviceId, req.user.id)) {
+    if (req.user.role !== 'admin' && !(await Device.userHasAccess(deviceId, req.user.id))) {
       return res.status(403).json({
         success: false,
         message: 'Acesso negado a este dispositivo'
       });
     }
 
-    const widgets = Widget.findByDeviceId(deviceId);
+    const widgets = await Widget.findByDeviceId(deviceId);
 
     res.json({
       success: true,
@@ -69,10 +69,10 @@ const getByDevice = (req, res) => {
 /**
  * Busca widget por ID
  */
-const getById = (req, res) => {
+const getById = async (req, res) => {
   try {
     const { id } = req.params;
-    const widget = Widget.findById(id);
+    const widget = await Widget.findById(id);
 
     if (!widget) {
       return res.status(404).json({
@@ -82,7 +82,7 @@ const getById = (req, res) => {
     }
 
     // Verifica acesso via dispositivo se não for admin
-    if (req.user.role !== 'admin' && !Device.userHasAccess(widget.device_id, req.user.id)) {
+    if (req.user.role !== 'admin' && !(await Device.userHasAccess(widget.device_id, req.user.id))) {
       return res.status(403).json({
         success: false,
         message: 'Acesso negado a este widget'
@@ -105,12 +105,12 @@ const getById = (req, res) => {
 /**
  * Cria um novo widget (admin)
  */
-const create = (req, res) => {
+const create = async (req, res) => {
   try {
     const { name, type, deviceId, config, position } = req.body;
 
     // Verifica se dispositivo existe
-    const device = Device.findById(deviceId);
+    const device = await Device.findById(deviceId);
     if (!device) {
       return res.status(404).json({
         success: false,
@@ -118,7 +118,7 @@ const create = (req, res) => {
       });
     }
 
-    const widget = Widget.create({
+    const widget = await Widget.create({
       name,
       type,
       deviceId,
@@ -150,10 +150,10 @@ const create = (req, res) => {
 /**
  * Atualiza um widget (admin)
  */
-const update = (req, res) => {
+const update = async (req, res) => {
   try {
     const { id } = req.params;
-    const widget = Widget.findById(id);
+    const widget = await Widget.findById(id);
 
     if (!widget) {
       return res.status(404).json({
@@ -165,14 +165,14 @@ const update = (req, res) => {
     const { name, type, deviceId, config, position } = req.body;
 
     // Se mudar deviceId, verifica se existe
-    if (deviceId && !Device.findById(deviceId)) {
+    if (deviceId && !(await Device.findById(deviceId))) {
       return res.status(404).json({
         success: false,
         message: 'Dispositivo não encontrado'
       });
     }
 
-    const updatedWidget = Widget.update(id, {
+    const updatedWidget = await Widget.update(id, {
       name,
       type,
       deviceId,
@@ -197,10 +197,10 @@ const update = (req, res) => {
 /**
  * Remove um widget (admin)
  */
-const remove = (req, res) => {
+const remove = async (req, res) => {
   try {
     const { id } = req.params;
-    const widget = Widget.findById(id);
+    const widget = await Widget.findById(id);
 
     if (!widget) {
       return res.status(404).json({
@@ -209,7 +209,7 @@ const remove = (req, res) => {
       });
     }
 
-    Widget.delete(id);
+    await Widget.delete(id);
 
     res.json({
       success: true,
