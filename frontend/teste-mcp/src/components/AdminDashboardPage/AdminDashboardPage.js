@@ -503,7 +503,7 @@ const AdminDashboardPage = ({
       const widgetData = {
         name: widgetConfig.title || 'Widget',
         type: widgetConfig.type,
-        deviceId: parseInt(device?.id),
+        deviceId: device?.id,
         config: {
           type: widgetConfig.type,
           data: widgetConfig.data,
