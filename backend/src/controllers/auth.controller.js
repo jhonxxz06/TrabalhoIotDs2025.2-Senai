@@ -12,7 +12,37 @@ const authController = {
    */
   async register(req, res) {
     try {
-      const { username, email, password, requestedDevices } = req.body;
+      let { username, email, password, requestedDevices } = req.body;
+
+      // 🔎 LOGS DE DEBUG
+      console.log('=== DEBUG REGISTER ===');
+      console.log('EMAIL RAW:', email, 'typeof:', typeof email);
+      console.log('USERNAME RAW:', username, 'typeof:', typeof username);
+      console.log('PASSWORD RAW:', password, 'typeof:', typeof password);
+      console.log('BODY COMPLETO:', JSON.stringify(req.body));
+
+      // Validação explícita
+      if (typeof email !== 'string' || !email) {
+        return res.status(400).json({
+          success: false,
+          error: 'Email inválido (não é string válida)'
+        });
+      }
+
+      if (typeof password !== 'string' || !password) {
+        return res.status(400).json({
+          success: false,
+          error: 'Senha inválida'
+        });
+      }
+
+      // Sanitização
+      email = email.trim().toLowerCase();
+      username = username?.trim() || 'Usuário';
+      
+      console.log('EMAIL APÓS TRIM:', email);
+      console.log('USERNAME APÓS TRIM:', username);
+      console.log('===================');
 
       // Registra usuário no Supabase Auth
       const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -28,6 +58,7 @@ const authController = {
       });
 
       if (authError) {
+        console.error('❌ SUPABASE AUTH ERROR:', authError);
         if (authError.message.includes('already registered')) {
           return res.status(400).json({
             success: false,
