@@ -211,25 +211,25 @@ const TableWidget = ({ deviceId, config }) => {
   };
 
   const formatDateTime = (timestamp) => {
-    const date = new Date(timestamp);
-    return date.toLocaleString('pt-BR', {
-      timeZone: 'America/Sao_Paulo',
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit'
-    });
-  };
+    if (!timestamp) return '';
 
-  const getBadgeClass = (type) => {
-    return type === 'above' ? 'badge-danger' : 'badge-warning';
-  };
+    // Normalize string variants (space vs T)
+    let ts = timestamp;
+    if (typeof ts === 'string') {
+      ts = ts.trim();
+      ts = ts.replace(' ', 'T');
 
-  const getBadgeText = (type) => {
-    return type === 'above' ? 'ACIMA' : 'ABAIXO';
-  };
+      // If string looks like ISO without timezone (e.g. 2025-12-15T12:37:00),
+      // interpret it as America/Sao_Paulo by appending -03:00 so Date parses correctly.
+      const hasTZ = /([Zz]|[+\-]\d{2}:\d{2})$/.test(ts);
+      if (!hasTZ) {
+        // preserve fractional seconds if present
+        ts = ts + '-03:00';
+      }
+    }
+
+    const date = (ts instanceof Date) ? ts : new Date(ts);
+    if (isNaN(date.getTime())) return '';
 
   if (loading && exceedances.length === 0) {
     return <div className="table-widget-loading">Carregando alertas...</div>;
