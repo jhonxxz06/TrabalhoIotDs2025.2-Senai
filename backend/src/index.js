@@ -10,16 +10,33 @@ const app = express();
 const server = http.createServer(app);
 const PORT = process.env.PORT || 3001;
 
-// Configurar origem permitida para CORS e Socket.IO via variável de ambiente
-const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || process.env.REACT_APP_API_URL || '*';
+// Configurar origem(es) permitida(s) para CORS e Socket.IO via variável de ambiente
+// Pode ser uma única URL ou várias separadas por vírgula
+const rawOrigins = process.env.FRONTEND_ORIGIN || process.env.REACT_APP_API_URL || '';
+const FRONTEND_ORIGINS = rawOrigins.split(',').map(s => s.trim()).filter(Boolean);
+
+function allowOrigin(origin, callback) {
+  // Allow requests with no origin (curl, server-to-server)
+  if (!origin) return callback(null, true);
+  // If no origins configured, allow all (development)
+  if (FRONTEND_ORIGINS.length === 0) return callback(null, true);
+  if (FRONTEND_ORIGINS.includes(origin)) return callback(null, true);
+  return callback(new Error('CORS not allowed'), false);
+}
+
 const corsOptions = {
-  origin: FRONTEND_ORIGIN,
-  credentials: true
+  origin: allowOrigin,
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 };
 
-// Configurar Socket.IO com CORS
+// Configurar Socket.IO com CORS (usa mesma lógica)
 const io = new Server(server, {
-  cors: corsOptions
+  cors: {
+    origin: (origin, callback) => allowOrigin(origin, callback),
+    credentials: true
+  }
 });
 
 // Middlewares de segurança e parsing
