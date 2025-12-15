@@ -211,23 +211,13 @@ const TableWidget = ({ deviceId, config }) => {
 
   const formatDateTime = (timestamp) => {
     if (!timestamp) return '';
-    // Formats ISO-like timestamps for display in pt-BR timezone.
     try {
-      let ts = timestamp;
-      if (typeof ts === 'string') {
-        ts = ts.trim().replace(' ', 'T');
-        const hasTZ = /([Zz]|[+\-]\d{2}:\d{2})$/.test(ts);
-        if (!hasTZ) {
-          // If no timezone provided, assume America/Sao_Paulo (UTC-3)
-          ts = `${ts}-03:00`;
-        }
-      }
-
+      const ts = (typeof timestamp === 'string') ? timestamp.trim().replace(' ', 'T') : timestamp;
       const date = ts instanceof Date ? ts : new Date(ts);
       if (isNaN(date.getTime())) return '';
 
+      // Match other widgets: format according to browser locale (pt-BR) without forcing a timezone
       return date.toLocaleString('pt-BR', {
-        timeZone: 'America/Sao_Paulo',
         day: '2-digit',
         month: '2-digit',
         year: 'numeric',
