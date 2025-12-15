@@ -107,10 +107,10 @@ const DynamicWidget = ({ widget, deviceId, onDownload }) => {
       
       // Se temos dados MQTT, usá-los no gráfico
       if (mqttData && mqttData.length > 0 && config.mqttField) {
-        // Usar Data e Hora do backend diretamente para os labels
+        // Usar apenas Hora do backend para os labels (mais limpo)
         const labels = mqttData.map(d => {
-          if (d.Data && d.Hora) {
-            return `${d.Data} ${d.Hora}`;
+          if (d.Hora) {
+            return d.Hora;
           }
           return 'N/A';
         }).reverse();
@@ -173,10 +173,10 @@ const DynamicWidget = ({ widget, deviceId, onDownload }) => {
           : mqttData[0].payload;
         const fields = Object.keys(lastPayload).filter(k => typeof lastPayload[k] === 'number');
         if (fields.length > 0) {
-          // Usar Data e Hora do backend diretamente para os labels
+          // Usar apenas Hora do backend para os labels (mais limpo)
           const labels = mqttData.map(d => {
-            if (d.Data && d.Hora) {
-              return `${d.Data} ${d.Hora}`;
+            if (d.Hora) {
+              return d.Hora;
             }
             return 'N/A';
           }).reverse();

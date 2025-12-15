@@ -91,10 +91,10 @@ const DynamicWidgetCard = ({ widget, deviceId, position, dragging, onMouseDown, 
       let chartData = config.data || { labels: [], datasets: [] };
       
       if (mqttData && mqttData.length > 0 && config.mqttField) {
-        // Usar Data e Hora do backend diretamente para os labels
+        // Usar apenas Hora do backend para os labels (mais limpo)
         const labels = mqttData.map(d => {
-          if (d.Data && d.Hora) {
-            return `${d.Data} ${d.Hora}`;
+          if (d.Hora) {
+            return d.Hora;
           }
           return 'N/A';
         }).reverse();
@@ -162,8 +162,8 @@ const DynamicWidgetCard = ({ widget, deviceId, position, dragging, onMouseDown, 
         if (fields.length > 0) {
           // Usar Data e Hora do backend diretamente para os labels
           const labels = mqttData.map(d => {
-            if (d.Data && d.Hora) {
-              return `${d.Data} ${d.Hora}`;
+            if (d.Hora) {
+              return d.Hora;
             }
             return 'N/A';
           }).reverse();
