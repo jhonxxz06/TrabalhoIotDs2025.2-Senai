@@ -1,0 +1,410 @@
+/* ========================================
+   Admin Header Component Styles
+   ======================================== */
+
+.admin-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 79px;
+  background: rgba(132, 182, 244, 0.67);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  z-index: 1000;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.admin-header-left {
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+
+.admin-header-left .back-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  border-radius: 8px;
+  padding: 8px 16px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  color: white;
+  font-family: 'Roboto', sans-serif;
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.admin-header-left .back-button:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateX(-3px);
+}
+
+.admin-header-center {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.admin-header-logo {
+  width: 83px;
+  height: 83px;
+  object-fit: cover;
+}
+
+.admin-header-right {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+/* Admin Icon Buttons */
+.admin-icon-button {
+  width: 50px;
+  height: 50px;
+  background: transparent;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  padding: 8px;
+  transition: background 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.admin-icon-button:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Botão de gráfico - só destaca no hover */
+.admin-icon-button.graph-button {
+  background: transparent;
+  border: none;
+}
+
+.admin-icon-button.graph-button:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.1);
+}
+
+.admin-icon-button.on-devices-page {
+  cursor: default;
+}
+
+.admin-icon-button.on-devices-page:hover {
+  background: transparent;
+}
+
+.admin-icon {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.home-button svg {
+  width: 28px;
+  height: 28px;
+}
+
+/* Notification Container */
+.notification-container {
+  position: relative;
+}
+
+.notification-button {
+  position: relative;
+}
+
+/* Notification Badge */
+.notification-badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  min-width: 20px;
+  height: 20px;
+  background: #FF0000;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+}
+
+.notification-badge span {
+  font-family: 'Roboto', sans-serif;
+  font-weight: 600;
+  font-size: 10px;
+  color: white;
+}
+
+/* Notification Dropdown */
+.notification-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 8px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 25px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+  min-width: 320px;
+  max-width: 400px;
+  animation: dropdownFadeIn 0.2s ease-out;
+  z-index: 1001;
+}
+
+.notification-header {
+  padding: 16px 20px;
+  background: rgba(132, 182, 244, 0.2);
+  border-bottom: 1px solid rgba(132, 182, 244, 0.3);
+}
+
+.notification-header h4 {
+  margin: 0;
+  font-family: 'Roboto', sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1D1B20;
+}
+
+.notification-empty {
+  padding: 30px 20px;
+  text-align: center;
+}
+
+.notification-empty p {
+  margin: 0;
+  font-family: 'Roboto', sans-serif;
+  font-size: 14px;
+  color: #79747E;
+}
+
+.notification-list {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.notification-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  transition: background 0.2s ease;
+}
+
+.notification-item:hover {
+  background: rgba(132, 182, 244, 0.1);
+}
+
+.notification-item:last-child {
+  border-bottom: none;
+}
+
+.notification-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.notification-user {
+  font-family: 'Roboto', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1D1B20;
+}
+
+.notification-device {
+  font-family: 'Roboto', sans-serif;
+  font-size: 12px;
+  color: #79747E;
+}
+
+.notification-device strong {
+  color: #1976D2;
+}
+
+.notification-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.notif-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.notif-btn.accept {
+  background: rgba(76, 175, 80, 0.15);
+  color: #4CAF50;
+}
+
+.notif-btn.accept:hover {
+  background: #4CAF50;
+  color: white;
+  transform: scale(1.1);
+}
+
+.notif-btn.reject {
+  background: rgba(211, 47, 47, 0.15);
+  color: #d32f2f;
+}
+
+.notif-btn.reject:hover {
+  background: #d32f2f;
+  color: white;
+  transform: scale(1.1);
+}
+
+.admin-username {
+  font-family: 'Roboto', sans-serif;
+  font-weight: 500;
+  font-size: 24px;
+  line-height: 1.67;
+  letter-spacing: 2px;
+  color: rgba(255, 255, 255, 0.81);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.admin-user-menu-container {
+  position: relative;
+}
+
+.admin-user-avatar {
+  width: 49px;
+  height: 49px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.3s ease;
+}
+
+.admin-user-avatar:hover {
+  transform: scale(1.1);
+}
+
+.admin-user-avatar svg {
+  width: 100%;
+  height: 100%;
+}
+
+.admin-user-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 8px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+  min-width: 120px;
+  animation: dropdownFadeIn 0.2s ease-out;
+  z-index: 9999;
+}
+
+@keyframes dropdownFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.admin-user-dropdown button {
+  width: 100%;
+  padding: 12px 16px;
+  border: none;
+  background: transparent;
+  text-align: left;
+  font-family: 'Roboto', sans-serif;
+  font-size: 14px;
+  color: #1D1B20;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  pointer-events: auto;
+  position: relative;
+  z-index: 10000;
+}
+
+.admin-user-dropdown button:hover {
+  background: rgba(132, 182, 244, 0.2);
+}
+
+.admin-user-dropdown button:last-child {
+  color: #d32f2f;
+}
+
+.admin-user-dropdown button:last-child:hover {
+  background: rgba(211, 47, 47, 0.1);
+}
+
+/* ========================================
+   Responsive Design
+   ======================================== */
+
+@media (max-width: 768px) {
+  .admin-header {
+    height: 60px;
+    padding: 0 15px;
+  }
+
+  .admin-header-logo {
+    width: 60px;
+    height: 60px;
+  }
+
+  .admin-username {
+    font-size: 16px;
+    display: none;
+  }
+
+  .admin-icon-button {
+    width: 40px;
+    height: 40px;
+  }
+
+  .admin-user-avatar {
+    width: 40px;
+    height: 40px;
+  }
+}
+
+@media (max-width: 480px) {
+  .admin-header {
+    height: 50px;
+    padding: 0 10px;
+  }
+
+  .admin-header-logo {
+    width: 50px;
+    height: 50px;
+  }
+
+  .admin-icon-button {
+    width: 35px;
+    height: 35px;
+  }
+
+  .admin-user-avatar {
+    width: 35px;
+    height: 35px;
+  }
+}

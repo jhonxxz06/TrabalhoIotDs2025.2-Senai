@@ -1,0 +1,355 @@
+const MqttService = require('../services/mqtt.service');
+const Device = require('../models/Device');
+
+/**
+ * Conecta a um dispositivo MQTT
+ */
+const connect = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const device = await Device.findById(id);
+
+    if (!device) {
+      return res.status(404).json({
+        success: false,
+        message: 'Dispositivo não encontrado'
+      });
+    }
+
+    MqttService.connect(device);
+
+    res.json({
+      success: true,
+      message: `Conectando ao dispositivo ${device.name}...`
+    });
+  } catch (error) {
+    console.error('Erro ao conectar MQTT:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro interno do servidor'
+    });
+  }
+};
+
+/**
+ * Desconecta de um dispositivo MQTT
+ */
+const disconnect = async (req, res) => {
+  try {
+    const { id } = req.params;
+    await MqttService.disconnect(parseInt(id));
+
+    res.json({
+      success: true,
+      message: 'Dispositivo desconectado'
+    });
+  } catch (error) {
+    console.error('Erro ao desconectar MQTT:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro interno do servidor'
+    });
+  }
+};
+
+/**
+ * Retorna status das conexões MQTT
+ */
+const getStatus = async (req, res) => {
+  try {
+    const status = await MqttService.getStatus();
+    res.json({
+      success: true,
+      connections: status
+    });
+  } catch (error) {
+    console.error('Erro ao buscar status:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro interno do servidor'
+    });
+  }
+};
+
+/**
+ * Busca dados históricos de um dispositivo
+ */
+const getData = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { limit = 100, period } = req.query;
+
+    // Verifica acesso
+    if (req.user.role !== 'admin' && !await Device.userHasAccess(id, req.user.id)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Acesso negado a este dispositivo'
+      });
+    }
+
+    let data;
+    if (period === 'day') {
+      data = await MqttService.getDayData(id);
+    } else if (period === 'week') {
+      data = await MqttService.getWeekData(id);
+    } else {
+      data = await MqttService.getData(id, { limit: parseInt(limit) });
+    }
+
+    // Garantir que data é um array
+    if (!Array.isArray(data)) {
+      data = [];
+    }
+
+    // Parse do payload JSON se possível
+    const parsedData = data.map(item => {
+      // Garantir que received_at seja uma data válida
+      let date = new Date(item.received_at);
+      
+      // Se a data for inválida, usar data atual
+      if (isNaN(date.getTime())) {
+        date = new Date();
+      }
+      
+      // Ajustar para horário de Brasília (UTC-3)
+      const brasiliaOffset = -3 * 60; // -3 horas em minutos
+      const localOffset = date.getTimezoneOffset(); // offset atual em minutos
+      const offsetDiff = localOffset + brasiliaOffset;
+      
+      const brasiliaDate = new Date(date.getTime() - offsetDiff * 60 * 1000);
+      
+      // Formatar manualmente para garantir formato correto
+      const dia = String(brasiliaDate.getDate()).padStart(2, '0');
+      const mes = String(brasiliaDate.getMonth() + 1).padStart(2, '0');
+      const ano = brasiliaDate.getFullYear();
+      const dataFormatada = `${dia}/${mes}/${ano}`;
+      
+      const hora = String(brasiliaDate.getHours()).padStart(2, '0');
+      const minuto = String(brasiliaDate.getMinutes()).padStart(2, '0');
+      const segundo = String(brasiliaDate.getSeconds()).padStart(2, '0');
+      const horaFormatada = `${hora}:${minuto}:${segundo}`;
+      
+      try {
+        return {
+          id: item.id,
+          deviceId: item.device_id,
+          topic: item.topic,
+          payload: JSON.parse(item.payload),
+          receivedAt: item.received_at,
+          timestamp: item.received_at,
+          Data: dataFormatada,
+          Hora: horaFormatada
+        };
+      } catch {
+        return {
+          id: item.id,
+          deviceId: item.device_id,
+          topic: item.topic,
+          payload: item.payload,
+          receivedAt: item.received_at,
+          timestamp: item.received_at,
+          Data: dataFormatada,
+          Hora: horaFormatada
+        };
+      }
+    });
+
+    res.json({
+      success: true,
+      count: parsedData.length,
+      data: parsedData
+    });
+  } catch (error) {
+    console.error('Erro ao buscar dados:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro interno do servidor'
+    });
+  }
+};
+
+/**
+ * Busca último dado de um dispositivo
+ */
+const getLatest = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Verifica acesso
+    if (req.user.role !== 'admin' && !await Device.userHasAccess(id, req.user.id)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Acesso negado a este dispositivo'
+      });
+    }
+
+    const device = await Device.findById(id);
+    if (!device) {
+      return res.status(404).json({
+        success: false,
+        message: 'Dispositivo não encontrado'
+      });
+    }
+
+    // Tenta do cache primeiro, senão do banco
+    let data = MqttService.getLatest(device.mqtt_topic);
+    
+    if (!data) {
+      const dbData = MqttService.getLatestFromDb(id);
+      if (dbData) {
+        data = {
+          payload: dbData.payload,
+          timestamp: dbData.received_at
+        };
+      }
+    }
+
+    if (!data) {
+      return res.json({
+        success: true,
+        data: null,
+        message: 'Nenhum dado disponível'
+      });
+    }
+
+    // Parse do payload
+    let payload;
+    try {
+      payload = JSON.parse(data.payload);
+    } catch {
+      payload = data.payload;
+    }
+
+    res.json({
+      success: true,
+      data: {
+        payload,
+        timestamp: data.timestamp
+      }
+    });
+  } catch (error) {
+    console.error('Erro ao buscar último dado:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro interno do servidor'
+    });
+  }
+};
+
+/**
+ * Conecta todos os dispositivos (chamado no startup)
+ */
+const connectAll = async (req, res) => {
+  try {
+    const devices = await Device.findAll();
+    let connected = 0;
+
+    for (const device of devices) {
+      MqttService.connect(device);
+      connected++;
+    }
+
+    res.json({
+      success: true,
+      message: `${connected} dispositivo(s) sendo conectado(s)`
+    });
+  } catch (error) {
+    console.error('Erro ao conectar dispositivos:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro interno do servidor'
+    });
+  }
+};
+
+/**
+ * Busca excedências (valores fora dos thresholds)
+ */
+const getExceedances = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { limit = 100, since } = req.query;
+
+    console.log('[Controller] getExceedances chamado:', { id, limit, since, query: req.query });
+
+    // Verifica acesso
+    if (req.user.role !== 'admin' && !await Device.userHasAccess(id, req.user.id)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Acesso negado a este dispositivo'
+      });
+    }
+
+    // Thresholds vêm como query params (field1Min, field1Max, field2Min, field2Max, etc.)
+    // Exemplo: ?temperatureMin=15&temperatureMax=30&humidityMin=40&humidityMax=80
+    const thresholds = {};
+    
+    // Extrair thresholds dos query params
+    Object.keys(req.query).forEach(key => {
+      if (key.endsWith('Min') || key.endsWith('Max')) {
+        const field = key.replace(/Min$/, '').replace(/Max$/, '');
+        const type = key.endsWith('Min') ? 'min' : 'max';
+        
+        if (!thresholds[field]) {
+          thresholds[field] = {};
+        }
+        
+        thresholds[field][type] = req.query[key];
+      }
+    });
+
+    console.log('[Controller] Thresholds extraídos:', thresholds);
+
+    const options = {
+      limit: parseInt(limit),
+      since: since || null
+    };
+
+    const data = await MqttService.getExceedances(parseInt(id), thresholds, options);
+
+    console.log('[Controller] Dados do service:', data.length, 'registros');
+
+    // Parse do payload se necessário
+    const parsedData = data.map(item => {
+      try {
+        return {
+          ...item,
+          payload: typeof item.payload === 'string' ? JSON.parse(item.payload) : item.payload
+        };
+      } catch (e) {
+        console.error('[Controller] Erro ao parsear payload:', e);
+        return item;
+      }
+    });
+
+    console.log('[Controller] Dados parseados:', parsedData.length, 'registros');
+    if (parsedData.length > 0) {
+      console.log('[Controller] Primeiro item:', JSON.stringify(parsedData[0], null, 2));
+    }
+
+    res.json({
+      success: true,
+      data: parsedData,
+      count: parsedData.length,
+      thresholds
+    });
+  } catch (error) {
+    console.error('[Controller] Erro ao buscar excedências:', error);
+    console.error('[Controller] Stack:', error.stack);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Erro interno do servidor',
+      error: process.env.NODE_ENV === 'development' ? error.toString() : undefined
+    });
+  }
+};
+
+module.exports = {
+  connect,
+  disconnect,
+  getStatus,
+  getData,
+  getLatest,
+  connectAll,
+  getExceedances
+};
