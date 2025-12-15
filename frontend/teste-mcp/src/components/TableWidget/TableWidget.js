@@ -227,6 +227,9 @@ const TableWidget = ({ deviceId, config }) => {
       const date = ts instanceof Date ? ts : new Date(ts);
       if (isNaN(date.getTime())) return '';
 
+      // Ajuste visual: adicionar +3 horas ao horário exibido
+      date.setHours(date.getHours() + 3);
+
       return date.toLocaleString('pt-BR', {
         timeZone: 'America/Sao_Paulo',
         day: '2-digit',
