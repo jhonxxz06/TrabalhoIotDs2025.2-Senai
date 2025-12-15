@@ -1,18 +1,28 @@
 const mqtt = require('mqtt');
-const { run, query, queryOne } = require('../config/database');
+const { run, query, queryOne, pool } = require('../config/database');
 
 // ============================================
 // Helper: Converter data para Brasília (UTC-3)
 // ============================================
 function getBrasiliaTime() {
-  const now = new Date();
-  // Criar data em Brasília subtraindo 3 horas
-  const brasiliaTime = new Date(now.getTime() - 3 * 60 * 60 * 1000);
-  // Converter para string ISO no fuso horário de Brasília
-  // Formato: YYYY-MM-DDTHH:mm:ss.sssZ -> YYYY-MM-DDTHH:mm:ss.sss-03:00
-  const iso = brasiliaTime.toISOString();
-  // Substituir Z por -03:00 para indicar o fuso
-  return iso.replace('Z', '-03:00');
+  const date = new Date();
+  // Usar Intl para obter as partes no fuso America/Sao_Paulo
+  const fmt = new Intl.DateTimeFormat('en', {
+    timeZone: 'America/Sao_Paulo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  });
+  const parts = fmt.formatToParts(date);
+  const map = {};
+  parts.forEach(p => { if (p.type !== 'literal') map[p.type] = p.value; });
+  // Monta string ISO local (sem informação de fuso) apropriada para coluna TIMESTAMP
+  const y = map.year, m = map.month, d = map.day, h = map.hour, min = map.minute, s = map.second;
+  return `${y}-${m}-${d}T${h}:${min}:${s}`;
 }
 
 // Armazena conexões ativas por dispositivo
@@ -79,32 +89,33 @@ const MqttService = {
     client.on('message', (topic, message) => {
       try {
         const payload = message.toString();
-        const timestamp = getBrasiliaTime();
-        
+        // Usar timestamp UTC ISO para emissões em tempo real
+        const timestampIso = new Date().toISOString();
+
         console.log(`\n[MQTT] 📥 MENSAGEM RECEBIDA!`);
         console.log(`[MQTT] Device ID: ${id}`);
         console.log(`[MQTT] Tópico: ${topic}`);
         console.log(`[MQTT] Payload: ${payload}`);
-        
-        // Salva no cache
+
+        // Salva no cache (timestamp em UTC ISO)
         latestData.set(topic, {
           payload,
-          timestamp
+          timestamp: timestampIso
         });
 
-        // Salva no banco (sem await dentro do callback)
+        // Salva no banco (sem await dentro do callback) — deixar o Postgres atribuir received_at (UTC)
         this.saveData(id, topic, payload).catch(err => {
           console.error('[MQTT] ❌ Erro ao salvar dados:', err);
         });
         console.log(`[MQTT] ✅ Dados salvos no banco!`);
-        
-        // 🔥 Emite dados via WebSocket para clientes conectados
+
+        // Emite dados via WebSocket para clientes conectados com timestamp UTC
         if (io) {
           io.to(`device:${id}`).emit('mqtt:data', {
             deviceId: id,
             topic,
             payload,
-            timestamp
+            timestamp: timestampIso
           });
           console.log(`[MQTT] 🔌 Dados enviados via WebSocket para device:${id}\n`);
         } else {
@@ -154,12 +165,47 @@ const MqttService = {
    * Salva dados MQTT no banco
    */
   async saveData(deviceId, topic, payload) {
-    // Usar timestamp atual em Brasília (UTC-3)
-    const timestamp = getBrasiliaTime();
-    await run(`
-      INSERT INTO mqtt_data (device_id, topic, payload, received_at)
-      VALUES ($1, $2, $3, $4)
-    `, [deviceId, topic, payload, timestamp]);
+    const payloadStr = typeof payload === 'string' ? payload : JSON.stringify(payload);
+
+    // Use a transaction with an advisory lock per device to prevent race inserts
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      // Acquire an advisory transaction-scoped lock for this device id
+      await client.query('SELECT pg_advisory_xact_lock($1)', [deviceId]);
+
+      // Re-check last record inside the lock
+      const lastRes = await client.query(
+        'SELECT id, payload, received_at FROM mqtt_data WHERE device_id = $1 ORDER BY received_at DESC LIMIT 1',
+        [deviceId]
+      );
+
+      if (lastRes.rows && lastRes.rows.length > 0) {
+        const last = lastRes.rows[0];
+        const lastPayloadStr = typeof last.payload === 'string' ? last.payload : JSON.stringify(last.payload);
+        const lastTime = last.received_at ? new Date(last.received_at).getTime() : 0;
+        const now = Date.now();
+        const delta = Math.abs(now - lastTime);
+        if (lastPayloadStr === payloadStr && delta < 5000) {
+          console.log(`[MQTT] ⚠️ Duplicate payload detected for device ${deviceId} (delta=${delta}ms) - skipping DB insert`);
+          await client.query('COMMIT');
+          return;
+        }
+      }
+
+      // Insert new record
+      await client.query(
+        'INSERT INTO mqtt_data (device_id, topic, payload) VALUES ($1, $2, $3)',
+        [deviceId, topic, payloadStr]
+      );
+
+      await client.query('COMMIT');
+    } catch (err) {
+      try { await client.query('ROLLBACK'); } catch (e) {}
+      throw err;
+    } finally {
+      client.release();
+    }
   },
 
   /**

@@ -100,13 +100,14 @@ async function createTables(client) {
     `);
 
     // Tabela de dados MQTT (histórico)
+    // Usar timestamptz para armazenar instantes com zona UTC
     await client.query(`
       CREATE TABLE IF NOT EXISTS mqtt_data (
         id SERIAL PRIMARY KEY,
         device_id INTEGER NOT NULL,
         topic TEXT NOT NULL,
         payload TEXT NOT NULL,
-        received_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        received_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (device_id) REFERENCES devices(id) ON DELETE CASCADE
       )
     `);
