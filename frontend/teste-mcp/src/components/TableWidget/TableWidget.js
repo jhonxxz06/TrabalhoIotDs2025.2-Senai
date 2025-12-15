@@ -185,9 +185,11 @@ const TableWidget = ({ deviceId, config }) => {
           return {
             id: item.id || `exc-${index}`,
             deviceId: item.device_id,
-            timestamp: item.timestamp,
+            timestamp: item.timestamp || item.receivedAt || item.received_at || null,
             payload,
-            alerts
+            alerts,
+            Data: item.Data || item.data || null,
+            Hora: item.Hora || item.hora || null
           };
         });
         
@@ -208,16 +210,59 @@ const TableWidget = ({ deviceId, config }) => {
   };
 
   const formatDateTime = (timestamp) => {
-    const date = new Date(timestamp);
-    return date.toLocaleString('pt-BR', {
-      timeZone: 'America/Sao_Paulo',
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit'
-    });
+    if (!timestamp) return '';
+
+    // Formats ISO-like timestamps for display in pt-BR timezone.
+    try {
+      let ts = timestamp;
+      if (typeof ts === 'string') {
+        ts = ts.trim().replace(' ', 'T');
+        const hasTZ = /([Zz]|[+\-]\d{2}:\d{2})$/.test(ts);
+        if (!hasTZ) {
+          // If no timezone provided, assume America/Sao_Paulo (UTC-3)
+          ts = `${ts}-03:00`;
+        }
+      }
+
+      const date = ts instanceof Date ? ts : new Date(ts);
+      if (isNaN(date.getTime())) return '';
+
+      return date.toLocaleString('pt-BR', {
+        timeZone: 'America/Sao_Paulo',
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      });
+    } catch (e) {
+      console.warn('formatDateTime error:', e);
+      return '';
+    }
+  };
+
+  const formatDateTimeUTC = (timestamp) => {
+    if (!timestamp) return '';
+    try {
+      let ts = timestamp;
+      if (typeof ts === 'string') ts = ts.trim().replace(' ', 'T');
+      const date = ts instanceof Date ? ts : new Date(ts);
+      if (isNaN(date.getTime())) return '';
+
+      return date.toLocaleString('pt-BR', {
+        timeZone: 'UTC',
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      });
+    } catch (e) {
+      console.warn('formatDateTimeUTC error:', e);
+      return '';
+    }
   };
 
   const getBadgeClass = (type) => {
@@ -271,7 +316,11 @@ const TableWidget = ({ deviceId, config }) => {
               
               return exc.alerts.map((alert, alertIndex) => (
                 <tr key={`${exc.id}-${alertIndex}`}>
-                  <td className="timestamp-cell">{formatDateTime(exc.timestamp)}</td>
+                  <td className="timestamp-cell">{
+                    (typeof exc.timestamp === 'string' && /[Zz]$/.test(exc.timestamp))
+                      ? formatDateTimeUTC(exc.timestamp)
+                      : (exc.Data && exc.Hora) ? `${exc.Data} ${exc.Hora}` : formatDateTime(exc.timestamp)
+                  }</td>
                   <td className="field-cell">{alert.field || 'N/A'}</td>
                   <td className="value-cell">
                     <strong>{alert.value !== undefined ? alert.value : 'N/A'}</strong>
