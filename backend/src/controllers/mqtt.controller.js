@@ -103,15 +103,30 @@ const getData = async (req, res) => {
 
     // Parse do payload JSON se possível e normalizar timestamp para ISO
     const parsedData = data.map(item => {
-      // Tentar interpretar received_at como Date
+      // Interpretar received_at como UTC e converter para Brasília
       let date = new Date(item.received_at);
       if (isNaN(date.getTime())) {
         date = new Date();
       }
 
-      // Formatar Data/Hora para PT-BR (horário de Brasília) sem manipular o valor subjacente
-      const Data = date.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
-      const Hora = date.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+      // Formatar Data/Hora para PT-BR (horário de Brasília) usando Intl
+      const fmt = new Intl.DateTimeFormat('pt-BR', {
+        timeZone: 'America/Sao_Paulo',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+      });
+      
+      const parts = fmt.formatToParts(date);
+      const map = {};
+      parts.forEach(p => { if (p.type !== 'literal') map[p.type] = p.value; });
+      
+      const Data = `${map.day}/${map.month}/${map.year}`;
+      const Hora = `${map.hour}:${map.minute}:${map.second}`;
 
       try {
         return {
