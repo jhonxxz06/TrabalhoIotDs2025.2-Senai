@@ -7,6 +7,10 @@ const pool = new Pool({
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
+// Garantir que cada conexão do pool use o fuso de Brasília para exibição
+pool.on('connect', (client) => {
+  client.query("SET TIME ZONE 'America/Sao_Paulo'").catch(() => {});
+});
 // Trata erros de conexão
 pool.on('error', (err) => {
   console.error('❌ Erro não esperado no pool de conexões:', err);
