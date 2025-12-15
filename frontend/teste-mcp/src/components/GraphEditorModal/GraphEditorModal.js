@@ -315,13 +315,13 @@ const GraphEditorModal = ({
             className={`mode-tab ${mode === 'simple' ? 'active' : ''}`}
             onClick={() => setMode('simple')}
           >
-            🚀 Modo Simples
+             Modo Simples
           </button>
           <button 
             className={`mode-tab ${mode === 'advanced' ? 'active' : ''}`}
             onClick={() => setMode('advanced')}
           >
-            ⚙️ Modo Avançado (JSON)
+             Modo Avançado (JSON)
           </button>
         </div>
 
@@ -347,11 +347,11 @@ const GraphEditorModal = ({
                       className={`chart-type-btn ${chartType === type ? 'active' : ''}`}
                       onClick={() => setChartType(type)}
                     >
-                      {type === 'line' && '📈 Linha'}
-                      {type === 'bar' && '📊 Barras'}
-                      {type === 'pie' && '🥧 Pizza'}
-                      {type === 'doughnut' && '🍩 Rosca'}
-                      {type === 'table' && '📋 Tabela'}
+                      {type === 'line' && ' Linha'}
+                      {type === 'bar' && ' Barras'}
+                      {type === 'pie' && ' Pizza'}
+                      {type === 'doughnut' && ' Rosca'}
+                      {type === 'table' && ' Tabela'}
                     </button>
                   ))}
                 </div>
@@ -455,7 +455,7 @@ const GraphEditorModal = ({
               )}
 
               <div className="mqtt-example">
-                <h4>💡 Exemplo de Payload MQTT:</h4>
+                <h4> Exemplo de Payload MQTT:</h4>
                 <code>
                   {"{"}"temperature": 25.5, "humidity": 60{"}"}
                 </code>
