@@ -60,13 +60,20 @@ const DynamicWidget = ({ widget, deviceId, onDownload }) => {
       if (data.deviceId === deviceId) {
         // Adicionar novo dado ao início do array
         setMqttData((prevData) => {
+          // Formatar Data e Hora no fuso de Brasília
+          const date = new Date(data.timestamp);
+          const Data = date.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+          const Hora = date.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+          
           const newData = [{
             id: Date.now(),
             device_id: data.deviceId,
             topic: data.topic,
             payload: data.payload,
             timestamp: data.timestamp,
-            received_at: data.timestamp
+            received_at: data.timestamp,
+            Data,
+            Hora
           }, ...prevData];
           
           // Manter apenas os últimos 20 registros

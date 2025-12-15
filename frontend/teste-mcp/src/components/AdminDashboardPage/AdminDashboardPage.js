@@ -49,13 +49,20 @@ const DynamicWidgetCard = ({ widget, deviceId, position, dragging, onMouseDown, 
     const handleMqttData = (data) => {
       if (!data || data.deviceId.toString() !== deviceId.toString()) return;
       setMqttData(prev => {
+        // Formatar Data e Hora no fuso de Brasília
+        const date = new Date(data.timestamp);
+        const Data = date.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+        const Hora = date.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+        
         const newData = [{
           id: Date.now(),
           device_id: data.deviceId,
           topic: data.topic,
           payload: data.payload,
           timestamp: data.timestamp,
-          received_at: data.timestamp
+          received_at: data.timestamp,
+          Data,
+          Hora
         }, ...(prev || [])];
         return newData.slice(0, 20);
       });
