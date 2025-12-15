@@ -351,11 +351,19 @@ const MqttService = {
           }
         });
 
+        // Normalizar e também fornecer Data/Hora em fuso de Brasília para consumo (CSV/table)
+        const receivedAt = row.timestamp || row.received_at;
+        const dateObj = new Date(receivedAt);
+        const Data = dateObj.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+        const Hora = dateObj.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+
         return {
           id: row.id,
           device_id: row.device_id,
           // Normalizar timestamp para string ISO (UTC)
-          timestamp: new Date(row.timestamp).toISOString(),
+          timestamp: new Date(receivedAt).toISOString(),
+          Data,
+          Hora,
           payload: row.payload,
           alerts
         };
