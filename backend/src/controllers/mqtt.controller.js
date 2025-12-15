@@ -101,57 +101,26 @@ const getData = async (req, res) => {
       data = [];
     }
 
-    // Parse do payload JSON se possível e normalizar timestamp para ISO
+    // Parse do payload JSON se possível
+    // Data e Hora já vêm formatados da query SQL no timezone de Brasília
     const parsedData = data.map(item => {
-      // Interpretar received_at como UTC e converter para Brasília
-      let date = new Date(item.received_at);
-      if (isNaN(date.getTime())) {
-        date = new Date();
-      }
-
-      // Formatar Data/Hora para PT-BR (horário de Brasília) usando Intl
-      const fmt = new Intl.DateTimeFormat('pt-BR', {
-        timeZone: 'America/Sao_Paulo',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: false
-      });
-      
-      const parts = fmt.formatToParts(date);
-      const map = {};
-      parts.forEach(p => { if (p.type !== 'literal') map[p.type] = p.value; });
-      
-      const Data = `${map.day}/${map.month}/${map.year}`;
-      const Hora = `${map.hour}:${map.minute}:${map.second}`;
-
+      let parsedPayload;
       try {
-        return {
-          id: item.id,
-          deviceId: item.device_id,
-          topic: item.topic,
-          payload: JSON.parse(item.payload),
-          receivedAt: item.received_at,
-          // Normalizar timestamp para ISO (UTC) - frontend chamará toLocaleString com fuso se necessário
-          timestamp: new Date(item.received_at).toISOString(),
-          Data,
-          Hora
-        };
+        parsedPayload = typeof item.payload === 'string' ? JSON.parse(item.payload) : item.payload;
       } catch {
-        return {
-          id: item.id,
-          deviceId: item.device_id,
-          topic: item.topic,
-          payload: item.payload,
-          receivedAt: item.received_at,
-          timestamp: new Date(item.received_at).toISOString(),
-          Data,
-          Hora
-        };
+        parsedPayload = item.payload;
       }
+
+      return {
+        id: item.id,
+        deviceId: item.device_id,
+        topic: item.topic,
+        payload: parsedPayload,
+        receivedAt: item.received_at,
+        timestamp: new Date(item.received_at).toISOString(),
+        Data: item.Data,  // Já formatado pela query SQL
+        Hora: item.Hora   // Já formatado pela query SQL
+      };
     });
 
     res.json({

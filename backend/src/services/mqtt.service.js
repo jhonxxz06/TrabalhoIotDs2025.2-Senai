@@ -216,7 +216,11 @@ const MqttService = {
     
     if (since) {
       return await query(`
-        SELECT * FROM mqtt_data 
+        SELECT 
+          id, device_id, topic, payload, received_at,
+          to_char(received_at AT TIME ZONE 'America/Sao_Paulo', 'DD/MM/YYYY') as "Data",
+          to_char(received_at AT TIME ZONE 'America/Sao_Paulo', 'HH24:MI:SS') as "Hora"
+        FROM mqtt_data 
         WHERE device_id = $1 AND received_at >= $2
         ORDER BY received_at DESC
         LIMIT $3
@@ -224,7 +228,11 @@ const MqttService = {
     }
     
     return await query(`
-      SELECT * FROM mqtt_data 
+      SELECT 
+        id, device_id, topic, payload, received_at,
+        to_char(received_at AT TIME ZONE 'America/Sao_Paulo', 'DD/MM/YYYY') as "Data",
+        to_char(received_at AT TIME ZONE 'America/Sao_Paulo', 'HH24:MI:SS') as "Hora"
+      FROM mqtt_data 
       WHERE device_id = $1
       ORDER BY received_at DESC
       LIMIT $2
