@@ -185,12 +185,11 @@ const TableWidget = ({ deviceId, config }) => {
           return {
             id: item.id || `exc-${index}`,
             deviceId: item.device_id,
-            timestamp: item.timestamp,
+            timestamp: item.timestamp || item.receivedAt || item.received_at || null,
             payload,
             alerts,
-            // Incluir Data/Hora formatados pela API (fuso de Brasília) para exibição
-            Data: item.Data,
-            Hora: item.Hora
+            Data: item.Data || item.data || null,
+            Hora: item.Hora || item.hora || null
           };
         });
         
@@ -211,25 +210,25 @@ const TableWidget = ({ deviceId, config }) => {
   };
 
   const formatDateTime = (timestamp) => {
-    if (!timestamp) return '';
+    const date = new Date(timestamp);
+    return date.toLocaleString('pt-BR', {
+      timeZone: 'America/Sao_Paulo',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    });
+  };
 
-    // Normalize string variants (space vs T)
-    let ts = timestamp;
-    if (typeof ts === 'string') {
-      ts = ts.trim();
-      ts = ts.replace(' ', 'T');
+  const getBadgeClass = (type) => {
+    return type === 'above' ? 'badge-danger' : 'badge-warning';
+  };
 
-      // If string looks like ISO without timezone (e.g. 2025-12-15T12:37:00),
-      // interpret it as America/Sao_Paulo by appending -03:00 so Date parses correctly.
-      const hasTZ = /([Zz]|[+\-]\d{2}:\d{2})$/.test(ts);
-      if (!hasTZ) {
-        // preserve fractional seconds if present
-        ts = ts + '-03:00';
-      }
-    }
-
-    const date = (ts instanceof Date) ? ts : new Date(ts);
-    if (isNaN(date.getTime())) return '';
+  const getBadgeText = (type) => {
+    return type === 'above' ? 'ACIMA' : 'ABAIXO';
+  };
 
   if (loading && exceedances.length === 0) {
     return <div className="table-widget-loading">Carregando alertas...</div>;
@@ -274,7 +273,7 @@ const TableWidget = ({ deviceId, config }) => {
               
               return exc.alerts.map((alert, alertIndex) => (
                 <tr key={`${exc.id}-${alertIndex}`}>
-                  <td className="timestamp-cell">{formatDateTime(exc.timestamp)}</td>
+                  <td className="timestamp-cell">{exc.Data && exc.Hora ? `${exc.Data} ${exc.Hora}` : formatDateTime(exc.timestamp)}</td>
                   <td className="field-cell">{alert.field || 'N/A'}</td>
                   <td className="value-cell">
                     <strong>{alert.value !== undefined ? alert.value : 'N/A'}</strong>
