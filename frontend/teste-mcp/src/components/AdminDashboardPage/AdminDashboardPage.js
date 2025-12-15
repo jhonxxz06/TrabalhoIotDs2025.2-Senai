@@ -92,7 +92,8 @@ const DynamicWidgetCard = ({ widget, deviceId, position, dragging, onMouseDown, 
           if (isNaN(date.getTime())) {
             return 'N/A';
           }
-          return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+          // Exibir data/hora convertida para o horário de Brasília (corrige atraso de -3h)
+          return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' });
         }).reverse();
         
         const datasets = [];
@@ -163,7 +164,7 @@ const DynamicWidgetCard = ({ widget, deviceId, position, dragging, onMouseDown, 
             if (isNaN(date.getTime())) {
               return 'N/A';
             }
-            return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' });
           }).reverse();
 
           // Usar apenas o primeiro campo quando auto-detectar
