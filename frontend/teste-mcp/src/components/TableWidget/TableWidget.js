@@ -211,7 +211,6 @@ const TableWidget = ({ deviceId, config }) => {
 
   const formatDateTime = (timestamp) => {
     if (!timestamp) return '';
-
     // Formats ISO-like timestamps for display in pt-BR timezone.
     try {
       let ts = timestamp;
@@ -238,29 +237,6 @@ const TableWidget = ({ deviceId, config }) => {
       });
     } catch (e) {
       console.warn('formatDateTime error:', e);
-      return '';
-    }
-  };
-
-  const formatDateTimeUTC = (timestamp) => {
-    if (!timestamp) return '';
-    try {
-      let ts = timestamp;
-      if (typeof ts === 'string') ts = ts.trim().replace(' ', 'T');
-      const date = ts instanceof Date ? ts : new Date(ts);
-      if (isNaN(date.getTime())) return '';
-
-      return date.toLocaleString('pt-BR', {
-        timeZone: 'UTC',
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit'
-      });
-    } catch (e) {
-      console.warn('formatDateTimeUTC error:', e);
       return '';
     }
   };
@@ -316,7 +292,7 @@ const TableWidget = ({ deviceId, config }) => {
               
               return exc.alerts.map((alert, alertIndex) => (
                 <tr key={`${exc.id}-${alertIndex}`}>
-                  <td className="timestamp-cell">{(exc.Data && exc.Hora) ? `${exc.Data} ${exc.Hora}` : formatDateTime(exc.timestamp)}</td>
+                  <td className="timestamp-cell">{formatDateTime(exc.timestamp)}</td>
                   <td className="field-cell">{alert.field || 'N/A'}</td>
                   <td className="value-cell">
                     <strong>{alert.value !== undefined ? alert.value : 'N/A'}</strong>
