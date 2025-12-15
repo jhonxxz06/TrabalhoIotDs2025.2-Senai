@@ -112,7 +112,8 @@ initDatabase()
   .then(() => {
     server.listen(PORT, '0.0.0.0', async () => {
       console.log(`🚀 Servidor rodando em http://localhost:${PORT}`);
-      console.log(`🔌 WebSocket pronto na porta ${PORT} (CORS origin: ${FRONTEND_ORIGIN})`);
+      const originsDisplay = FRONTEND_ORIGINS.length ? FRONTEND_ORIGINS.join(',') : 'any';
+      console.log(`🔌 WebSocket pronto na porta ${PORT} (CORS origins: ${originsDisplay})`);
       console.log(`📡 Health check: http://localhost:${PORT}/api/health`);
       
       // Inicializa conexões MQTT após servidor estar pronto
