@@ -1,4 +1,8 @@
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
+let API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
+// Garantir que a base termine com /api
+if (!API_URL.endsWith('/api')) {
+  API_URL = API_URL.replace(/\/$/, '') + '/api';
+}
 
 // Helpers
 const getToken = () => localStorage.getItem('token');
