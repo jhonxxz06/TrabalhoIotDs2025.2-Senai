@@ -316,11 +316,7 @@ const TableWidget = ({ deviceId, config }) => {
               
               return exc.alerts.map((alert, alertIndex) => (
                 <tr key={`${exc.id}-${alertIndex}`}>
-                  <td className="timestamp-cell">{
-                    (typeof exc.timestamp === 'string' && /[Zz]$/.test(exc.timestamp))
-                      ? formatDateTimeUTC(exc.timestamp)
-                      : (exc.Data && exc.Hora) ? `${exc.Data} ${exc.Hora}` : formatDateTime(exc.timestamp)
-                  }</td>
+                  <td className="timestamp-cell">{(exc.Data && exc.Hora) ? `${exc.Data} ${exc.Hora}` : formatDateTime(exc.timestamp)}</td>
                   <td className="field-cell">{alert.field || 'N/A'}</td>
                   <td className="value-cell">
                     <strong>{alert.value !== undefined ? alert.value : 'N/A'}</strong>
