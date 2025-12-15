@@ -84,16 +84,12 @@ const DynamicWidgetCard = ({ widget, deviceId, position, dragging, onMouseDown, 
       let chartData = config.data || { labels: [], datasets: [] };
       
       if (mqttData && mqttData.length > 0 && config.mqttField) {
-        console.log('🎨 Renderizando gráfico - mqttField:', config.mqttField, '| mqttField2:', config.mqttField2);
-        
-        // Usar dados MQTT reais com campos definidos
+        // Usar Data e Hora do backend diretamente para os labels
         const labels = mqttData.map(d => {
-          const date = new Date(d.timestamp);
-          if (isNaN(date.getTime())) {
-            return 'N/A';
+          if (d.Data && d.Hora) {
+            return `${d.Data} ${d.Hora}`;
           }
-          // Exibir data/hora convertida para o horário de Brasília (corrige atraso de -3h)
-          return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' });
+          return 'N/A';
         }).reverse();
         
         const datasets = [];
@@ -155,18 +151,15 @@ const DynamicWidgetCard = ({ widget, deviceId, position, dragging, onMouseDown, 
         const lastPayload = typeof mqttData[0].payload === 'string' 
           ? JSON.parse(mqttData[0].payload) 
           : mqttData[0].payload;
-        
         const fields = Object.keys(lastPayload).filter(k => typeof lastPayload[k] === 'number');
-        
         if (fields.length > 0) {
+          // Usar Data e Hora do backend diretamente para os labels
           const labels = mqttData.map(d => {
-            const date = new Date(d.timestamp);
-            if (isNaN(date.getTime())) {
-              return 'N/A';
+            if (d.Data && d.Hora) {
+              return `${d.Data} ${d.Hora}`;
             }
-            return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' });
+            return 'N/A';
           }).reverse();
-
           // Usar apenas o primeiro campo quando auto-detectar
           const datasets = [fields[0]].map((field, idx) => ({
             label: field,
@@ -186,7 +179,6 @@ const DynamicWidgetCard = ({ widget, deviceId, position, dragging, onMouseDown, 
             pointBorderWidth: 0,
             pointHoverBorderWidth: 0
           }));
-
           chartData = { labels, datasets };
         }
       }

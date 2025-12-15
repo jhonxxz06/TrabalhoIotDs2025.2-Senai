@@ -100,14 +100,12 @@ const DynamicWidget = ({ widget, deviceId, onDownload }) => {
       
       // Se temos dados MQTT, usá-los no gráfico
       if (mqttData && mqttData.length > 0 && config.mqttField) {
-        // Usar campos definidos explicitamente
+        // Usar Data e Hora do backend diretamente para os labels
         const labels = mqttData.map(d => {
-          const date = new Date(d.timestamp);
-          if (isNaN(date.getTime())) {
-            return 'N/A';
+          if (d.Data && d.Hora) {
+            return `${d.Data} ${d.Hora}`;
           }
-          // Exibir data/hora convertida para o horário de Brasília (corrige atraso de -3h)
-          return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' });
+          return 'N/A';
         }).reverse();
         
         const datasets = [];
@@ -166,18 +164,15 @@ const DynamicWidget = ({ widget, deviceId, onDownload }) => {
         const lastPayload = typeof mqttData[0].payload === 'string' 
           ? JSON.parse(mqttData[0].payload) 
           : mqttData[0].payload;
-        
         const fields = Object.keys(lastPayload).filter(k => typeof lastPayload[k] === 'number');
-        
         if (fields.length > 0) {
+          // Usar Data e Hora do backend diretamente para os labels
           const labels = mqttData.map(d => {
-            const date = new Date(d.timestamp);
-            if (isNaN(date.getTime())) {
-              return 'N/A';
+            if (d.Data && d.Hora) {
+              return `${d.Data} ${d.Hora}`;
             }
-            return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' });
+            return 'N/A';
           }).reverse();
-
           // Usar apenas o primeiro campo quando auto-detectar
           const datasets = [fields[0]].map((field, idx) => ({
             label: field,
@@ -197,7 +192,6 @@ const DynamicWidget = ({ widget, deviceId, onDownload }) => {
             pointBorderWidth: 0,
             pointHoverBorderWidth: 0
           }));
-
           chartData = { labels, datasets };
         }
       }
