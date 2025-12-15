@@ -210,16 +210,36 @@ const TableWidget = ({ deviceId, config }) => {
   };
 
   const formatDateTime = (timestamp) => {
-    const date = new Date(timestamp);
-    return date.toLocaleString('pt-BR', {
-      timeZone: 'America/Sao_Paulo',
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit'
-    });
+    if (!timestamp) return '';
+
+    // If API provided formatted Data/Hora, caller prefers that; this only formats ISO-like timestamps.
+    try {
+      let ts = timestamp;
+      if (typeof ts === 'string') {
+        ts = ts.trim().replace(' ', 'T');
+        const hasTZ = /([Zz]|[+\-]\d{2}:\d{2})$/.test(ts);
+        if (!hasTZ) {
+          // Interpret timezone-less timestamps as America/Sao_Paulo (UTC-3)
+          ts = `${ts}-03:00`;
+        }
+      }
+
+      const date = ts instanceof Date ? ts : new Date(ts);
+      if (isNaN(date.getTime())) return '';
+
+      return date.toLocaleString('pt-BR', {
+        timeZone: 'America/Sao_Paulo',
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      });
+    } catch (e) {
+      console.warn('formatDateTime error:', e);
+      return '';
+    }
   };
 
   const getBadgeClass = (type) => {
