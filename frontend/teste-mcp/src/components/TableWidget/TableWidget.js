@@ -187,7 +187,10 @@ const TableWidget = ({ deviceId, config }) => {
             deviceId: item.device_id,
             timestamp: item.timestamp,
             payload,
-            alerts
+            alerts,
+            // Incluir Data/Hora formatados pela API (fuso de Brasília) para exibição
+            Data: item.Data,
+            Hora: item.Hora
           };
         });
         
