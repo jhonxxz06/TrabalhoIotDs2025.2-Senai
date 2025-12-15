@@ -354,7 +354,8 @@ const MqttService = {
         return {
           id: row.id,
           device_id: row.device_id,
-          timestamp: row.timestamp,
+          // Normalizar timestamp para string ISO (UTC)
+          timestamp: new Date(row.timestamp).toISOString(),
           payload: row.payload,
           alerts
         };

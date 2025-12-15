@@ -101,34 +101,18 @@ const getData = async (req, res) => {
       data = [];
     }
 
-    // Parse do payload JSON se possível
+    // Parse do payload JSON se possível e normalizar timestamp para ISO
     const parsedData = data.map(item => {
-      // Garantir que received_at seja uma data válida
+      // Tentar interpretar received_at como Date
       let date = new Date(item.received_at);
-      
-      // Se a data for inválida, usar data atual
       if (isNaN(date.getTime())) {
         date = new Date();
       }
-      
-      // Ajustar para horário de Brasília (UTC-3)
-      const brasiliaOffset = -3 * 60; // -3 horas em minutos
-      const localOffset = date.getTimezoneOffset(); // offset atual em minutos
-      const offsetDiff = localOffset + brasiliaOffset;
-      
-      const brasiliaDate = new Date(date.getTime() - offsetDiff * 60 * 1000);
-      
-      // Formatar manualmente para garantir formato correto
-      const dia = String(brasiliaDate.getDate()).padStart(2, '0');
-      const mes = String(brasiliaDate.getMonth() + 1).padStart(2, '0');
-      const ano = brasiliaDate.getFullYear();
-      const dataFormatada = `${dia}/${mes}/${ano}`;
-      
-      const hora = String(brasiliaDate.getHours()).padStart(2, '0');
-      const minuto = String(brasiliaDate.getMinutes()).padStart(2, '0');
-      const segundo = String(brasiliaDate.getSeconds()).padStart(2, '0');
-      const horaFormatada = `${hora}:${minuto}:${segundo}`;
-      
+
+      // Formatar Data/Hora para PT-BR (horário de Brasília) sem manipular o valor subjacente
+      const Data = date.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+      const Hora = date.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+
       try {
         return {
           id: item.id,
@@ -136,9 +120,10 @@ const getData = async (req, res) => {
           topic: item.topic,
           payload: JSON.parse(item.payload),
           receivedAt: item.received_at,
-          timestamp: item.received_at,
-          Data: dataFormatada,
-          Hora: horaFormatada
+          // Normalizar timestamp para ISO (UTC) - frontend chamará toLocaleString com fuso se necessário
+          timestamp: new Date(item.received_at).toISOString(),
+          Data,
+          Hora
         };
       } catch {
         return {
@@ -147,9 +132,9 @@ const getData = async (req, res) => {
           topic: item.topic,
           payload: item.payload,
           receivedAt: item.received_at,
-          timestamp: item.received_at,
-          Data: dataFormatada,
-          Hora: horaFormatada
+          timestamp: new Date(item.received_at).toISOString(),
+          Data,
+          Hora
         };
       }
     });
