@@ -6,6 +6,7 @@ import DevicesPage from './components/DevicesPage';
 import DashboardPage from './components/DashboardPage';
 import AdminDevicesPage from './components/AdminDevicesPage';
 import AdminDashboardPage from './components/AdminDashboardPage';
+import { ToastProvider, useToast } from './components/ToastContext';
 import api from './services/api';
 import { getSocket, closeSocket } from './services/socket';
 
@@ -21,6 +22,15 @@ const PAGES = {
 };
 
 function App() {
+  return (
+    <ToastProvider>
+      <AppContent />
+    </ToastProvider>
+  );
+}
+
+function AppContent() {
+  const toast = useToast();
   const [currentPage, setCurrentPage] = useState(PAGES.LOGIN);
   const [user, setUser] = useState(null);
   const [selectedDevice, setSelectedDevice] = useState(null);
@@ -188,6 +198,9 @@ function App() {
       setHasAccess(userData.hasAccess);
       setIsAdmin(userData.role === 'admin');
       
+      // Mostrar toast de sucesso
+      toast.success('Login realizado com sucesso!');
+      
       if (userData.role === 'admin') {
         setCurrentPage(PAGES.ADMIN_DEVICES);
       } else if (userData.hasAccess) {
@@ -199,7 +212,8 @@ function App() {
       try { getSocket(); } catch (e) { console.warn('Erro ao inicializar socket:', e); }
     } catch (err) {
       setError(err.message);
-      alert(err.message || 'Erro ao fazer login');
+      // Substituir alert por toast de erro
+      toast.error(err.message || 'Erro ao fazer login');
     }
   };
 
@@ -224,11 +238,11 @@ function App() {
       const deviceMsg = formData.requestedDevices?.length > 0 
         ? ' Sua solicitação de acesso aos dispositivos foi enviada para aprovação.'
         : '';
-      alert(`Conta criada com sucesso!${deviceMsg} Faça login para continuar.`);
+      toast.success(`Conta criada com sucesso!${deviceMsg} Faça login para continuar.`, 6000);
       setCurrentPage(PAGES.LOGIN);
     } catch (err) {
       setError(err.message);
-      alert(err.message || 'Erro ao criar conta');
+      toast.error(err.message || 'Erro ao criar conta');
     }
   };
 
@@ -283,24 +297,26 @@ function App() {
   const handleAcceptUser = async (notification) => {
     try {
       await api.access.approve(notification.id);
+      toast.success('Acesso aprovado com sucesso!');
       // Recarregar notificações e dispositivos
       loadNotifications();
       loadDevices();
       loadPublicDevices();
     } catch (err) {
       console.error('Erro ao aprovar acesso:', err);
-      alert('Erro ao aprovar acesso');
+      toast.error('Erro ao aprovar acesso');
     }
   };
 
   const handleRejectUser = async (notification) => {
     try {
       await api.access.reject(notification.id);
+      toast.success('Acesso rejeitado');
       // Recarregar notificações
       loadNotifications();
     } catch (err) {
       console.error('Erro ao rejeitar acesso:', err);
-      alert('Erro ao rejeitar acesso');
+      toast.error('Erro ao rejeitar acesso');
     }
   };
 
@@ -332,12 +348,13 @@ function App() {
         const csvContent = convertToCSV(response.data);
         console.log('CSV gerado (primeiras 500 chars):', csvContent.substring(0, 500));
         downloadCSV(csvContent, `${selectedDevice.name}_${chartType}.csv`);
+        toast.success('Dados baixados com sucesso!');
       } else {
-        alert('Nenhum dado disponível para download');
+        toast.warning('Nenhum dado disponível para download');
       }
     } catch (err) {
       console.error('Erro ao baixar dados:', err);
-      alert('Erro ao baixar dados');
+      toast.error('Erro ao baixar dados');
     }
   };
 
@@ -476,6 +493,7 @@ function App() {
     try {
       await api.devices.delete(device.id);
       setDevices(devices.filter(d => d.id !== device.id));
+      toast.success('Dispositivo excluído com sucesso!');
       
       if (selectedDevice?.id === device.id) {
         setSelectedDevice(null);
@@ -483,7 +501,7 @@ function App() {
       }
     } catch (err) {
       console.error('Erro ao excluir dispositivo:', err);
-      alert('Erro ao excluir dispositivo');
+      toast.error('Erro ao excluir dispositivo');
     }
   };
 
