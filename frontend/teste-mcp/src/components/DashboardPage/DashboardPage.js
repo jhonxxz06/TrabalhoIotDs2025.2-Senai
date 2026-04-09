@@ -12,9 +12,6 @@ import logger from '../../utils/logger';
 // Registrar todos os componentes do Chart.js
 Chart.register(...registerables);
 
-// URL do backend (usar variável de ambiente ou fallback para produção/desenvolvimento)
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://projetocleanair.onrender.com';
-
 // Usaremos o socket centralizado via services/socket.js
 
 // Componente para renderizar widgets dinâmicos com dados MQTT
@@ -26,7 +23,7 @@ const DynamicWidget = ({ widget, deviceId, onDownload }) => {
   // Buscar dados MQTT iniciais
   const fetchInitialData = useCallback(async () => {
     if (!deviceId) return;
-    
+
     try {
       const response = await mqttApi.getData(deviceId, { limit: 20 });
       if (response.success && response.data && response.data.length > 0) {
@@ -40,10 +37,10 @@ const DynamicWidget = ({ widget, deviceId, onDownload }) => {
   // WebSocket - Conectar e escutar dados em tempo real
   useEffect(() => {
     if (!deviceId) return;
-    
+
     // Buscar dados iniciais
     fetchInitialData();
-    
+
     // Conectar ao WebSocket (socket central)
     const socket = getSocket();
     try {
@@ -55,7 +52,7 @@ const DynamicWidget = ({ widget, deviceId, onDownload }) => {
 
     // Listener para dados MQTT em tempo real
     const handleMqttData = (data) => {
-      
+
       if (data.deviceId === deviceId) {
         // Adicionar novo dado ao início do array
         setMqttData((prevData) => {
@@ -63,7 +60,7 @@ const DynamicWidget = ({ widget, deviceId, onDownload }) => {
           const date = new Date(data.timestamp);
           const Data = date.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
           const Hora = date.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo' });
-          
+
           const newData = [{
             id: Date.now(),
             device_id: data.deviceId,
@@ -74,18 +71,18 @@ const DynamicWidget = ({ widget, deviceId, onDownload }) => {
             Data,
             Hora
           }, ...prevData];
-          
+
           // Manter apenas os últimos 20 registros
           return newData.slice(0, 20);
         });
       }
     };
-    
+
     socket.on('mqtt:data', handleMqttData);
 
     // Cleanup
     return () => {
-      try { socket.emit('unsubscribe:device', deviceId); } catch (e) {}
+      try { socket.emit('unsubscribe:device', deviceId); } catch (e) { }
       socket.off('mqtt:data', handleMqttData);
     };
   }, [deviceId, fetchInitialData]);
@@ -100,9 +97,9 @@ const DynamicWidget = ({ widget, deviceId, onDownload }) => {
 
     try {
       const config = typeof widget.config === 'string' ? JSON.parse(widget.config) : widget.config;
-      
+
       let chartData = config.data || { labels: [], datasets: [] };
-      
+
       // Se temos dados MQTT, usá-los no gráfico
       if (mqttData && mqttData.length > 0 && config.mqttField) {
         // Usar apenas Hora do backend para os labels (mais limpo)
@@ -112,9 +109,9 @@ const DynamicWidget = ({ widget, deviceId, onDownload }) => {
           }
           return 'N/A';
         }).reverse();
-        
+
         const datasets = [];
-        
+
         // Dataset principal (mqttField) - somente se preenchido
         if (config.mqttField && config.mqttField.trim() !== '') {
           const values = mqttData.map(d => {
@@ -166,8 +163,8 @@ const DynamicWidget = ({ widget, deviceId, onDownload }) => {
         chartData = { labels, datasets };
       } else if (mqttData && mqttData.length > 0) {
         // Detectar campos automaticamente SOMENTE se não houver mqttField configurado
-        const lastPayload = typeof mqttData[0].payload === 'string' 
-          ? JSON.parse(mqttData[0].payload) 
+        const lastPayload = typeof mqttData[0].payload === 'string'
+          ? JSON.parse(mqttData[0].payload)
           : mqttData[0].payload;
         const fields = Object.keys(lastPayload).filter(k => typeof lastPayload[k] === 'number');
         if (fields.length > 0) {
@@ -278,7 +275,7 @@ const DynamicWidget = ({ widget, deviceId, onDownload }) => {
         <h3 className="chart-title">
           {widget.name || widget.title || 'Gráfico'}
         </h3>
-        <button 
+        <button
           className="chart-download-btn"
           onClick={() => onDownload && onDownload(widget.type)}
           title="Download Excel"
@@ -293,8 +290,8 @@ const DynamicWidget = ({ widget, deviceId, onDownload }) => {
   );
 };
 
-const DashboardPage = ({ 
-  username, 
+const DashboardPage = ({
+  username,
   deviceName = 'Nome do dispositivo',
   device,
   widgets = [],
@@ -329,19 +326,19 @@ const DashboardPage = ({
     }
 
     let maxBottom = 600;
-    
+
     widgets.forEach((widget, index) => {
       const position = widgetPositions[widget.id] || { x: 50 + (index * 370), y: 30 };
       const config = typeof widget.config === 'string' ? JSON.parse(widget.config) : widget.config;
-      
+
       const widgetHeight = config?.type === 'table' ? 450 : 280;
       const bottom = position.y + widgetHeight + 50;
-      
+
       if (bottom > maxBottom) {
         maxBottom = bottom;
       }
     });
-    
+
     setWhiteboardHeight(maxBottom);
   }, [widgets, widgetPositions]);
 
@@ -353,14 +350,14 @@ const DashboardPage = ({
 
   return (
     <div className="dashboard-container">
-      <Header 
-        username={username} 
+      <Header
+        username={username}
         onBackToDevices={onBackToDevices}
         onLogout={onLogout}
         onLogoClick={onBackToDevices}
         isOnDevicesPage={false}
       />
-      
+
       <main className="dashboard-content">
         {/* Welcome Message */}
         <div className="welcome-banner">
@@ -378,8 +375,8 @@ const DashboardPage = ({
             <div className="empty-charts">
               <div className="empty-charts-content">
                 <svg width="64" height="64" viewBox="0 0 24 24" fill="none" className="empty-icon">
-                  <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="1.5"/>
-                  <path d="M7 14L10 11L13 14L17 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="1.5" />
+                  <path d="M7 14L10 11L13 14L17 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
                 <h3>Nenhum gráfico configurado</h3>
                 <p>O administrador ainda não criou gráficos para este dispositivo</p>
@@ -390,7 +387,7 @@ const DashboardPage = ({
               const config = typeof widget.config === 'string' ? JSON.parse(widget.config) : widget.config;
               const position = widgetPositions[widget.id] || { x: 50 + (index * 370), y: 30 };
               const isTable = config?.type === 'table';
-              
+
               return (
                 <div
                   key={widget.id}

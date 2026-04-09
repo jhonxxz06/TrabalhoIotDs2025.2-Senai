@@ -42,4 +42,5 @@ export function closeSocket() {
   }
 }
 
-export default { initSocket, getSocket, closeSocket };
+const socketService = { initSocket, getSocket, closeSocket };
+export default socketService;
