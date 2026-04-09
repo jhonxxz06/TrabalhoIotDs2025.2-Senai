@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import './LoginPage.css';
+import logger from '../../utils/logger';
 import logo from '../../assets/logo.png';
 import background from '../../assets/background.png';
 
@@ -17,7 +18,7 @@ const LoginPage = ({ onLogin, onCreateAccount }) => {
         await onLogin({ email, password });
       }
     } catch (error) {
-      console.error('Erro no login:', error);
+      logger.error('Erro no login:', error.message);
     } finally {
       setIsLoading(false);
     }

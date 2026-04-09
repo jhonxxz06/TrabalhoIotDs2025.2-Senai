@@ -1,4 +1,5 @@
 import { io } from 'socket.io-client';
+import logger from '../utils/logger';
 
 // Base URL (remove /api suffix if present)
 const API_BASE = (process.env.REACT_APP_API_URL || 'http://localhost:3001').replace(/\/api$/, '');
@@ -16,15 +17,15 @@ export function initSocket() {
   });
 
   socket.on('connect', () => {
-    console.log('[Socket] conectado', socket.id);
+    logger.log('[Socket] conectado');
   });
 
   socket.on('connect_error', (err) => {
-    console.warn('[Socket] connect_error', err && err.message ? err.message : err);
+    logger.warn('[Socket] connect_error', err && err.message ? err.message : 'Erro de conexão');
   });
 
   socket.on('disconnect', (reason) => {
-    console.log('[Socket] desconectado', reason);
+    logger.log('[Socket] desconectado', reason);
   });
 
   return socket;

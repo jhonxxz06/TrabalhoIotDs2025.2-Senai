@@ -9,6 +9,7 @@ import AdminDashboardPage from './components/AdminDashboardPage';
 import { ToastProvider, useToast } from './components/ToastContext';
 import api from './services/api';
 import { getSocket, closeSocket } from './services/socket';
+import logger from './utils/logger';
 
 // Páginas disponíveis na aplicação
 const PAGES = {
@@ -79,9 +80,9 @@ function AppContent() {
             setCurrentPage(PAGES.WAITING);
           }
           // Inicializar socket após autenticação
-          try { getSocket(); } catch (e) { console.warn('Erro ao inicializar socket:', e); }
+          try { getSocket(); } catch (e) { logger.warn('Erro ao inicializar socket:', e.message); }
         } catch (err) {
-          console.error('Erro ao verificar autenticação:', err);
+          logger.error('Erro ao verificar autenticação:', err.message);
           api.auth.logout();
         }
       }
@@ -99,7 +100,7 @@ function AppContent() {
       const response = await api.devices.getAll();
       setDevices(response.data || []);
     } catch (err) {
-      console.error('Erro ao carregar dispositivos:', err);
+      logger.error('Erro ao carregar dispositivos:', err.message);
       setError('Erro ao carregar dispositivos');
     }
   }, [hasAccess, isAdmin]);
@@ -112,7 +113,7 @@ function AppContent() {
       const response = await api.access.getPending();
       setNotifications(response.requests || []);
     } catch (err) {
-      console.error('Erro ao carregar notificações:', err);
+      logger.error('Erro ao carregar notificações:', err.message);
     }
   }, [isAdmin]);
 
@@ -124,7 +125,7 @@ function AppContent() {
       const response = await api.users.getAll();
       setAllUsers(response.data?.users || response.users || []);
     } catch (err) {
-      console.error('Erro ao carregar usuários:', err);
+      logger.error('Erro ao carregar usuários:', err.message);
     }
   }, [isAdmin]);
 
@@ -146,7 +147,7 @@ function AppContent() {
       
       setPublicDevices(availableDevices);
     } catch (err) {
-      console.error('Erro ao carregar dispositivos públicos:', err);
+      logger.error('Erro ao carregar dispositivos públicos:', err.message);
     }
   }, [isAdmin]);
 
@@ -173,7 +174,7 @@ function AppContent() {
       const response = await api.widgets.getByDevice(selectedDevice.id);
       setWidgets(response.data || []);
     } catch (err) {
-      console.error('Erro ao carregar widgets:', err);
+      logger.error('Erro ao carregar widgets:', err.message);
     }
   }, [selectedDevice]);
 
@@ -209,7 +210,7 @@ function AppContent() {
         setCurrentPage(PAGES.WAITING);
       }
       // Inicializar socket após login
-      try { getSocket(); } catch (e) { console.warn('Erro ao inicializar socket:', e); }
+      try { getSocket(); } catch (e) { logger.warn('Erro ao inicializar socket:', e.message); }
     } catch (err) {
       setError(err.message);
       // Substituir alert por toast de erro
@@ -279,7 +280,6 @@ function AppContent() {
   };
 
   const handleLogout = () => {
-    console.log('Logout chamado!');
     api.auth.logout();
     try { closeSocket(); } catch (e) {}
     setUser(null);
@@ -290,7 +290,6 @@ function AppContent() {
     setWidgets([]);
     setNotifications([]);
     setCurrentPage(PAGES.LOGIN);
-    console.log('Logout concluído, página:', PAGES.LOGIN);
   };
 
   // Handlers para notificações de acesso
@@ -303,7 +302,7 @@ function AppContent() {
       loadDevices();
       loadPublicDevices();
     } catch (err) {
-      console.error('Erro ao aprovar acesso:', err);
+      logger.error('Erro ao aprovar acesso:', err.message);
       toast.error('Erro ao aprovar acesso');
     }
   };
@@ -315,7 +314,7 @@ function AppContent() {
       // Recarregar notificações
       loadNotifications();
     } catch (err) {
-      console.error('Erro ao rejeitar acesso:', err);
+      logger.error('Erro ao rejeitar acesso:', err.message);
       toast.error('Erro ao rejeitar acesso');
     }
   };
@@ -326,7 +325,7 @@ function AppContent() {
       try {
         await api.access.create(deviceId, message);
       } catch (err) {
-        console.error('Erro ao solicitar acesso:', err);
+        logger.error('Erro ao solicitar acesso:', err.message);
         throw err;
       }
     }
@@ -337,23 +336,17 @@ function AppContent() {
     
     try {
       const response = await api.mqtt.getWeekData(selectedDevice.id);
-      console.log('Dados para Excel:', response.data);
-      console.log('Primeiro registro completo:', JSON.stringify(response.data[0], null, 2));
-      console.log('Data do primeiro registro:', response.data[0]?.Data);
-      console.log('Hora do primeiro registro:', response.data[0]?.Hora);
-      console.log('Timestamp do primeiro registro:', response.data[0]?.timestamp);
-      
+
       // Converter para CSV
       if (response.data && response.data.length > 0) {
         const csvContent = convertToCSV(response.data);
-        console.log('CSV gerado (primeiras 500 chars):', csvContent.substring(0, 500));
         downloadCSV(csvContent, `${selectedDevice.name}_${chartType}.csv`);
         toast.success('Dados baixados com sucesso!');
       } else {
         toast.warning('Nenhum dado disponível para download');
       }
     } catch (err) {
-      console.error('Erro ao baixar dados:', err);
+      logger.error('Erro ao baixar dados:', err.message);
       toast.error('Erro ao baixar dados');
     }
   };
@@ -362,8 +355,7 @@ function AppContent() {
   const convertToCSV = (data) => {
     if (!data.length) return '';
     
-    console.log('Convertendo dados:', data.length, 'registros');
-    console.log('Estrutura do primeiro registro:', data[0]);
+
     
     // Expandir o campo 'payload' (JSON) para colunas separadas
     const allDataKeys = new Set();
@@ -385,12 +377,12 @@ function AppContent() {
             }
           });
         } catch (e) {
-          console.error('Erro ao parsear payload:', e, payloadField);
+          logger.error('Erro ao parsear payload:', e.message);
         }
       }
     });
     
-    console.log('Campos encontrados no payload:', Array.from(allDataKeys));
+
     
     // Usar ponto-e-vírgula como separador (padrão brasileiro)
     const separator = ';';
@@ -443,8 +435,7 @@ function AppContent() {
       return values.join(separator);
     });
     
-    console.log('CSV Headers:', headers);
-    console.log('Primeira linha de dados:', rows[0]);
+
     
     return [headers.join(separator), ...rows].join('\n');
   };
@@ -467,7 +458,7 @@ function AppContent() {
       setDevices([...devices, response.device]);
       return response.device;
     } catch (err) {
-      console.error('Erro ao criar dispositivo:', err);
+      logger.error('Erro ao criar dispositivo:', err.message);
       throw err;
     }
   };
@@ -480,7 +471,7 @@ function AppContent() {
       ));
       return response.device;
     } catch (err) {
-      console.error('Erro ao editar dispositivo:', err);
+      logger.error('Erro ao editar dispositivo:', err.message);
       throw err;
     }
   };
@@ -500,7 +491,7 @@ function AppContent() {
         setCurrentPage(PAGES.ADMIN_DEVICES);
       }
     } catch (err) {
-      console.error('Erro ao excluir dispositivo:', err);
+      logger.error('Erro ao excluir dispositivo:', err.message);
       toast.error('Erro ao excluir dispositivo');
     }
   };
@@ -520,7 +511,7 @@ function AppContent() {
           setCurrentPage(PAGES.DEVICES);
         }
       } catch (err) {
-        console.error('Erro ao verificar acesso:', err);
+        logger.error('Erro ao verificar acesso:', err.message);
       }
     };
 

@@ -8,6 +8,7 @@ import TableWidget from '../TableWidget';
 import excelIcon from '../../assets/excel-icon.png';
 import { widgets as widgetsApi, mqtt as mqttApi } from '../../services/api';
 import { getSocket } from '../../services/socket';
+import logger from '../../utils/logger';
 
 // Registrar todos os componentes do Chart.js
 Chart.register(...registerables);
@@ -28,7 +29,7 @@ const DynamicWidgetCard = ({ widget, deviceId, position, dragging, onMouseDown, 
         setMqttData(response.data);
       }
     } catch (err) {
-      console.log('Aguardando dados MQTT...');
+      // Aguardando dados MQTT
     }
   }, [deviceId]);
 
@@ -43,7 +44,7 @@ const DynamicWidgetCard = ({ widget, deviceId, position, dragging, onMouseDown, 
       if (!socket.connected) socket.connect();
       socket.emit('subscribe:device', deviceId);
     } catch (e) {
-      console.warn('Socket não disponível, usando polling como fallback', e);
+      logger.warn('Socket não disponível, usando polling como fallback');
     }
 
     const handleMqttData = (data) => {
@@ -103,7 +104,6 @@ const DynamicWidgetCard = ({ widget, deviceId, position, dragging, onMouseDown, 
         
         // Dataset principal (mqttField) - somente se preenchido
         if (config.mqttField && config.mqttField.trim() !== '') {
-          console.log('📈 Criando dataset 1:', config.mqttField);
           const values = mqttData.map(d => {
             const payload = typeof d.payload === 'string' ? JSON.parse(d.payload) : d.payload;
             return payload[config.mqttField] || 0;
@@ -128,7 +128,6 @@ const DynamicWidgetCard = ({ widget, deviceId, position, dragging, onMouseDown, 
 
         // Dataset secundário (mqttField2) - SOMENTE se preenchido
         if (config.mqttField2 && config.mqttField2.trim() !== '') {
-          console.log('📈 Criando dataset 2:', config.mqttField2);
           const values2 = mqttData.map(d => {
             const payload = typeof d.payload === 'string' ? JSON.parse(d.payload) : d.payload;
             return payload[config.mqttField2] || 0;
@@ -151,7 +150,6 @@ const DynamicWidgetCard = ({ widget, deviceId, position, dragging, onMouseDown, 
           });
         }
 
-        console.log('📊 Total de datasets criados:', datasets.length);
         chartData = { labels, datasets };
       } else if (mqttData && mqttData.length > 0) {
         // Tentar detectar campos automaticamente SOMENTE se não houver mqttField configurado
@@ -244,7 +242,7 @@ const DynamicWidgetCard = ({ widget, deviceId, position, dragging, onMouseDown, 
         }
       });
     } catch (err) {
-      console.error('Erro ao criar gráfico:', err);
+      logger.error('Erro ao criar gráfico:', err.message);
     }
 
     return () => {
@@ -389,7 +387,7 @@ const AdminDashboardPage = ({
       await mqttApi.connect(device.id);
       alert(`✅ Conectado ao broker MQTT!\n\nTópico: ${device.mqttTopic || 'N/A'}\n\nAgora você pode enviar dados para o tópico usando:\n- HiveMQ Web Client (https://www.hivemq.com/demos/websocket-client/)\n- Seu ESP32\n\nExemplo de payload: {"temperature": 25.5, "humidity": 60}`);
     } catch (error) {
-      console.error('Erro ao conectar MQTT:', error);
+      logger.error('Erro ao conectar MQTT:', error.message);
       alert('Erro ao conectar ao MQTT: ' + error.message);
     } finally {
       setMqttConnecting(false);
@@ -452,9 +450,8 @@ const AdminDashboardPage = ({
       if (newPosition) {
         try {
           await widgetsApi.update(draggingWidget.id, { position: newPosition });
-          console.log(`✅ Posição do widget ${draggingWidget.id} salva no backend:`, newPosition);
         } catch (error) {
-          console.error('Erro ao salvar posição do widget:', error);
+          logger.error('Erro ao salvar posição do widget:', error.message);
         }
       }
     }
@@ -523,7 +520,7 @@ const AdminDashboardPage = ({
         setWidgets(widgets.filter(w => w.id !== widgetId));
       }
     } catch (error) {
-      console.error('Erro ao deletar widget:', error);
+      logger.error('Erro ao deletar widget:', error.message);
       alert('Erro ao deletar widget: ' + (error.message || 'Erro desconhecido'));
     }
   };
@@ -547,9 +544,6 @@ const AdminDashboardPage = ({
         }
       };
 
-      console.log('Salvando widget:', widgetData);
-      console.log('Thresholds sendo salvos:', widgetConfig.thresholds);
-
       if (editingWidget && editingWidget.id) {
         // Editando widget existente
         await widgetsApi.update(editingWidget.id, widgetData);
@@ -562,7 +556,7 @@ const AdminDashboardPage = ({
         onRefreshWidgets();
       }
     } catch (error) {
-      console.error('Erro ao salvar widget:', error);
+      logger.error('Erro ao salvar widget:', error.message);
       alert('Erro ao salvar widget: ' + (error.message || 'Erro desconhecido'));
     }
     setShowGraphEditor(false);

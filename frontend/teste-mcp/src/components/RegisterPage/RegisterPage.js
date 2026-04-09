@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import './RegisterPage.css';
 import logo from '../../assets/logo.png';
 import background from '../../assets/background.png';
+import logger from '../../utils/logger';
 import { devices as devicesApi } from '../../services/api';
 
 const RegisterPage = ({ onBackToLogin, onRegisterSuccess }) => {
@@ -26,7 +27,7 @@ const RegisterPage = ({ onBackToLogin, onRegisterSuccess }) => {
           setAvailableDevices(response.data || []);
         }
       } catch (error) {
-        console.error('Erro ao carregar dispositivos:', error);
+        logger.error('Erro ao carregar dispositivos:', error.message);
       } finally {
         setLoadingDevices(false);
       }
@@ -64,7 +65,7 @@ const RegisterPage = ({ onBackToLogin, onRegisterSuccess }) => {
         });
       }
     } catch (error) {
-      console.error('Erro no cadastro:', error);
+      logger.error('Erro no cadastro:', error.message);
     } finally {
       setIsLoading(false);
     }

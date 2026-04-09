@@ -5,6 +5,7 @@ import Footer from '../Footer';
 import DeviceFormModal from '../DeviceFormModal';
 import waitingImage from '../../assets/waiting-image.png';
 import { devices as devicesApi } from '../../services/api';
+import logger from '../../utils/logger';
 
 const AdminDevicesPage = ({ 
   username, 
@@ -38,7 +39,7 @@ const AdminDevicesPage = ({
       const response = await devicesApi.getById(device.id);
       setEditingDevice(response.device || device);
     } catch (error) {
-      console.error('Erro ao carregar dispositivo:', error);
+      logger.error('Erro ao carregar dispositivo:', error.message);
       setEditingDevice(device);
     }
     setShowDeviceForm(true);
@@ -63,7 +64,7 @@ const AdminDevicesPage = ({
         onRefresh();
       }
     } catch (error) {
-      console.error('Erro ao salvar dispositivo:', error);
+      logger.error('Erro ao salvar dispositivo:', error.message);
       alert('Erro ao salvar dispositivo: ' + error.message);
     }
     setShowDeviceForm(false);
@@ -79,7 +80,7 @@ const AdminDevicesPage = ({
           onRefresh();
         }
       } catch (error) {
-        console.error('Erro ao excluir dispositivo:', error);
+        logger.error('Erro ao excluir dispositivo:', error.message);
         alert('Erro ao excluir dispositivo: ' + error.message);
       }
     }

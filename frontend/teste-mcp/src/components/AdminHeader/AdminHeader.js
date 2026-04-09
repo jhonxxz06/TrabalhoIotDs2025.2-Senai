@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './AdminHeader.css';
+import logger from '../../utils/logger';
 import logo from '../../assets/logo.png';
 
 const AdminHeader = ({ 
@@ -177,12 +178,11 @@ const AdminHeader = ({
           {showUserMenu && (
             <div className="admin-user-dropdown">
               <button onClick={() => { 
-                console.log('Botão Sair clicado, onLogout:', typeof onLogout);
                 setShowUserMenu(false); 
                 if (onLogout) {
                   onLogout();
                 } else {
-                  console.error('onLogout não está definido!');
+                  logger.error('onLogout não está definido!');
                 }
               }}>
                 Sair

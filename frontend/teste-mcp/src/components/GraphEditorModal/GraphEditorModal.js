@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import logger from '../../utils/logger';
 import './GraphEditorModal.css';
 
 const WIDGET_TEMPLATES = {
@@ -177,7 +178,6 @@ const GraphEditorModal = ({
 
   const handleSave = () => {
     if (mode === 'simple') {
-      console.log('🔍 Salvando widget - tipo:', chartType, '| mqttField:', mqttField, '| mqttField2:', mqttField2);
       
       // Se for tabela, criar estrutura diferente
       if (chartType === 'table') {
@@ -200,8 +200,7 @@ const GraphEditorModal = ({
           limit: 50
         };
         
-        console.log('📋 Widget tabela:', widget);
-        console.log('📋 Thresholds:', processedThresholds);
+        logger.log('Salvando widget tabela com', Object.keys(processedThresholds).length, 'thresholds');
         onSave(widget);
         onClose();
         return;
@@ -212,7 +211,6 @@ const GraphEditorModal = ({
       
       // Adicionar primeiro campo se preenchido
       if (mqttField && mqttField.trim() !== '') {
-        console.log('✅ Adicionando dataset 1:', mqttField);
         datasets.push({
           label: mqttField,
           data: [],
@@ -225,7 +223,6 @@ const GraphEditorModal = ({
       
       // Adicionar segundo campo SOMENTE se preenchido
       if (mqttField2 && mqttField2.trim() !== '') {
-        console.log('✅ Adicionando dataset 2:', mqttField2);
         datasets.push({
           label: mqttField2,
           data: [],
@@ -238,7 +235,6 @@ const GraphEditorModal = ({
       
       // Se nenhum campo foi preenchido, criar dataset padrão
       if (datasets.length === 0) {
-        console.log('⚠️ Nenhum campo preenchido, usando dataset padrão');
         datasets.push({
           label: 'Valor',
           data: [],
@@ -265,9 +261,6 @@ const GraphEditorModal = ({
           scales: { y: { beginAtZero: true } }
         }
       };
-
-      console.log('📦 Widget final:', widget);
-      console.log('📊 Total de datasets:', datasets.length);
 
       onSave(widget);
       onClose();

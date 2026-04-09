@@ -1,3 +1,5 @@
+import logger from '../utils/logger';
+
 let API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 // Garantir que a base termine com /api
 if (!API_URL.endsWith('/api')) {
@@ -28,13 +30,13 @@ const handleResponse = async (response) => {
         errorMessage = detailMessages || errorMessage;
       }
       
-      console.error('Erro na resposta:', { status: response.status, message: errorMessage, data });
+      logger.error('Erro na resposta:', { status: response.status, message: errorMessage });
       throw new Error(errorMessage);
     }
     return data;
   } catch (err) {
     if (err instanceof SyntaxError) {
-      console.error('Erro ao parsear JSON:', err, 'Status:', response.status, 'Text:', await response.text());
+      logger.error('Erro ao parsear JSON. Status:', response.status);
       throw new Error(`Erro de servidor: ${response.status}`);
     }
     throw err;

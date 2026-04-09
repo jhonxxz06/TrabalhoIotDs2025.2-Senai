@@ -7,6 +7,7 @@ import Footer from '../Footer';
 import TableWidget from '../TableWidget';
 import excelIcon from '../../assets/excel-icon.png';
 import { mqtt as mqttApi } from '../../services/api';
+import logger from '../../utils/logger';
 
 // Registrar todos os componentes do Chart.js
 Chart.register(...registerables);
@@ -32,7 +33,7 @@ const DynamicWidget = ({ widget, deviceId, onDownload }) => {
         setMqttData(response.data);
       }
     } catch (err) {
-      console.log('Aguardando dados MQTT...');
+      // Aguardando dados MQTT
     }
   }, [deviceId]);
 
@@ -48,14 +49,12 @@ const DynamicWidget = ({ widget, deviceId, onDownload }) => {
     try {
       if (!socket.connected) socket.connect();
       socket.emit('subscribe:device', deviceId);
-      console.log(`🔌 Conectado ao WebSocket - Device ${deviceId}`);
     } catch (e) {
-      console.warn('Erro ao iniciar socket:', e);
+      logger.warn('Erro ao iniciar socket:', e.message);
     }
 
     // Listener para dados MQTT em tempo real
     const handleMqttData = (data) => {
-      console.log('📥 Dados MQTT em tempo real:', data);
       
       if (data.deviceId === deviceId) {
         // Adicionar novo dado ao início do array
@@ -88,7 +87,6 @@ const DynamicWidget = ({ widget, deviceId, onDownload }) => {
     return () => {
       try { socket.emit('unsubscribe:device', deviceId); } catch (e) {}
       socket.off('mqtt:data', handleMqttData);
-      console.log(`🔌 Desconectado do WebSocket - Device ${deviceId}`);
     };
   }, [deviceId, fetchInitialData]);
 
@@ -257,7 +255,7 @@ const DynamicWidget = ({ widget, deviceId, onDownload }) => {
         }
       });
     } catch (err) {
-      console.error('Erro ao criar gráfico:', err);
+      logger.error('Erro ao criar gráfico:', err.message);
     }
 
     return () => {
@@ -350,8 +348,6 @@ const DashboardPage = ({
   const handleDownload = (chartType) => {
     if (onDownloadExcel) {
       onDownloadExcel(chartType);
-    } else {
-      console.log(`Download Excel - ${chartType}`);
     }
   };
 
