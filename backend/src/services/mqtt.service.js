@@ -1,5 +1,6 @@
 const mqtt = require('mqtt');
 const { run, query, queryOne, pool } = require('../config/database');
+const { validateMqttPayload } = require('./mqtt-payload.validator');
 
 // ============================================
 // Helper: Converter data para Brasília (UTC-3)
@@ -31,8 +32,25 @@ const connections = new Map();
 // Armazena último dado recebido por tópico (cache)
 const latestData = new Map();
 
+// Buffer circular de payloads rejeitados por dispositivo (máx. 100 por device)
+const rejectedPayloads = new Map();
+
 // Instância do Socket.IO (será injetada)
 let io = null;
+
+/**
+ * Adiciona uma entrada ao buffer circular de payloads rejeitados do dispositivo.
+ * @param {number} deviceId
+ * @param {object} entry
+ */
+function addRejected(deviceId, entry) {
+  if (!rejectedPayloads.has(deviceId)) {
+    rejectedPayloads.set(deviceId, []);
+  }
+  const buf = rejectedPayloads.get(deviceId);
+  buf.unshift(entry); // mais recente primeiro
+  if (buf.length > 100) buf.pop();
+}
 
 const MqttService = {
   /**
@@ -47,7 +65,16 @@ const MqttService = {
    */
   connect(device) {
     const { id, mqtt_broker, mqtt_port, mqtt_topic, mqtt_username, mqtt_password } = device;
-    
+
+    // Parsear campos esperados para validação de payload
+    let expectedFields = [];
+    try {
+      const raw = device.expected_fields || '[]';
+      expectedFields = Array.isArray(raw) ? raw : JSON.parse(raw);
+    } catch {
+      expectedFields = [];
+    }
+
     // Se já está conectado, retorna
     if (connections.has(id)) {
       console.log(`[MQTT] Device ${id} já conectado`);
@@ -56,7 +83,7 @@ const MqttService = {
 
     // Usar protocolo TCP padrão (compatível com testclient-cloud.mqtt.cool)
     const brokerUrl = `mqtt://${mqtt_broker}:${mqtt_port || 1883}`;
-    
+
     const options = {
       clientId: `iot_dashboard_${id}_${Date.now()}`,
       clean: true,
@@ -69,12 +96,12 @@ const MqttService = {
     if (mqtt_password) options.password = mqtt_password;
 
     console.log(`[MQTT] Conectando device ${id} a ${brokerUrl}...`);
-    
+
     const client = mqtt.connect(brokerUrl, options);
 
     client.on('connect', () => {
       console.log(`[MQTT] ✅ Device ${id} conectado a ${mqtt_broker}`);
-      
+
       // Subscribe no tópico do dispositivo com QoS 1
       client.subscribe(mqtt_topic, { qos: 1 }, (err) => {
         if (err) {
@@ -96,6 +123,34 @@ const MqttService = {
         console.log(`[MQTT] Device ID: ${id}`);
         console.log(`[MQTT] Tópico: ${topic}`);
         console.log(`[MQTT] Payload: ${payload}`);
+
+        // ── Validação de payload ──────────────────────────────────────────
+        const validation = validateMqttPayload(payload, expectedFields);
+
+        if (!validation.valid) {
+          console.warn(`[MQTT] ⚠️ PAYLOAD REJEITADO — Device ${id} | Tópico: ${topic}`);
+          console.warn(`[MQTT] Motivo: ${validation.reason}`);
+          console.warn(`[MQTT] Payload recebido: ${payload}`);
+
+          // Armazena no buffer de rejeições para diagnóstico
+          const rejectedEntry = {
+            deviceId: id,
+            topic,
+            payload,
+            reason: validation.reason,
+            errors: validation.errors || [],
+            timestamp: timestampIso
+          };
+          addRejected(id, rejectedEntry);
+
+          // Notifica frontend via WebSocket
+          if (io) {
+            io.to(`device:${id}`).emit('mqtt:validation_error', rejectedEntry);
+          }
+
+          return; // ← Não salva no banco nem emite mqtt:data
+        }
+        // ─────────────────────────────────────────────────────────────────
 
         // Salva no cache (timestamp em UTC ISO)
         latestData.set(topic, {
@@ -201,7 +256,7 @@ const MqttService = {
 
       await client.query('COMMIT');
     } catch (err) {
-      try { await client.query('ROLLBACK'); } catch (e) {}
+      try { await client.query('ROLLBACK'); } catch (e) { }
       throw err;
     } finally {
       client.release();
@@ -213,7 +268,7 @@ const MqttService = {
    */
   async getData(deviceId, options = {}) {
     const { limit = 100, since = null } = options;
-    
+
     if (since) {
       return await query(`
         SELECT 
@@ -226,7 +281,7 @@ const MqttService = {
         LIMIT $3
       `, [deviceId, since, limit]);
     }
-    
+
     return await query(`
       SELECT 
         id, device_id, topic, payload, received_at,
@@ -314,9 +369,9 @@ const MqttService = {
    */
   async getExceedances(deviceId, thresholds = {}, options = {}) {
     const { limit = 100, since = null } = options;
-    
+
     console.log('[MQTT] getExceedances chamado:', { deviceId, thresholds, options });
-    
+
     // Se não há thresholds configurados, retorna array vazio
     if (!thresholds || Object.keys(thresholds).length === 0) {
       console.log('[MQTT] Nenhum threshold configurado');
@@ -327,7 +382,7 @@ const MqttService = {
     const conditions = [];
     const params = [deviceId];
     let paramCount = 2; // Começando em 2 porque $1 é o deviceId
-    
+
     Object.entries(thresholds).forEach(([field, limits]) => {
       if (limits.min !== undefined && limits.min !== null && limits.min !== '') {
         conditions.push(`((payload::jsonb)->>'${field}')::float < $${paramCount++}`);
@@ -374,9 +429,9 @@ const MqttService = {
 
     try {
       const results = await query(sql, params);
-      
+
       console.log('[MQTT] Resultados encontrados:', results.length);
-      
+
       // Buscar TODOS os dados recentes para debug
       const allRecent = await query(
         'SELECT id, payload, received_at FROM mqtt_data WHERE device_id = $1 ORDER BY received_at DESC LIMIT 5',
@@ -387,7 +442,7 @@ const MqttService = {
         payload: r.payload,
         received_at: r.received_at
       })));
-      
+
       // Adicionar informação de qual threshold foi excedido
       return results.map(row => {
         const payload = typeof row.payload === 'string' ? JSON.parse(row.payload) : row.payload;
@@ -428,6 +483,15 @@ const MqttService = {
       console.error('[MQTT] Params:', params);
       throw err;
     }
+  },
+
+  /**
+   * Retorna o buffer de payloads rejeitados de um dispositivo (máx. 100 entradas).
+   * @param {number} deviceId
+   * @returns {object[]}
+   */
+  getRejected(deviceId) {
+    return rejectedPayloads.get(deviceId) || [];
   }
 };
 

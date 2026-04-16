@@ -232,6 +232,37 @@ const connectAll = async (req, res) => {
 };
 
 /**
+ * Retorna os últimos payloads rejeitados pela validação (buffer em memória)
+ */
+const getRejected = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Verifica acesso
+    if (req.user.role !== 'admin' && !await Device.userHasAccess(id, req.user.id)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Acesso negado a este dispositivo'
+      });
+    }
+
+    const data = MqttService.getRejected(parseInt(id));
+
+    res.json({
+      success: true,
+      count: data.length,
+      data
+    });
+  } catch (error) {
+    console.error('Erro ao buscar payloads rejeitados:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro interno do servidor'
+    });
+  }
+};
+
+/**
  * Busca excedências (valores fora dos thresholds)
  */
 const getExceedances = async (req, res) => {
@@ -320,5 +351,6 @@ module.exports = {
   getData,
   getLatest,
   connectAll,
-  getExceedances
+  getExceedances,
+  getRejected
 };
