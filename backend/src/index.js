@@ -82,6 +82,7 @@ const deviceRoutes = require('./routes/device.routes');
 const widgetRoutes = require('./routes/widget.routes');
 const accessRoutes = require('./routes/access.routes');
 const mqttRoutes = require('./routes/mqtt.routes');
+const domainRoutes = require('./routes/domain.routes');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
@@ -89,6 +90,7 @@ app.use('/api/devices', deviceRoutes);
 app.use('/api/widgets', widgetRoutes);
 app.use('/api/access', accessRoutes);
 app.use('/api/mqtt', mqttRoutes);
+app.use('/api/domains', domainRoutes);
 
 // Middleware de erro global
 app.use((err, req, res, next) => {

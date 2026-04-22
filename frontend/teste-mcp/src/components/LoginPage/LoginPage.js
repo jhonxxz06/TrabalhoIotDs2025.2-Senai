@@ -4,9 +4,16 @@ import logger from '../../utils/logger';
 import logo from '../../assets/logo.png';
 import background from '../../assets/background.png';
 
+const ClearIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+    <path d="M19 6.41L17.59 5L12 10.59L6.41 5L5 6.41L10.59 12L5 17.59L6.41 19L12 13.41L17.59 19L19 17.59L13.41 12L19 6.41Z" fill="#49454F"/>
+  </svg>
+);
+
 const LoginPage = ({ onLogin, onCreateAccount }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [domainCode, setDomainCode] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -15,7 +22,7 @@ const LoginPage = ({ onLogin, onCreateAccount }) => {
     setIsLoading(true);
     try {
       if (onLogin) {
-        await onLogin({ email, password });
+        await onLogin({ email, password, domainCode });
       }
     } catch (error) {
       logger.error('Erro no login:', error.message);
@@ -33,11 +40,11 @@ const LoginPage = ({ onLogin, onCreateAccount }) => {
   return (
     <div className="login-container">
       {/* Background Image */}
-      <div 
-        className="background-image" 
+      <div
+        className="background-image"
         style={{ backgroundImage: `url(${background})` }}
       />
-      
+
       {/* Login Card */}
       <div className="login-card">
         {/* Logo */}
@@ -61,15 +68,13 @@ const LoginPage = ({ onLogin, onCreateAccount }) => {
                   required
                 />
               </div>
-              <button 
-                type="button" 
+              <button
+                type="button"
                 className="trailing-icon"
                 onClick={() => setEmail('')}
                 aria-label="Limpar e-mail"
               >
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                  <path d="M19 6.41L17.59 5L12 10.59L6.41 5L5 6.41L10.59 12L5 17.59L6.41 19L12 13.41L17.59 19L19 17.59L13.41 12L19 6.41Z" fill="#49454F"/>
-                </svg>
+                <ClearIcon />
               </button>
             </div>
             <div className="active-indicator" />
@@ -89,8 +94,8 @@ const LoginPage = ({ onLogin, onCreateAccount }) => {
                   required
                 />
               </div>
-              <button 
-                type="button" 
+              <button
+                type="button"
                 className="trailing-icon"
                 onClick={() => setShowPassword(!showPassword)}
                 aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
@@ -109,9 +114,34 @@ const LoginPage = ({ onLogin, onCreateAccount }) => {
             <div className="active-indicator" />
           </div>
 
+          {/* Domain Code Field */}
+          <div className="text-field">
+            <div className="text-field-container">
+              <div className="text-field-content">
+                <label className="text-field-label">Código do domínio</label>
+                <input
+                  type="text"
+                  className="text-field-input"
+                  placeholder="Informe o código do seu domínio"
+                  value={domainCode}
+                  onChange={(e) => setDomainCode(e.target.value)}
+                />
+              </div>
+              <button
+                type="button"
+                className="trailing-icon"
+                onClick={() => setDomainCode('')}
+                aria-label="Limpar código do domínio"
+              >
+                <ClearIcon />
+              </button>
+            </div>
+            <div className="active-indicator" />
+          </div>
+
           {/* Login Button */}
-          <button 
-            type="submit" 
+          <button
+            type="submit"
             className={`login-button ${isLoading ? 'loading' : ''}`}
             disabled={isLoading}
           >
@@ -121,8 +151,8 @@ const LoginPage = ({ onLogin, onCreateAccount }) => {
           </button>
 
           {/* Create Account Link */}
-          <button 
-            type="button" 
+          <button
+            type="button"
             className="create-account-link"
             onClick={handleCreateAccount}
           >

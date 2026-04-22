@@ -48,11 +48,11 @@ const handleResponse = async (response) => {
 // ============================================
 
 export const auth = {
-  async login(email, password) {
+  async login(email, password, domainCode = '') {
     const response = await fetch(`${API_URL}/auth/login`, {
       method: 'POST',
       headers: headers(false),
-      body: JSON.stringify({ email, password })
+      body: JSON.stringify({ email, password, domainCode })
     });
     const data = await handleResponse(response);
     if (data.data?.token) {
@@ -61,11 +61,11 @@ export const auth = {
     return data;
   },
 
-  async register(username, email, password, requestedDevices = []) {
+  async register(username, email, password, { isManager = false, domainName = '', domainCode = '', requestedDevices = [] } = {}) {
     const response = await fetch(`${API_URL}/auth/register`, {
       method: 'POST',
       headers: headers(false),
-      body: JSON.stringify({ username, email, password, requestedDevices })
+      body: JSON.stringify({ username, email, password, isManager, domainName, domainCode, requestedDevices })
     });
     const data = await handleResponse(response);
     if (data.data?.token) {
@@ -170,6 +170,30 @@ export const devices = {
       method: 'PUT',
       headers: headers(),
       body: JSON.stringify({ userIds })
+    });
+    return handleResponse(response);
+  }
+};
+
+// ============================================
+// DOMAINS
+// ============================================
+
+export const domains = {
+  /**
+   * Verifica se um código de domínio existe (rota pública)
+   * Retorna o domínio e seus dispositivos
+   */
+  async verify(code) {
+    const response = await fetch(`${API_URL}/domains/verify/${encodeURIComponent(code)}`, {
+      headers: headers(false)
+    });
+    return handleResponse(response);
+  },
+
+  async getAll() {
+    const response = await fetch(`${API_URL}/domains`, {
+      headers: headers()
     });
     return handleResponse(response);
   }
@@ -353,5 +377,5 @@ export const mqtt = {
 };
 
 // Export default com todos os serviços
-const api = { auth, users, devices, widgets, access, mqtt };
+const api = { auth, users, devices, widgets, access, mqtt, domains };
 export default api;

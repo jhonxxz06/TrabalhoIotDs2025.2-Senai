@@ -37,18 +37,29 @@ const Device = {
       mqttPort = '1883', 
       mqttTopic, 
       mqttUsername = '', 
-      mqttPassword = '' 
+      mqttPassword = '',
+      domain_id = null
     } = data;
 
     await run(`
-      INSERT INTO devices (name, mqtt_broker, mqtt_port, mqtt_topic, mqtt_username, mqtt_password)
-      VALUES ($1, $2, $3, $4, $5, $6)
-    `, [name, mqttBroker, mqttPort, mqttTopic, mqttUsername, mqttPassword]);
+      INSERT INTO devices (name, mqtt_broker, mqtt_port, mqtt_topic, mqtt_username, mqtt_password, domain_id)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+    `, [name, mqttBroker, mqttPort, mqttTopic, mqttUsername, mqttPassword, domain_id]);
 
     // Busca o dispositivo recém-criado pelo tópico (único por broker)
     return await queryOne(
       'SELECT * FROM devices WHERE mqtt_broker = $1 AND mqtt_topic = $2 ORDER BY id DESC LIMIT 1',
       [mqttBroker, mqttTopic]
+    );
+  },
+
+  /**
+   * Lista dispositivos de um domínio específico
+   */
+  async findByDomainId(domainId) {
+    return await query(
+      'SELECT * FROM devices WHERE domain_id = $1 ORDER BY created_at DESC',
+      [domainId]
     );
   },
 
@@ -154,6 +165,7 @@ const Device = {
       mqttTopic: device.mqtt_topic,
       mqttUsername: device.mqtt_username,
       mqttPassword: device.mqtt_password,
+      domainId: device.domain_id ?? null,
       createdAt: device.created_at
     };
   }

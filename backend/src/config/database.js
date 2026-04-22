@@ -37,6 +37,17 @@ async function initDatabase() {
 // Cria todas as tabelas do sistema
 async function createTables(client) {
   try {
+    // Tabela de domínios (deve ser criada antes de users e devices)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS domains (
+        id SERIAL PRIMARY KEY,
+        name TEXT NOT NULL,
+        code TEXT UNIQUE NOT NULL,
+        admin_id INTEGER,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
     // Tabela de usuários
     await client.query(`
       CREATE TABLE IF NOT EXISTS users (
@@ -46,8 +57,14 @@ async function createTables(client) {
         password TEXT NOT NULL,
         role TEXT DEFAULT 'user' CHECK(role IN ('admin', 'user')),
         has_access INTEGER DEFAULT 0,
+        domain_id INTEGER DEFAULT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
+    `);
+
+    // Migração segura: adiciona domain_id em users se já existir a tabela sem a coluna
+    await client.query(`
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS domain_id INTEGER DEFAULT NULL
     `);
 
     // Tabela de dispositivos
@@ -60,8 +77,14 @@ async function createTables(client) {
         mqtt_topic TEXT NOT NULL,
         mqtt_username TEXT,
         mqtt_password TEXT,
+        domain_id INTEGER DEFAULT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
+    `);
+
+    // Migração segura: adiciona domain_id em devices se já existir a tabela sem a coluna
+    await client.query(`
+      ALTER TABLE devices ADD COLUMN IF NOT EXISTS domain_id INTEGER DEFAULT NULL
     `);
 
     // Relação N:N usuários-dispositivos
@@ -116,7 +139,41 @@ async function createTables(client) {
       )
     `);
 
-    console.log('✅ Tabelas criadas/verificadas com sucesso');
+    // Adiciona FK de admin_id em domains → users (após ambas as tabelas existirem)
+    // Feita como ALTER para ser segura em caso de re-execução
+    try {
+      await client.query(`
+        ALTER TABLE domains
+          ADD CONSTRAINT IF NOT EXISTS fk_domains_admin
+          FOREIGN KEY (admin_id) REFERENCES users(id) ON DELETE SET NULL
+      `);
+    } catch (_) {
+      // constraint já existe — ignorar
+    }
+
+    // FK domain_id em users → domains
+    try {
+      await client.query(`
+        ALTER TABLE users
+          ADD CONSTRAINT IF NOT EXISTS fk_users_domain
+          FOREIGN KEY (domain_id) REFERENCES domains(id) ON DELETE SET NULL
+      `);
+    } catch (_) {
+      // constraint já existe — ignorar
+    }
+
+    // FK domain_id em devices → domains
+    try {
+      await client.query(`
+        ALTER TABLE devices
+          ADD CONSTRAINT IF NOT EXISTS fk_devices_domain
+          FOREIGN KEY (domain_id) REFERENCES domains(id) ON DELETE SET NULL
+      `);
+    } catch (_) {
+      // constraint já existe — ignorar
+    }
+
+    console.log('✅ Tabelas criadas/verificadas com sucesso (incluindo domínios)');
   } catch (error) {
     console.error('❌ Erro ao criar tabelas:', error.message);
     throw error;

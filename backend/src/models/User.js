@@ -21,16 +21,16 @@ const User = {
 
   /**
    * Cria um novo usuário
-   * @param {Object} userData - { username, email, password, role?, has_access? }
+   * @param {Object} userData - { username, email, password, role?, has_access?, domain_id? }
    * @returns {Promise<Object>} Usuário criado
    */
   async create(userData) {
-    const { username, email, password, role = 'user', has_access = 0 } = userData;
+    const { username, email, password, role = 'user', has_access = 0, domain_id = null } = userData;
     
     await run(`
-      INSERT INTO users (username, email, password, role, has_access)
-      VALUES ($1, $2, $3, $4, $5)
-    `, [username, email, password, role, has_access]);
+      INSERT INTO users (username, email, password, role, has_access, domain_id)
+      VALUES ($1, $2, $3, $4, $5, $6)
+    `, [username, email, password, role, has_access, domain_id]);
 
     return await this.findByEmail(email);
   },
@@ -88,6 +88,10 @@ const User = {
       fields.push(`has_access = $${fields.length + 1}`);
       values.push(data.has_access ? 1 : 0);
     }
+    if (data.domain_id !== undefined) {
+      fields.push(`domain_id = $${fields.length + 1}`);
+      values.push(data.domain_id);
+    }
 
     if (fields.length === 0) return await this.findById(id);
 
@@ -117,7 +121,8 @@ const User = {
     const { password, ...publicData } = user;
     return {
       ...publicData,
-      hasAccess: Boolean(publicData.has_access)
+      hasAccess: Boolean(publicData.has_access),
+      domainId: publicData.domain_id ?? null
     };
   }
 };

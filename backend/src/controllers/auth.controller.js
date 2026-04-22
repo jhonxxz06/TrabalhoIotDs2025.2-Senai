@@ -1,72 +1,123 @@
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
+const Domain = require('../models/Domain');
 const AccessRequest = require('../models/AccessRequest');
 const { generateToken } = require('../services/token.service');
+
+const SUPERADMIN_EMAIL = 'admin@teste.com';
 
 const authController = {
   /**
    * POST /api/auth/register
-   * Cadastra um novo usuário
+   * Cadastra um novo usuário.
+   *
+   * Fluxo Gerente (isManager = true):
+   *   - Cria o domínio com domainName + domainCode
+   *   - Cria o usuário com role='admin', has_access=1, domain_id=novo domínio
+   *   - Define o usuário como admin_id do domínio
+   *
+   * Fluxo Usuário comum (isManager = false):
+   *   - Valida que o domínio com domainCode existe
+   *   - Cria o usuário com role='user', has_access=0, domain_id=domínio encontrado
+   *   - Cria solicitações de acesso para os dispositivos selecionados
    */
   async register(req, res) {
     try {
-      const { username, email, password, requestedDevices } = req.body;
+      const { username, email, password, isManager, domainName, domainCode, requestedDevices } = req.body;
 
       // Verifica se o email já existe
       const existingUser = await User.findByEmail(email);
       if (existingUser) {
-        return res.status(400).json({
-          success: false,
-          error: 'E-mail já cadastrado'
-        });
+        return res.status(400).json({ success: false, error: 'E-mail já cadastrado' });
       }
 
       // Hash da senha
       const hashedPassword = await bcrypt.hash(password, 10);
 
-      // Cria o usuário (has_access = false por padrão)
+      let domainId = null;
+      let userRole = 'user';
+      let userHasAccess = 0;
+
+      if (isManager) {
+        // ── Fluxo Gerente ──────────────────────────────────────────────────
+        if (!domainName || !domainCode) {
+          return res.status(400).json({
+            success: false,
+            error: 'Nome e código do domínio são obrigatórios para gerentes'
+          });
+        }
+
+        // Verifica se o código de domínio já existe
+        const existingDomain = await Domain.findByCode(domainCode.trim());
+        if (existingDomain) {
+          return res.status(400).json({
+            success: false,
+            error: 'Código de domínio já utilizado. Escolha outro código.'
+          });
+        }
+
+        // Cria o domínio temporariamente sem admin (será atualizado após criar o usuário)
+        const newDomain = await Domain.create(domainName.trim(), domainCode.trim(), null);
+        domainId = newDomain.id;
+        userRole = 'admin';
+        userHasAccess = 1; // Gerente já tem acesso automático
+
+      } else {
+        // ── Fluxo Usuário Comum ────────────────────────────────────────────
+        if (!domainCode) {
+          return res.status(400).json({
+            success: false,
+            error: 'Código do domínio é obrigatório'
+          });
+        }
+
+        const domain = await Domain.findByCode(domainCode.trim());
+        if (!domain) {
+          return res.status(404).json({
+            success: false,
+            error: 'Domínio não encontrado. Verifique o código informado.'
+          });
+        }
+
+        domainId = domain.id;
+      }
+
+      // Cria o usuário
       const user = await User.create({
         username,
         email,
         password: hashedPassword,
-        role: 'user',
-        has_access: 0
+        role: userRole,
+        has_access: userHasAccess,
+        domain_id: domainId
       });
 
-      // Cria solicitações de acesso para os dispositivos selecionados
-      if (requestedDevices && requestedDevices.length > 0) {
-        for (const deviceId of requestedDevices) {
-          try {
-            await AccessRequest.create(
-              user.id,
-              deviceId,
-              'Solicitação de acesso durante cadastro'
-            );
-            console.log(`Solicitação criada para dispositivo ${deviceId}`);
-          } catch (err) {
-            console.error(`Erro ao criar solicitação para dispositivo ${deviceId}:`, err);
+      // Se for gerente, atualiza o admin_id do domínio agora que o usuário existe
+      if (isManager && domainId) {
+        await Domain.setAdmin(domainId, user.id);
+      }
+
+      // Cria solicitações de acesso (apenas para usuários comuns)
+      if (!isManager) {
+        if (requestedDevices && requestedDevices.length > 0) {
+          for (const deviceId of requestedDevices) {
+            try {
+              await AccessRequest.create(user.id, deviceId, 'Solicitação de acesso durante cadastro');
+            } catch (err) {
+              console.error(`Erro ao criar solicitação para dispositivo ${deviceId}:`, err);
+            }
           }
-        }
-      } else {
-        // Se não selecionou dispositivos específicos, cria uma solicitação geral
-        try {
-          await AccessRequest.create(
-            user.id,
-            null,
-            'Solicitação de acesso geral durante cadastro'
-          );
-          console.log(`Solicitação geral criada para usuário ${user.id}`);
-        } catch (err) {
-          console.error(`Erro ao criar solicitação geral:`, err);
+        } else {
+          try {
+            await AccessRequest.create(user.id, null, 'Solicitação de acesso geral durante cadastro');
+          } catch (err) {
+            console.error('Erro ao criar solicitação geral:', err);
+          }
         }
       }
 
       // Gera o token
-      const token = generateToken({
-        id: user.id,
-        email: user.email,
-        role: user.role
-      });
+      const token = generateToken({ id: user.id, email: user.email, role: user.role });
 
       return res.status(201).json({
         success: true,
@@ -78,45 +129,56 @@ const authController = {
       });
     } catch (error) {
       console.error('Erro no registro:', error);
-      return res.status(500).json({
-        success: false,
-        error: 'Erro interno do servidor'
-      });
+      return res.status(500).json({ success: false, error: 'Erro interno do servidor' });
     }
   },
 
   /**
    * POST /api/auth/login
-   * Autentica o usuário
+   * Autentica o usuário.
+   *
+   * - admin@teste.com (superadmin): ignora domainCode, acesso total
+   * - Demais: valida que domainCode corresponde ao domain_id do usuário
    */
   async login(req, res) {
     try {
-      const { email, password } = req.body;
+      const { email, password, domainCode } = req.body;
 
       // Busca o usuário pelo email
       const user = await User.findByEmail(email);
       if (!user) {
-        return res.status(401).json({
-          success: false,
-          error: 'E-mail ou senha inválidos'
-        });
+        return res.status(401).json({ success: false, error: 'E-mail ou senha inválidos' });
       }
 
       // Verifica a senha
       const isValidPassword = await bcrypt.compare(password, user.password);
       if (!isValidPassword) {
-        return res.status(401).json({
-          success: false,
-          error: 'E-mail ou senha inválidos'
-        });
+        return res.status(401).json({ success: false, error: 'E-mail ou senha inválidos' });
+      }
+
+      // Validação de domínio (ignorada para o superadmin)
+      const isSuperAdmin = email.toLowerCase() === SUPERADMIN_EMAIL;
+      if (!isSuperAdmin) {
+        if (!domainCode) {
+          return res.status(400).json({ success: false, error: 'Código do domínio é obrigatório' });
+        }
+
+        const domain = await Domain.findByCode(domainCode.trim());
+        if (!domain) {
+          return res.status(401).json({ success: false, error: 'Código de domínio inválido' });
+        }
+
+        // Verifica se o usuário pertence ao domínio informado
+        if (user.domain_id !== domain.id) {
+          return res.status(401).json({
+            success: false,
+            error: 'Você não pertence a este domínio'
+          });
+        }
       }
 
       // Gera o token
-      const token = generateToken({
-        id: user.id,
-        email: user.email,
-        role: user.role
-      });
+      const token = generateToken({ id: user.id, email: user.email, role: user.role });
 
       return res.status(200).json({
         success: true,
@@ -128,10 +190,7 @@ const authController = {
       });
     } catch (error) {
       console.error('Erro no login:', error);
-      return res.status(500).json({
-        success: false,
-        error: 'Erro interno do servidor'
-      });
+      return res.status(500).json({ success: false, error: 'Erro interno do servidor' });
     }
   },
 
@@ -141,28 +200,19 @@ const authController = {
    */
   async me(req, res) {
     try {
-      // req.user é injetado pelo middleware de autenticação
       const user = await User.findById(req.user.id);
-      
+
       if (!user) {
-        return res.status(404).json({
-          success: false,
-          error: 'Usuário não encontrado'
-        });
+        return res.status(404).json({ success: false, error: 'Usuário não encontrado' });
       }
 
       return res.status(200).json({
         success: true,
-        data: {
-          user: User.toPublic(user)
-        }
+        data: { user: User.toPublic(user) }
       });
     } catch (error) {
       console.error('Erro ao buscar usuário:', error);
-      return res.status(500).json({
-        success: false,
-        error: 'Erro interno do servidor'
-      });
+      return res.status(500).json({ success: false, error: 'Erro interno do servidor' });
     }
   }
 };

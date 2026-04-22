@@ -491,4 +491,134 @@
   .register-button .button-text {
     font-size: 16px;
   }
+
+  .domain-fields-row {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .domain-field-half {
+    width: 100% !important;
+  }
 }
+
+/* ========================================
+   Sou Gerente — Checkbox Row
+   ======================================== */
+
+.manager-checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0;
+  animation: fadeInUp 0.4s ease-out both;
+}
+
+.manager-label {
+  font-family: 'Roboto', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  color: #1D1B20;
+  letter-spacing: 0.2px;
+  user-select: none;
+}
+
+.manager-checkbox-wrapper {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.manager-checkbox-input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.manager-checkbox-custom {
+  width: 22px;
+  height: 22px;
+  border: 2px solid #49454F;
+  border-radius: 5px;
+  background: rgba(132, 182, 244, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.manager-checkbox-input:checked + .manager-checkbox-custom {
+  background: rgba(29, 100, 180, 0.75);
+  border-color: #1D64B4;
+  box-shadow: 0 0 0 3px rgba(29, 100, 180, 0.15);
+}
+
+.manager-checkbox-wrapper:hover .manager-checkbox-custom {
+  border-color: #1D64B4;
+  background: rgba(132, 182, 244, 0.45);
+}
+
+/* ========================================
+   Campos de Domínio — Layout 2 colunas (gerente)
+   ======================================== */
+
+.domain-fields-row {
+  display: flex;
+  gap: 14px;
+  width: 100%;
+  animation: fadeInUp 0.35s ease-out both;
+}
+
+.domain-field-half {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ========================================
+   Verificação de Domínio — Estados
+   ======================================== */
+
+.domain-verifying {
+  color: #777;
+  font-size: 11px;
+  margin-left: 6px;
+  font-style: italic;
+}
+
+.domain-verified {
+  color: #2e7d32;
+  font-size: 12px;
+  font-weight: 700;
+  margin-left: 6px;
+}
+
+.input-error {
+  color: #c62828 !important;
+}
+
+.input-success {
+  color: #2e7d32 !important;
+}
+
+.indicator-error {
+  background: #c62828 !important;
+  height: 2px !important;
+}
+
+.indicator-success {
+  background: #2e7d32 !important;
+  height: 2px !important;
+}
+
+.domain-error-msg {
+  display: block;
+  margin-top: 4px;
+  font-family: 'Roboto', sans-serif;
+  font-size: 12px;
+  color: #c62828;
+  padding-left: 4px;
+  animation: fadeInUp 0.2s ease-out;
+}
+

@@ -187,7 +187,7 @@ function AppContent() {
   const handleLogin = async (credentials) => {
     setError(null);
     try {
-      const response = await api.auth.login(credentials.email, credentials.password);
+      const response = await api.auth.login(credentials.email, credentials.password, credentials.domainCode || '');
       const userData = response.data.user;
       
       setUser({ 
@@ -212,7 +212,6 @@ function AppContent() {
       try { getSocket(); } catch (e) { console.warn('Erro ao inicializar socket:', e); }
     } catch (err) {
       setError(err.message);
-      // Substituir alert por toast de erro
       toast.error(err.message || 'Erro ao fazer login');
     }
   };
@@ -228,17 +227,25 @@ function AppContent() {
         formData.username, 
         formData.email, 
         formData.password,
-        formData.requestedDevices || []
+        {
+          isManager: formData.isManager || false,
+          domainName: formData.domainName || '',
+          domainCode: formData.domainCode || '',
+          requestedDevices: formData.requestedDevices || []
+        }
       );
       
       // Após cadastro, remove o token (não faz login automático)
       api.auth.logout();
       
       // Mostra mensagem de sucesso e volta para login
-      const deviceMsg = formData.requestedDevices?.length > 0 
-        ? ' Sua solicitação de acesso aos dispositivos foi enviada para aprovação.'
-        : '';
-      toast.success(`Conta criada com sucesso!${deviceMsg} Faça login para continuar.`, 6000);
+      const msg = formData.isManager
+        ? 'Domínio criado e conta de gerente registrada! Faça login para continuar.'
+        : formData.requestedDevices?.length > 0
+          ? 'Conta criada! Sua solicitação de acesso aos dispositivos foi enviada para aprovação.'
+          : 'Conta criada com sucesso! Faça login para continuar.';
+
+      toast.success(msg, 6000);
       setCurrentPage(PAGES.LOGIN);
     } catch (err) {
       setError(err.message);
