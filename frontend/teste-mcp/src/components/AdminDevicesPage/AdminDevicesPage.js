@@ -4,7 +4,7 @@ import AdminHeader from '../AdminHeader';
 import Footer from '../Footer';
 import DeviceFormModal from '../DeviceFormModal';
 import waitingImage from '../../assets/waiting-image.png';
-import { devices as devicesApi } from '../../services/api';
+import { devices as devicesApi, domains as domainsApi } from '../../services/api';
 import logger from '../../utils/logger';
 
 const AdminDevicesPage = ({ 
@@ -25,6 +25,8 @@ const AdminDevicesPage = ({
   const [deviceToDelete, setDeviceToDelete] = useState(null);
   const [showDeviceForm, setShowDeviceForm] = useState(false);
   const [editingDevice, setEditingDevice] = useState(null);
+  // Usuários filtrados pelo domínio do dispositivo sendo editado
+  const [domainUsers, setDomainUsers] = useState([]);
 
   const handleDeleteClick = (e, device) => {
     e.stopPropagation();
@@ -37,10 +39,26 @@ const AdminDevicesPage = ({
     try {
       // Busca o dispositivo completo com usuários atribuídos
       const response = await devicesApi.getById(device.id);
-      setEditingDevice(response.device || device);
+      const fullDevice = response.device || device;
+      setEditingDevice(fullDevice);
+
+      // Carrega apenas os usuários do domínio deste dispositivo
+      const domainId = fullDevice.domainId ?? fullDevice.domain_id;
+      if (domainId) {
+        try {
+          const usersResponse = await domainsApi.getUsersByDomain(domainId);
+          setDomainUsers(usersResponse.data || []);
+        } catch (usersErr) {
+          logger.error('Erro ao carregar usuários do domínio:', usersErr.message);
+          setDomainUsers([]);
+        }
+      } else {
+        setDomainUsers([]);
+      }
     } catch (error) {
       logger.error('Erro ao carregar dispositivo:', error.message);
       setEditingDevice(device);
+      setDomainUsers([]);
     }
     setShowDeviceForm(true);
   };
@@ -177,11 +195,12 @@ const AdminDevicesPage = ({
         isOpen={showDeviceForm}
         mode={editingDevice ? 'edit' : 'create'}
         device={editingDevice}
-        allUsers={allUsers}
+        allUsers={domainUsers}
         onSave={handleSaveDevice}
         onClose={() => {
           setShowDeviceForm(false);
           setEditingDevice(null);
+          setDomainUsers([]);
         }}
       />
 

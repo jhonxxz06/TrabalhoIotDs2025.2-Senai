@@ -196,6 +196,17 @@ export const domains = {
       headers: headers()
     });
     return handleResponse(response);
+  },
+
+  /**
+   * Lista usuários de um domínio específico (rota privada — admin)
+   * Usado para popular "Usuários com Acesso" no modal de edição de dispositivo
+   */
+  async getUsersByDomain(domainId) {
+    const response = await fetch(`${API_URL}/domains/${domainId}/users`, {
+      headers: headers()
+    });
+    return handleResponse(response);
   }
 };
 

@@ -84,6 +84,28 @@ const domainController = {
       console.error('Erro ao buscar devices do domínio:', error);
       return res.status(500).json({ success: false, error: 'Erro interno do servidor' });
     }
+  },
+
+  /**
+   * GET /api/domains/:id/users
+   * Rota PRIVADA (admin) — lista usuários pertencentes a um domínio específico.
+   * Usado para popular a seção "Usuários com Acesso" no modal de edição de dispositivo.
+   */
+  async getUsers(req, res) {
+    try {
+      const { id } = req.params;
+      const domain = await Domain.findById(id);
+
+      if (!domain) {
+        return res.status(404).json({ success: false, error: 'Domínio não encontrado' });
+      }
+
+      const users = await Domain.getUsers(domain.id);
+      return res.status(200).json({ success: true, data: users });
+    } catch (error) {
+      console.error('Erro ao buscar usuários do domínio:', error);
+      return res.status(500).json({ success: false, error: 'Erro interno do servidor' });
+    }
   }
 };
 

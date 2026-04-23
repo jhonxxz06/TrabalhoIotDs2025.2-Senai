@@ -14,4 +14,7 @@ router.get('/', authenticate, domainController.getAll);
 // Lista devices de um domínio específico
 router.get('/:id/devices', authenticate, domainController.getDevices);
 
+// Lista usuários de um domínio específico (usado no modal de edição de dispositivo)
+router.get('/:id/users', authenticate, domainController.getUsers);
+
 module.exports = router;
