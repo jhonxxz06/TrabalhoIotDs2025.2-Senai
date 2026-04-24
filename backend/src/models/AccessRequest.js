@@ -38,9 +38,18 @@ const AccessRequest = {
   },
 
   /**
-   * Lista solicitações de um usuário
+   * Lista solicitações de um usuário, com filtro de status opcional
    */
-  async findByUserId(userId) {
+  async findByUserId(userId, status = null) {
+    if (status) {
+      return await query(`
+        SELECT ar.*, d.name as device_name
+        FROM access_requests ar
+        LEFT JOIN devices d ON ar.device_id = d.id
+        WHERE ar.user_id = $1 AND ar.status = $2
+        ORDER BY ar.created_at DESC
+      `, [userId, status]);
+    }
     return await query(`
       SELECT ar.*, d.name as device_name
       FROM access_requests ar

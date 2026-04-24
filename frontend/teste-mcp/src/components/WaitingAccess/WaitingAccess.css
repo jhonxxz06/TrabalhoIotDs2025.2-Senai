@@ -58,6 +58,21 @@
   animation: fadeIn 0.8s ease-out 0.3s both;
 }
 
+/* Variante de rejeição — feedback visual diferenciado (MT-06) */
+.waiting-message--rejected {
+  color: #F4A84B;
+}
+
+.waiting-subtext {
+  font-family: 'Roboto', sans-serif;
+  font-size: 16px;
+  color: #888;
+  text-align: center;
+  max-width: 500px;
+  line-height: 1.6;
+  animation: fadeIn 0.8s ease-out 0.5s both;
+}
+
 @keyframes fadeIn {
   from {
     opacity: 0;

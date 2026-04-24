@@ -209,9 +209,18 @@ const update = async (req, res) => {
       mqttPassword
     });
 
-    // Atualiza usuários se informados
+    // Atualiza usuários se informados (MT-03)
     if (assignedUsers !== undefined) {
-      Device.setAssignedUsers(id, assignedUsers);
+      // Calcula diff: apenas usuários recém-adicionados recebem has_access = true
+      const previousUsers = await Device.getAssignedUsers(id);
+      const previousUserIds = previousUsers.map(u => u.id);
+      const newlyAddedIds = assignedUsers.filter(uid => !previousUserIds.includes(uid));
+
+      await Device.setAssignedUsers(id, assignedUsers);
+
+      for (const userId of newlyAddedIds) {
+        await User.updateAccess(userId, true);
+      }
     }
 
     const devicePublic = Device.toPublic(updatedDevice);
@@ -304,7 +313,17 @@ const updateUsers = async (req, res) => {
       });
     }
 
-    const assignedUsers = Device.setAssignedUsers(id, userIds);
+    // MT-02: Calcula diff — somente novos usuários recebem has_access = true
+    const previousUsers = await Device.getAssignedUsers(id);
+    const previousUserIds = previousUsers.map(u => u.id);
+    const newlyAddedIds = userIds.filter(uid => !previousUserIds.includes(uid));
+
+    const assignedUsers = await Device.setAssignedUsers(id, userIds);
+
+    // MT-01: Ativa has_access para quem acabou de receber acesso ao device
+    for (const userId of newlyAddedIds) {
+      await User.updateAccess(userId, true);
+    }
 
     res.json({
       success: true,

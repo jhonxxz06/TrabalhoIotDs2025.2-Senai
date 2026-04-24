@@ -93,8 +93,6 @@ function AppContent() {
 
   // Carregar dispositivos quando usuário tiver acesso
   const loadDevices = useCallback(async () => {
-    if (!hasAccess && !isAdmin) return;
-    
     try {
       const response = await api.devices.getAll();
       setDevices(response.data || []);
@@ -102,7 +100,7 @@ function AppContent() {
       console.error('Erro ao carregar dispositivos:', err);
       setError('Erro ao carregar dispositivos');
     }
-  }, [hasAccess, isAdmin]);
+  }, []);
 
   // Carregar notificações pendentes (admin)
   const loadNotifications = useCallback(async () => {
@@ -519,10 +517,19 @@ function AppContent() {
     // Polling para verificar acesso (a cada 10 segundos)
     const checkAccess = async () => {
       try {
-        const response = await api.auth.me();
-        if (response.data.user.hasAccess && !hasAccess) {
+        // MT-04: verifica perfil E dispositivos atribuídos em paralelo
+        const [meResponse, devicesResponse] = await Promise.all([
+          api.auth.me(),
+          api.devices.getAll()
+        ]);
+
+        const serverUser = meResponse.data.user;
+        const assignedDevices = devicesResponse.data || [];
+        const hasAnyDevice = assignedDevices.length > 0;
+
+        if ((serverUser.hasAccess || hasAnyDevice) && !hasAccess) {
           setHasAccess(true);
-          loadDevices();
+          setDevices(assignedDevices); // seta diretamente para não depender do timing de setState
           loadPublicDevices();
           setCurrentPage(PAGES.DEVICES);
         }
@@ -536,7 +543,7 @@ function AppContent() {
     return () => {
       clearInterval(interval);
     };
-  }, [user, hasAccess, isAdmin, loadDevices, loadPublicDevices]);
+  }, [user, hasAccess, isAdmin, loadPublicDevices]);
 
   // Loading screen
   if (loading) {

@@ -13,7 +13,8 @@ const getAll = async (req, res) => {
     if (req.user.role === 'admin') {
       requests = await AccessRequest.findAll(status);
     } else {
-      requests = await AccessRequest.findByUserId(req.user.id);
+      // Usuário comum pode filtrar suas próprias solicitações por status
+      requests = await AccessRequest.findByUserId(req.user.id, status);
     }
 
     res.json({
