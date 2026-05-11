@@ -7,7 +7,13 @@ const User = {
    * @returns {Promise<Object|null>}
    */
   async findByEmail(email) {
-    return await queryOne('SELECT * FROM users WHERE email = $1', [email]);
+    return await queryOne(
+      `SELECT u.*, d.name AS domain_name
+       FROM users u
+       LEFT JOIN domains d ON d.id = u.domain_id
+       WHERE u.email = $1`,
+      [email]
+    );
   },
 
   /**
@@ -16,7 +22,13 @@ const User = {
    * @returns {Promise<Object|null>}
    */
   async findById(id) {
-    return await queryOne('SELECT * FROM users WHERE id = $1', [id]);
+    return await queryOne(
+      `SELECT u.*, d.name AS domain_name
+       FROM users u
+       LEFT JOIN domains d ON d.id = u.domain_id
+       WHERE u.id = $1`,
+      [id]
+    );
   },
 
   /**
@@ -118,11 +130,12 @@ const User = {
    */
   toPublic(user) {
     if (!user) return null;
-    const { password, ...publicData } = user;
+    const { password, domain_name, ...publicData } = user;
     return {
       ...publicData,
       hasAccess: Boolean(publicData.has_access),
-      domainId: publicData.domain_id ?? null
+      domainId: publicData.domain_id ?? null,
+      domainName: domain_name ?? null
     };
   }
 };

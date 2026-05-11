@@ -5,7 +5,8 @@ import Footer from '../Footer';
 import waitingImage from '../../assets/waiting-image.png';
 
 const DevicesPage = ({ 
-  username, 
+  username,
+  domainName,
   devices = [], 
   onDeviceClick, 
   onLogout, 
@@ -18,7 +19,8 @@ const DevicesPage = ({
   return (
     <div className="devices-container">
       <Header 
-        username={username} 
+        username={username}
+        domainName={domainName}
         onLogout={onLogout}
         onLogoClick={onLogoClick}
         isOnDevicesPage={true}

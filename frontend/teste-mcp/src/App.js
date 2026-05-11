@@ -33,6 +33,7 @@ function AppContent() {
   const toast = useToast();
   const [currentPage, setCurrentPage] = useState(PAGES.LOGIN);
   const [user, setUser] = useState(null);
+  const [domainName, setDomainName] = useState(null);
   const [selectedDevice, setSelectedDevice] = useState(null);
   const [hasAccess, setHasAccess] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -67,6 +68,7 @@ function AppContent() {
             username: userData.username, 
             email: userData.email 
           });
+          setDomainName(userData.domainName || null);
           setHasAccess(userData.hasAccess);
           setIsAdmin(userData.role === 'admin');
           
@@ -193,6 +195,7 @@ function AppContent() {
         username: userData.username, 
         email: userData.email 
       });
+      setDomainName(userData.domainName || null);
       setHasAccess(userData.hasAccess);
       setIsAdmin(userData.role === 'admin');
       
@@ -288,6 +291,7 @@ function AppContent() {
     api.auth.logout();
     try { closeSocket(); } catch (e) {}
     setUser(null);
+    setDomainName(null);
     setHasAccess(false);
     setIsAdmin(false);
     setSelectedDevice(null);
@@ -596,6 +600,7 @@ function AppContent() {
         return (
           <DevicesPage 
             username={user?.username}
+            domainName={domainName}
             devices={devices}
             onDeviceClick={handleDeviceClick}
             onLogout={handleLogout}
@@ -609,6 +614,7 @@ function AppContent() {
         return (
           <DashboardPage 
             username={user?.username}
+            domainName={domainName}
             deviceName={selectedDevice?.name}
             device={selectedDevice}
             widgets={widgets}
@@ -622,6 +628,7 @@ function AppContent() {
         return (
           <AdminDevicesPage 
             username={user?.username}
+            domainName={domainName}
             devices={devices}
             setDevices={setDevices}
             onDeviceClick={handleDeviceClick}
@@ -646,6 +653,7 @@ function AppContent() {
         return (
           <AdminDashboardPage 
             username={user?.username}
+            domainName={domainName}
             deviceName={selectedDevice?.name}
             device={selectedDevice}
             widgets={widgets}

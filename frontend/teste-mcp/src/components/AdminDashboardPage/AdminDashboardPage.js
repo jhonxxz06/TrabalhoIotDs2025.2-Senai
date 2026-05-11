@@ -341,6 +341,7 @@ const DynamicWidgetCard = ({ widget, deviceId, position, dragging, onMouseDown, 
 
 const AdminDashboardPage = ({
   username,
+  domainName,
   deviceName = 'Nome do dispositivo',
   device,
   widgets = [],
@@ -551,6 +552,7 @@ const AdminDashboardPage = ({
     <div className="admin-dashboard-container">
       <AdminHeader
         username={username}
+        domainName={domainName}
         onLogout={onLogout}
         onAddDevice={onAddDevice}
         onBackToDevices={onBackToDevices}

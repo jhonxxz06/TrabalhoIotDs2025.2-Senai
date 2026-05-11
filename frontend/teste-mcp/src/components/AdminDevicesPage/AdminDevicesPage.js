@@ -8,7 +8,8 @@ import { devices as devicesApi, domains as domainsApi } from '../../services/api
 import logger from '../../utils/logger';
 
 const AdminDevicesPage = ({ 
-  username, 
+  username,
+  domainName,
   devices = [], 
   setDevices,
   onDeviceClick,
@@ -116,7 +117,8 @@ const AdminDevicesPage = ({
   return (
     <div className="admin-devices-container">
       <AdminHeader 
-        username={username} 
+        username={username}
+        domainName={domainName}
         onLogout={onLogout}
         onAddDevice={handleAddDevice}
         onBackToDevices={onNavigateToDashboard}

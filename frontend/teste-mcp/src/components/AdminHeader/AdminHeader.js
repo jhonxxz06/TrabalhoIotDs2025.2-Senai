@@ -5,6 +5,7 @@ import logo from '../../assets/logo.png';
 
 const AdminHeader = ({ 
   username, 
+  domainName,
   onLogout, 
   onAddDevice, 
   onCreateGraph,
@@ -46,13 +47,17 @@ const AdminHeader = ({
   return (
     <header className="admin-header">
       <div className="admin-header-left">
-        {!isOnDevicesPage && (
+        {!isOnDevicesPage ? (
           <button className="back-button" onClick={onBackToDevices}>
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
               <path d="M20 11H7.83L13.42 5.41L12 4L4 12L12 20L13.41 18.59L7.83 13H20V11Z" fill="white"/>
             </svg>
             <span>Voltar</span>
           </button>
+        ) : (
+          domainName && (
+            <span className="header-domain-name">{domainName}</span>
+          )
         )}
       </div>
 

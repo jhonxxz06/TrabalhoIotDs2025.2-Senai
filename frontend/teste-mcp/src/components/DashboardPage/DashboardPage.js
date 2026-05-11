@@ -292,6 +292,7 @@ const DynamicWidget = ({ widget, deviceId, onDownload }) => {
 
 const DashboardPage = ({
   username,
+  domainName,
   deviceName = 'Nome do dispositivo',
   device,
   widgets = [],
@@ -352,6 +353,7 @@ const DashboardPage = ({
     <div className="dashboard-container">
       <Header
         username={username}
+        domainName={domainName}
         onBackToDevices={onBackToDevices}
         onLogout={onLogout}
         onLogoClick={onBackToDevices}
