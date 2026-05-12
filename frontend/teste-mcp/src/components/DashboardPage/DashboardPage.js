@@ -298,7 +298,9 @@ const DashboardPage = ({
   widgets = [],
   onDownloadExcel,
   onBackToDevices,
-  onLogout
+  onLogout,
+  user,
+  onUserSaved
 }) => {
   const [widgetPositions, setWidgetPositions] = useState({});
   const [whiteboardHeight, setWhiteboardHeight] = useState(600);
@@ -358,6 +360,8 @@ const DashboardPage = ({
         onLogout={onLogout}
         onLogoClick={onBackToDevices}
         isOnDevicesPage={false}
+        user={user}
+        onUserSaved={onUserSaved}
       />
 
       <main className="dashboard-content">

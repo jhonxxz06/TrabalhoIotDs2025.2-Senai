@@ -12,7 +12,9 @@ const DevicesPage = ({
   onLogout, 
   onLogoClick,
   availableDevices = [],
-  onRequestAccess
+  onRequestAccess,
+  user,
+  onUserSaved
 }) => {
   const hasDevices = devices.length > 0;
 
@@ -26,6 +28,8 @@ const DevicesPage = ({
         isOnDevicesPage={true}
         availableDevices={availableDevices}
         onRequestAccess={onRequestAccess}
+        user={user}
+        onUserSaved={onUserSaved}
       />
       
       <main className="devices-content">

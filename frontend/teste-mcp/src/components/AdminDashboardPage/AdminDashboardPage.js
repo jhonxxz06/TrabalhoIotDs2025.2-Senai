@@ -353,7 +353,9 @@ const AdminDashboardPage = ({
   onRefreshWidgets,
   notifications = [],
   onAcceptUser,
-  onRejectUser
+  onRejectUser,
+  user,
+  onUserSaved
 }) => {
   const [showGraphEditor, setShowGraphEditor] = useState(false);
   const [editingWidget, setEditingWidget] = useState(null);
@@ -562,6 +564,8 @@ const AdminDashboardPage = ({
         notifications={notifications}
         onAcceptUser={onAcceptUser}
         onRejectUser={onRejectUser}
+        user={user}
+        onUserSaved={onUserSaved}
       />
 
       <main className="admin-dashboard-content">

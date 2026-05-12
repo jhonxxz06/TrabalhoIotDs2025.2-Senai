@@ -214,6 +214,101 @@ const authController = {
       console.error('Erro ao buscar usuário:', error);
       return res.status(500).json({ success: false, error: 'Erro interno do servidor' });
     }
+  },
+
+  /**
+   * PUT /api/auth/profile
+   * Atualiza dados do perfil do usuário logado (username, email, password)
+   */
+  async updateProfile(req, res) {
+    try {
+      const { username, email, currentPassword, newPassword } = req.body;
+      const userId = req.user.id;
+
+      const user = await User.findById(userId);
+      if (!user) {
+        return res.status(404).json({ success: false, error: 'Usuário não encontrado' });
+      }
+
+      const updateData = {};
+
+      if (username !== undefined && username.trim()) {
+        updateData.username = username.trim();
+      }
+      if (email !== undefined && email.trim()) {
+        updateData.email = email.trim();
+      }
+
+      if (newPassword) {
+        if (!currentPassword) {
+          return res.status(400).json({ success: false, error: 'Senha atual é obrigatória para alterar a senha' });
+        }
+        const isValid = await bcrypt.compare(currentPassword, user.password);
+        if (!isValid) {
+          return res.status(400).json({ success: false, error: 'Senha atual incorreta' });
+        }
+        const isSame = await bcrypt.compare(newPassword, user.password);
+        if (isSame) {
+          return res.status(400).json({ success: false, error: 'A nova senha deve ser diferente da senha atual' });
+        }
+        updateData.password = await bcrypt.hash(newPassword, 10);
+      }
+
+      if (Object.keys(updateData).length === 0) {
+        return res.status(400).json({ success: false, error: 'Nenhum dado para atualizar' });
+      }
+
+      const updatedUser = await User.update(userId, updateData);
+      return res.status(200).json({
+        success: true,
+        message: 'Perfil atualizado com sucesso',
+        data: { user: User.toPublic(updatedUser) }
+      });
+    } catch (error) {
+      console.error('Erro ao atualizar perfil:', error);
+      return res.status(500).json({ success: false, error: 'Erro interno do servidor' });
+    }
+  },
+
+  /**
+   * DELETE /api/auth/account
+   * Exclui a conta do usuário logado
+   */
+  async deleteAccount(req, res) {
+    try {
+      const userId = req.user.id;
+      const user = await User.findById(userId);
+      if (!user) {
+        return res.status(404).json({ success: false, error: 'Usuário não encontrado' });
+      }
+      await User.delete(userId);
+      return res.status(200).json({ success: true, message: 'Conta excluída com sucesso' });
+    } catch (error) {
+      console.error('Erro ao excluir conta:', error);
+      return res.status(500).json({ success: false, error: 'Erro interno do servidor' });
+    }
+  },
+
+  /**
+   * PUT /api/auth/leave-domain
+   * Remove o usuário do seu domínio atual
+   */
+  async leaveDomain(req, res) {
+    try {
+      const userId = req.user.id;
+      const user = await User.findById(userId);
+      if (!user) {
+        return res.status(404).json({ success: false, error: 'Usuário não encontrado' });
+      }
+      if (!user.domain_id) {
+        return res.status(400).json({ success: false, error: 'Você não pertence a nenhum domínio' });
+      }
+      await User.update(userId, { domain_id: null });
+      return res.status(200).json({ success: true, message: 'Você saiu do domínio com sucesso' });
+    } catch (error) {
+      console.error('Erro ao sair do domínio:', error);
+      return res.status(500).json({ success: false, error: 'Erro interno do servidor' });
+    }
   }
 };
 

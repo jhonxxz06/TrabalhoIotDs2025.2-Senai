@@ -81,6 +81,31 @@ export const auth = {
     return handleResponse(response);
   },
 
+  async updateProfile(data) {
+    const response = await fetch(`${API_URL}/auth/profile`, {
+      method: 'PUT',
+      headers: headers(),
+      body: JSON.stringify(data)
+    });
+    return handleResponse(response);
+  },
+
+  async deleteAccount() {
+    const response = await fetch(`${API_URL}/auth/account`, {
+      method: 'DELETE',
+      headers: headers()
+    });
+    return handleResponse(response);
+  },
+
+  async leaveDomain() {
+    const response = await fetch(`${API_URL}/auth/leave-domain`, {
+      method: 'PUT',
+      headers: headers()
+    });
+    return handleResponse(response);
+  },
+
   logout() {
     localStorage.removeItem('token');
   },

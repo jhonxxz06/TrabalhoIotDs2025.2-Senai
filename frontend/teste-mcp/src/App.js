@@ -302,6 +302,15 @@ function AppContent() {
     console.log('Logout concluído, página:', PAGES.LOGIN);
   };
 
+  // Handler chamado após editar perfil com sucesso
+  const handleUserSaved = (updatedUser) => {
+    setUser(prev => ({
+      ...prev,
+      username: updatedUser.username || prev.username,
+      email:    updatedUser.email    || prev.email
+    }));
+  };
+
   // Handlers para notificações de acesso
   const handleAcceptUser = async (notification) => {
     try {
@@ -607,6 +616,8 @@ function AppContent() {
             onLogoClick={handleLogoClick}
             availableDevices={publicDevices}
             onRequestAccess={handleRequestAccess}
+            user={user}
+            onUserSaved={handleUserSaved}
           />
         );
       
@@ -621,6 +632,8 @@ function AppContent() {
             onDownloadExcel={handleDownloadExcel}
             onBackToDevices={handleBackToDevices}
             onLogout={handleLogout}
+            user={user}
+            onUserSaved={handleUserSaved}
           />
         );
       
@@ -646,6 +659,8 @@ function AppContent() {
             onAcceptUser={handleAcceptUser}
             onRejectUser={handleRejectUser}
             allUsers={allUsers}
+            user={user}
+            onUserSaved={handleUserSaved}
           />
         );
       
@@ -665,6 +680,8 @@ function AppContent() {
             notifications={notifications}
             onAcceptUser={handleAcceptUser}
             onRejectUser={handleRejectUser}
+            user={user}
+            onUserSaved={handleUserSaved}
           />
         );
       

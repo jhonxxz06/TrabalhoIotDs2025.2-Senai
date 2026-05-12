@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import './Header.css';
 import logo from '../../assets/logo.png';
 import settingsIcon from '../../assets/settings-icon.png';
+import EditProfileModal from '../EditProfileModal';
 
 const Header = ({ 
   username,
@@ -13,10 +14,13 @@ const Header = ({
   onBackToDevices, 
   isOnDevicesPage,
   availableDevices = [],
-  onRequestAccess
+  onRequestAccess,
+  user,
+  onUserSaved
 }) => {
   const [showMenu, setShowMenu] = useState(false);
   const [showRequestModal, setShowRequestModal] = useState(false);
+  const [showEditProfile, setShowEditProfile] = useState(false);
   const [selectedDevices, setSelectedDevices] = useState([]);
   const [requestMessage, setRequestMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -146,6 +150,9 @@ const Header = ({
             
             {showMenu && (
               <div className="user-dropdown">
+                <button onClick={() => { setShowMenu(false); setShowEditProfile(true); }}>
+                  Editar Perfil
+                </button>
                 <button onClick={() => { 
                   setShowMenu(false); 
                   if (onLogout) {
@@ -156,6 +163,15 @@ const Header = ({
                 </button>
               </div>
             )}
+
+            <EditProfileModal
+              isOpen={showEditProfile}
+              onClose={() => setShowEditProfile(false)}
+              user={user}
+              isAdmin={false}
+              onSaved={onUserSaved}
+              onLogout={onLogout}
+            />
           </div>
         </div>
       </header>

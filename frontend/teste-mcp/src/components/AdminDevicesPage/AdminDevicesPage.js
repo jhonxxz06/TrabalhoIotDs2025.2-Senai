@@ -20,7 +20,9 @@ const AdminDevicesPage = ({
   onAcceptUser,
   onRejectUser,
   onRefresh,
-  allUsers = []
+  allUsers = [],
+  user,
+  onUserSaved
 }) => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deviceToDelete, setDeviceToDelete] = useState(null);
@@ -128,6 +130,8 @@ const AdminDevicesPage = ({
         notifications={notifications}
         onAcceptUser={onAcceptUser}
         onRejectUser={onRejectUser}
+        user={user}
+        onUserSaved={onUserSaved}
       />
       
       <main className="admin-devices-content">

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import './AdminHeader.css';
 import logger from '../../utils/logger';
 import logo from '../../assets/logo.png';
+import EditProfileModal from '../EditProfileModal';
 
 const AdminHeader = ({ 
   username, 
@@ -14,10 +15,13 @@ const AdminHeader = ({
   isOnDashboard = false,
   notifications = [],
   onAcceptUser,
-  onRejectUser
+  onRejectUser,
+  user,
+  onUserSaved
 }) => {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showEditProfile, setShowEditProfile] = useState(false);
   const userMenuRef = useRef(null);
   const notificationRef = useRef(null);
 
@@ -182,6 +186,9 @@ const AdminHeader = ({
           
           {showUserMenu && (
             <div className="admin-user-dropdown">
+              <button onClick={() => { setShowUserMenu(false); setShowEditProfile(true); }}>
+                Editar Perfil
+              </button>
               <button onClick={() => { 
                 setShowUserMenu(false); 
                 if (onLogout) {
@@ -194,6 +201,15 @@ const AdminHeader = ({
               </button>
             </div>
           )}
+
+          <EditProfileModal
+            isOpen={showEditProfile}
+            onClose={() => setShowEditProfile(false)}
+            user={user}
+            isAdmin={true}
+            onSaved={onUserSaved}
+            onLogout={onLogout}
+          />
         </div>
       </div>
     </header>

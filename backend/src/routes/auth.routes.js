@@ -11,5 +11,8 @@ router.post('/login', validate(loginSchema), authController.login);
 
 // Rotas protegidas
 router.get('/me', authenticate, authController.me);
+router.put('/profile', authenticate, authController.updateProfile);
+router.delete('/account', authenticate, authController.deleteAccount);
+router.put('/leave-domain', authenticate, authController.leaveDomain);
 
 module.exports = router;
