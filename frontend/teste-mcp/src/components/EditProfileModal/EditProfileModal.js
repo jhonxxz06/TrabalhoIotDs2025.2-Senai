@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './EditProfileModal.css';
 import api from '../../services/api';
+import { useToast } from '../ToastContext';
 
 /**
  * EditProfileModal
@@ -16,6 +17,7 @@ import api from '../../services/api';
  *  onLogout      – () => void              (called after delete/leave)
  */
 const EditProfileModal = ({ isOpen, onClose, user, isAdmin, onSaved, onLogout }) => {
+  const toast = useToast();
   // Form state
   const [username, setUsername]           = useState('');
   const [email, setEmail]                 = useState('');
@@ -106,11 +108,12 @@ const EditProfileModal = ({ isOpen, onClose, user, isAdmin, onSaved, onLogout })
     setWarningLoading(true);
     try {
       await api.auth.leaveDomain();
+      toast.success('Você saiu do domínio com sucesso.');
       setWarning(null);
       onClose();
       if (onLogout) onLogout();
     } catch (err) {
-      setErrorMsg(err.message || 'Erro ao sair do domínio');
+      toast.error(err.message || 'Erro ao sair do domínio');
       setWarning(null);
     } finally {
       setWarningLoading(false);
@@ -122,11 +125,12 @@ const EditProfileModal = ({ isOpen, onClose, user, isAdmin, onSaved, onLogout })
     setWarningLoading(true);
     try {
       await api.auth.deleteAccount();
+      toast.success('Conta excluída com sucesso.');
       setWarning(null);
       onClose();
       if (onLogout) onLogout();
     } catch (err) {
-      setErrorMsg(err.message || 'Erro ao excluir conta');
+      toast.error(err.message || 'Erro ao excluir conta');
       setWarning(null);
     } finally {
       setWarningLoading(false);
