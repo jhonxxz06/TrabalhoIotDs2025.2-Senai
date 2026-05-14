@@ -1,0 +1,34 @@
+name: CD Clean Air
+
+on:
+  workflow_run:
+    workflows:
+      - CI Clean Air
+    types:
+      - completed
+
+jobs:
+
+  DEPLOY:
+    name: Deploy da Aplicação
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      # FRONTEND - VERCEL
+
+      - name: Instalar Vercel CLI
+        run: npm install -g vercel
+
+      - name: Realizar deploy do frontend
+        run: |
+          cd frontend/teste-mcp
+          vercel --prod --token=${{ secrets.VERCEL_TOKEN }} --yes
+
+      # BACKEND - RENDER
+
+      - name: Realizar deploy do backend
+        run: curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK }}
