@@ -64,7 +64,7 @@ const LoginPage = ({ onLogin, onCreateAccount }) => {
                   className="text-field-input"
                   placeholder="Digite seu e-mail"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => setEmail(e.target.value.toLowerCase())}
                   required
                 />
               </div>

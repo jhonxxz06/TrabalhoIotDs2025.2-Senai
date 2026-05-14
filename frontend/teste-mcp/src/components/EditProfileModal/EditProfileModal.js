@@ -184,7 +184,7 @@ const EditProfileModal = ({ isOpen, onClose, user, isAdmin, onSaved, onLogout })
               <input
                 type="email"
                 value={email}
-                onChange={(e) => { setEmail(e.target.value); setFieldErrors(p => ({ ...p, email: '' })); }}
+                onChange={(e) => { setEmail(e.target.value.toLowerCase()); setFieldErrors(p => ({ ...p, email: '' })); }}
                 className={fieldErrors.email ? 'ep-input-error' : ''}
               />
               {fieldErrors.email && <span className="ep-field-error">{fieldErrors.email}</span>}

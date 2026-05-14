@@ -42,7 +42,9 @@ const RegisterPage = ({ onBackToLogin, onRegisterSuccess }) => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    // Force email to lowercase regardless of CAPS LOCK state
+    const normalizedValue = name === 'email' ? value.toLowerCase() : value;
+    setFormData(prev => ({ ...prev, [name]: normalizedValue }));
 
     // Reseta verificação se o código de domínio mudar
     if (name === 'domainCode') {
