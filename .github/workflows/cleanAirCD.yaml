@@ -11,9 +11,24 @@ jobs:
 
   DEPLOY:
     name: Deploy da Aplicação
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.head_branch == 'main'
+      )
+    
     runs-on: ubuntu-latest
 
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      
+    defaults:
+      run:
+        working-directory: ./frontend/teste-mcp
+        
     steps:
       - name: Checkout do código
         uses: actions/checkout@v4
@@ -23,10 +38,14 @@ jobs:
       - name: Instalar Vercel CLI
         run: npm install -g vercel
 
-      - name: Realizar deploy do frontend
-        run: |
-          cd frontend/teste-mcp
-          vercel --prod --token=${{ secrets.VERCEL_TOKEN }} --yes
+      - name: Baixar configurações da Vercel
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Build do projeto
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+      
+      - name: Deploy para produção
+        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
 
       # BACKEND - RENDER
 
