@@ -1,18 +1,13 @@
-# Dependencies
+# Node dependencies
 node_modules/
 */node_modules/
 
-# Database
-backend/database/*.sqlite
-backend/database/*.db
-
-# Environment variables
+# Environment variables (do not commit secrets)
 .env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
-*.env
 
 # Logs
 logs/
@@ -22,8 +17,8 @@ yarn-debug.log*
 yarn-error.log*
 
 # Build outputs
-build/
 dist/
+build/
 frontend/teste-mcp/build/
 
 # IDE / Editor
@@ -42,14 +37,24 @@ coverage/
 
 # Cache
 .cache/
-.npm/
 .eslintcache
 
 # Temp files
 *.tmp
 *.temp
 
-# Test files
-*.test.js.snap
-test.http
-*.http
+# Misc
+/.pnp
+.pnp.js
+
+# Ignore local verification/test scripts
+/backend/test-admin.js
+/backend/verify-system.js
+/
+# Ignore other backend test/quick scripts
+/backend/*test*.js
+/backend/check-*.js
+/backend/quick-*.js
+/backend/simple-*.js
+/backend/*-test.js
+*.tmp

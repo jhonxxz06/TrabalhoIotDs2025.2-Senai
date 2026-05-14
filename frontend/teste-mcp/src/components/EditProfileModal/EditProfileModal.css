@@ -1,0 +1,353 @@
+/* ========================================
+   Edit Profile Modal Styles
+   ======================================== */
+
+.edit-profile-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 3000;
+  animation: epFadeIn 0.2s ease-out;
+}
+
+@keyframes epFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* Panel anchored to top-right (desktop, as in images 2 & 3) */
+.edit-profile-panel {
+  position: fixed;
+  top: 79px; /* below the header */
+  right: 20px;
+  width: 430px;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.22);
+  overflow: hidden;
+  animation: epSlideDown 0.25s ease-out;
+  z-index: 3001;
+}
+
+@keyframes epSlideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── Header ── */
+.ep-header {
+  background: rgba(132, 182, 244, 0.25);
+  padding: 18px 20px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(132, 182, 244, 0.3);
+}
+
+.ep-header h2 {
+  margin: 0;
+  font-family: 'Roboto', sans-serif;
+  font-size: 18px;
+  font-weight: 600;
+  color: #1d1b20;
+}
+
+.ep-close-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.08);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+
+.ep-close-btn:hover {
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.ep-close-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* ── Body ── */
+.ep-body {
+  padding: 18px 20px 4px;
+}
+
+.ep-role-label {
+  margin: 0 0 16px;
+  font-family: 'Roboto', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: #1d1b20;
+}
+
+.ep-form-group {
+  margin-bottom: 14px;
+}
+
+.ep-form-group label {
+  display: block;
+  font-family: 'Roboto', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  color: #49454f;
+  margin-bottom: 5px;
+}
+
+.ep-form-group input {
+  width: 100%;
+  padding: 9px 14px;
+  border: 1.5px solid #c8dff7;
+  border-radius: 8px;
+  background: #eef4fc;
+  font-family: 'Roboto', sans-serif;
+  font-size: 14px;
+  color: #1d1b20;
+  box-sizing: border-box;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  outline: none;
+}
+
+.ep-form-group input:focus {
+  border-color: #84B6F4;
+  box-shadow: 0 0 0 3px rgba(132, 182, 244, 0.2);
+}
+
+.ep-form-group input.ep-input-error {
+  border-color: #d32f2f;
+  box-shadow: 0 0 0 3px rgba(211, 47, 47, 0.1);
+}
+
+.ep-field-error {
+  font-family: 'Roboto', sans-serif;
+  font-size: 11px;
+  color: #d32f2f;
+  margin-top: 4px;
+  display: block;
+}
+
+/* ── Leave Domain row ── */
+.ep-leave-domain-row {
+  display: flex;
+  justify-content: flex-end;
+  margin: 6px 0 10px;
+}
+
+.ep-btn-leave-domain {
+  padding: 8px 16px;
+  background: #d32f2f;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-family: 'Roboto', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.15s;
+}
+
+.ep-btn-leave-domain:hover {
+  background: #b71c1c;
+  transform: translateY(-1px);
+}
+
+/* ── Footer ── */
+.ep-footer {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+  padding: 14px 20px 20px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.ep-btn-delete,
+.ep-btn-cancel,
+.ep-btn-save {
+  flex: 1;
+  padding: 10px 8px;
+  border: none;
+  border-radius: 8px;
+  font-family: 'Roboto', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: center;
+  white-space: nowrap;
+  transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+}
+
+.ep-btn-delete {
+  background: #d32f2f;
+  color: white;
+}
+
+.ep-btn-delete:hover {
+  background: #b71c1c;
+  transform: translateY(-1px);
+}
+
+/* spacer no longer needed but kept for safe JS reference */
+.ep-footer-spacer { display: none; }
+
+.ep-btn-cancel {
+  background: #e8e8e8;
+  color: #49454f;
+  font-weight: 400;
+}
+
+.ep-btn-cancel:hover {
+  background: #d8d8d8;
+}
+
+.ep-btn-save {
+  background: linear-gradient(135deg, #84B6F4 0%, #5a9ae0 100%);
+  color: white;
+}
+
+.ep-btn-save:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(132, 182, 244, 0.45);
+}
+
+.ep-btn-save:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* ── Warning / Confirmation Dialog ── */
+.ep-warning-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 4000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: epFadeIn 0.2s ease-out;
+}
+
+.ep-warning-box {
+  background: #fff;
+  border-radius: 14px;
+  padding: 28px 28px 22px;
+  width: 90%;
+  max-width: 380px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+  animation: epSlideDown 0.25s ease-out;
+}
+
+.ep-warning-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: rgba(211, 47, 47, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+}
+
+.ep-warning-icon svg {
+  width: 26px;
+  height: 26px;
+  color: #d32f2f;
+}
+
+.ep-warning-box h3 {
+  margin: 0 0 10px;
+  font-family: 'Roboto', sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  color: #1d1b20;
+  text-align: center;
+}
+
+.ep-warning-box p {
+  margin: 0 0 22px;
+  font-family: 'Roboto', sans-serif;
+  font-size: 14px;
+  color: #49454f;
+  text-align: center;
+  line-height: 1.55;
+}
+
+.ep-warning-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.ep-warn-cancel {
+  padding: 9px 18px;
+  background: #e8e8e8;
+  color: #49454f;
+  border: none;
+  border-radius: 8px;
+  font-family: 'Roboto', sans-serif;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.ep-warn-cancel:hover {
+  background: #d8d8d8;
+}
+
+.ep-warn-confirm {
+  padding: 9px 18px;
+  background: #d32f2f;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-family: 'Roboto', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.ep-warn-confirm:hover {
+  background: #b71c1c;
+}
+
+/* ── Error banner ── */
+.ep-error-banner {
+  background: rgba(211, 47, 47, 0.1);
+  border: 1px solid rgba(211, 47, 47, 0.3);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  font-family: 'Roboto', sans-serif;
+  font-size: 13px;
+  color: #c62828;
+}
+
+/* ── Responsive: full-width modal on mobile ── */
+@media (max-width: 520px) {
+  .edit-profile-panel {
+    right: 0;
+    left: 0;
+    top: 60px;
+    width: 100%;
+    border-radius: 0 0 12px 12px;
+  }
+}

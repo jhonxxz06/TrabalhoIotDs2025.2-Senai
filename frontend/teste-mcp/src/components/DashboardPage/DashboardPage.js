@@ -1,24 +1,18 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Chart, registerables } from 'chart.js';
-import { io } from 'socket.io-client';
+import { getSocket } from '../../services/socket';
 import './DashboardPage.css';
 import Header from '../Header';
 import Footer from '../Footer';
 import TableWidget from '../TableWidget';
 import excelIcon from '../../assets/excel-icon.png';
 import { mqtt as mqttApi } from '../../services/api';
+import logger from '../../utils/logger';
 
 // Registrar todos os componentes do Chart.js
 Chart.register(...registerables);
 
-// URL do backend (usar variável de ambiente ou fallback para produção/desenvolvimento)
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://projetocleanair.onrender.com';
-
-// Inicializar Socket.IO (fora do componente)
-const socket = io(BACKEND_URL, {
-  autoConnect: false,
-  transports: ['websocket', 'polling']
-});
+// Usaremos o socket centralizado via services/socket.js
 
 // Componente para renderizar widgets dinâmicos com dados MQTT
 const DynamicWidget = ({ widget, deviceId, onDownload }) => {
@@ -29,62 +23,67 @@ const DynamicWidget = ({ widget, deviceId, onDownload }) => {
   // Buscar dados MQTT iniciais
   const fetchInitialData = useCallback(async () => {
     if (!deviceId) return;
-    
+
     try {
       const response = await mqttApi.getData(deviceId, { limit: 20 });
       if (response.success && response.data && response.data.length > 0) {
         setMqttData(response.data);
       }
     } catch (err) {
-      console.log('Aguardando dados MQTT...');
+      // Aguardando dados MQTT
     }
   }, [deviceId]);
 
   // WebSocket - Conectar e escutar dados em tempo real
   useEffect(() => {
     if (!deviceId) return;
-    
+
     // Buscar dados iniciais
     fetchInitialData();
-    
-    // Conectar ao WebSocket
-    if (!socket.connected) {
-      socket.connect();
+
+    // Conectar ao WebSocket (socket central)
+    const socket = getSocket();
+    try {
+      if (!socket.connected) socket.connect();
+      socket.emit('subscribe:device', deviceId);
+    } catch (e) {
+      logger.warn('Erro ao iniciar socket:', e.message);
     }
-    
-    // Inscrever-se no dispositivo
-    socket.emit('subscribe:device', deviceId);
-    console.log(`🔌 Conectado ao WebSocket - Device ${deviceId}`);
-    
+
     // Listener para dados MQTT em tempo real
     const handleMqttData = (data) => {
-      console.log('📥 Dados MQTT em tempo real:', data);
-      
+
       if (data.deviceId === deviceId) {
         // Adicionar novo dado ao início do array
         setMqttData((prevData) => {
+          // Formatar Data e Hora no fuso de Brasília
+          const date = new Date(data.timestamp);
+          const Data = date.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+          const Hora = date.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+
           const newData = [{
             id: Date.now(),
             device_id: data.deviceId,
             topic: data.topic,
             payload: data.payload,
             timestamp: data.timestamp,
-            received_at: data.timestamp
+            received_at: data.timestamp,
+            Data,
+            Hora
           }, ...prevData];
-          
+
           // Manter apenas os últimos 20 registros
           return newData.slice(0, 20);
         });
       }
     };
-    
+
     socket.on('mqtt:data', handleMqttData);
-    
+
     // Cleanup
     return () => {
-      socket.emit('unsubscribe:device', deviceId);
+      try { socket.emit('unsubscribe:device', deviceId); } catch (e) { }
       socket.off('mqtt:data', handleMqttData);
-      console.log(`🔌 Desconectado do WebSocket - Device ${deviceId}`);
     };
   }, [deviceId, fetchInitialData]);
 
@@ -98,22 +97,21 @@ const DynamicWidget = ({ widget, deviceId, onDownload }) => {
 
     try {
       const config = typeof widget.config === 'string' ? JSON.parse(widget.config) : widget.config;
-      
+
       let chartData = config.data || { labels: [], datasets: [] };
-      
+
       // Se temos dados MQTT, usá-los no gráfico
       if (mqttData && mqttData.length > 0 && config.mqttField) {
-        // Usar campos definidos explicitamente
+        // Usar apenas Hora do backend para os labels (mais limpo)
         const labels = mqttData.map(d => {
-          const date = new Date(d.timestamp);
-          if (isNaN(date.getTime())) {
-            return 'N/A';
+          if (d.Hora) {
+            return d.Hora;
           }
-          return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+          return 'N/A';
         }).reverse();
-        
+
         const datasets = [];
-        
+
         // Dataset principal (mqttField) - somente se preenchido
         if (config.mqttField && config.mqttField.trim() !== '') {
           const values = mqttData.map(d => {
@@ -165,21 +163,18 @@ const DynamicWidget = ({ widget, deviceId, onDownload }) => {
         chartData = { labels, datasets };
       } else if (mqttData && mqttData.length > 0) {
         // Detectar campos automaticamente SOMENTE se não houver mqttField configurado
-        const lastPayload = typeof mqttData[0].payload === 'string' 
-          ? JSON.parse(mqttData[0].payload) 
+        const lastPayload = typeof mqttData[0].payload === 'string'
+          ? JSON.parse(mqttData[0].payload)
           : mqttData[0].payload;
-        
         const fields = Object.keys(lastPayload).filter(k => typeof lastPayload[k] === 'number');
-        
         if (fields.length > 0) {
+          // Usar apenas Hora do backend para os labels (mais limpo)
           const labels = mqttData.map(d => {
-            const date = new Date(d.timestamp);
-            if (isNaN(date.getTime())) {
-              return 'N/A';
+            if (d.Hora) {
+              return d.Hora;
             }
-            return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            return 'N/A';
           }).reverse();
-
           // Usar apenas o primeiro campo quando auto-detectar
           const datasets = [fields[0]].map((field, idx) => ({
             label: field,
@@ -199,7 +194,6 @@ const DynamicWidget = ({ widget, deviceId, onDownload }) => {
             pointBorderWidth: 0,
             pointHoverBorderWidth: 0
           }));
-
           chartData = { labels, datasets };
         }
       }
@@ -258,7 +252,7 @@ const DynamicWidget = ({ widget, deviceId, onDownload }) => {
         }
       });
     } catch (err) {
-      console.error('Erro ao criar gráfico:', err);
+      logger.error('Erro ao criar gráfico:', err.message);
     }
 
     return () => {
@@ -281,7 +275,7 @@ const DynamicWidget = ({ widget, deviceId, onDownload }) => {
         <h3 className="chart-title">
           {widget.name || widget.title || 'Gráfico'}
         </h3>
-        <button 
+        <button
           className="chart-download-btn"
           onClick={() => onDownload && onDownload(widget.type)}
           title="Download Excel"
@@ -296,14 +290,17 @@ const DynamicWidget = ({ widget, deviceId, onDownload }) => {
   );
 };
 
-const DashboardPage = ({ 
-  username, 
+const DashboardPage = ({
+  username,
+  domainName,
   deviceName = 'Nome do dispositivo',
   device,
   widgets = [],
   onDownloadExcel,
   onBackToDevices,
-  onLogout
+  onLogout,
+  user,
+  onUserSaved
 }) => {
   const [widgetPositions, setWidgetPositions] = useState({});
   const [whiteboardHeight, setWhiteboardHeight] = useState(600);
@@ -332,40 +329,41 @@ const DashboardPage = ({
     }
 
     let maxBottom = 600;
-    
+
     widgets.forEach((widget, index) => {
       const position = widgetPositions[widget.id] || { x: 50 + (index * 370), y: 30 };
       const config = typeof widget.config === 'string' ? JSON.parse(widget.config) : widget.config;
-      
+
       const widgetHeight = config?.type === 'table' ? 450 : 280;
       const bottom = position.y + widgetHeight + 50;
-      
+
       if (bottom > maxBottom) {
         maxBottom = bottom;
       }
     });
-    
+
     setWhiteboardHeight(maxBottom);
   }, [widgets, widgetPositions]);
 
   const handleDownload = (chartType) => {
     if (onDownloadExcel) {
       onDownloadExcel(chartType);
-    } else {
-      console.log(`Download Excel - ${chartType}`);
     }
   };
 
   return (
     <div className="dashboard-container">
-      <Header 
-        username={username} 
+      <Header
+        username={username}
+        domainName={domainName}
         onBackToDevices={onBackToDevices}
         onLogout={onLogout}
         onLogoClick={onBackToDevices}
         isOnDevicesPage={false}
+        user={user}
+        onUserSaved={onUserSaved}
       />
-      
+
       <main className="dashboard-content">
         {/* Welcome Message */}
         <div className="welcome-banner">
@@ -383,8 +381,8 @@ const DashboardPage = ({
             <div className="empty-charts">
               <div className="empty-charts-content">
                 <svg width="64" height="64" viewBox="0 0 24 24" fill="none" className="empty-icon">
-                  <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="1.5"/>
-                  <path d="M7 14L10 11L13 14L17 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="1.5" />
+                  <path d="M7 14L10 11L13 14L17 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
                 <h3>Nenhum gráfico configurado</h3>
                 <p>O administrador ainda não criou gráficos para este dispositivo</p>
@@ -395,7 +393,7 @@ const DashboardPage = ({
               const config = typeof widget.config === 'string' ? JSON.parse(widget.config) : widget.config;
               const position = widgetPositions[widget.id] || { x: 50 + (index * 370), y: 30 };
               const isTable = config?.type === 'table';
-              
+
               return (
                 <div
                   key={widget.id}

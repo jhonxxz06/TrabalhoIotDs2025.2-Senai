@@ -1,9 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './AdminHeader.css';
+import logger from '../../utils/logger';
 import logo from '../../assets/logo.png';
+import EditProfileModal from '../EditProfileModal';
 
 const AdminHeader = ({ 
   username, 
+  domainName,
   onLogout, 
   onAddDevice, 
   onCreateGraph,
@@ -12,10 +15,13 @@ const AdminHeader = ({
   isOnDashboard = false,
   notifications = [],
   onAcceptUser,
-  onRejectUser
+  onRejectUser,
+  user,
+  onUserSaved
 }) => {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showEditProfile, setShowEditProfile] = useState(false);
   const userMenuRef = useRef(null);
   const notificationRef = useRef(null);
 
@@ -45,13 +51,17 @@ const AdminHeader = ({
   return (
     <header className="admin-header">
       <div className="admin-header-left">
-        {!isOnDevicesPage && (
+        {!isOnDevicesPage ? (
           <button className="back-button" onClick={onBackToDevices}>
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
               <path d="M20 11H7.83L13.42 5.41L12 4L4 12L12 20L13.41 18.59L7.83 13H20V11Z" fill="white"/>
             </svg>
             <span>Voltar</span>
           </button>
+        ) : (
+          domainName && (
+            <span className="header-domain-name">{domainName}</span>
+          )
         )}
       </div>
 
@@ -176,19 +186,30 @@ const AdminHeader = ({
           
           {showUserMenu && (
             <div className="admin-user-dropdown">
+              <button onClick={() => { setShowUserMenu(false); setShowEditProfile(true); }}>
+                Editar Perfil
+              </button>
               <button onClick={() => { 
-                console.log('Botão Sair clicado, onLogout:', typeof onLogout);
                 setShowUserMenu(false); 
                 if (onLogout) {
                   onLogout();
                 } else {
-                  console.error('onLogout não está definido!');
+                  logger.error('onLogout não está definido!');
                 }
               }}>
                 Sair
               </button>
             </div>
           )}
+
+          <EditProfileModal
+            isOpen={showEditProfile}
+            onClose={() => setShowEditProfile(false)}
+            user={user}
+            isAdmin={true}
+            onSaved={onUserSaved}
+            onLogout={onLogout}
+          />
         </div>
       </div>
     </header>

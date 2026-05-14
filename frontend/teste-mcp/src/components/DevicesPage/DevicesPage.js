@@ -5,25 +5,31 @@ import Footer from '../Footer';
 import waitingImage from '../../assets/waiting-image.png';
 
 const DevicesPage = ({ 
-  username, 
+  username,
+  domainName,
   devices = [], 
   onDeviceClick, 
   onLogout, 
   onLogoClick,
   availableDevices = [],
-  onRequestAccess
+  onRequestAccess,
+  user,
+  onUserSaved
 }) => {
   const hasDevices = devices.length > 0;
 
   return (
     <div className="devices-container">
       <Header 
-        username={username} 
+        username={username}
+        domainName={domainName}
         onLogout={onLogout}
         onLogoClick={onLogoClick}
         isOnDevicesPage={true}
         availableDevices={availableDevices}
         onRequestAccess={onRequestAccess}
+        user={user}
+        onUserSaved={onUserSaved}
       />
       
       <main className="devices-content">

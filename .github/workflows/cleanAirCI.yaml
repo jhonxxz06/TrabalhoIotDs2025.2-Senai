@@ -1,0 +1,65 @@
+name: CI Clean Air
+
+on:
+  push:
+    branches:
+      - cloud-database
+
+jobs:
+
+  CI-FRONTEND:
+    name: CI - Frontend
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: frontend/teste-mcp/package-lock.json
+
+      - name: Instalar dependências
+        run: npm install
+        working-directory: ./frontend/teste-mcp
+
+      - name: Build de verificação
+        run: npm run build
+        working-directory: ./frontend/teste-mcp
+        env:
+          CI: false
+          REACT_APP_API_URL: ${{ secrets.REACT_APP_API_URL }}
+
+  CI-BACKEND:
+    name: CI - Backend
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Instalar dependências
+        run: npm install
+        working-directory: ./backend
+
+      - name: Verificar funcionamento do servidor
+        run: |
+          node src/index.js &
+          sleep 5
+          kill %1
+        working-directory: ./backend
+        env:
+          PORT: ${{ secrets.PORT }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          FRONTEND_ORIGIN: ${{ secrets.FRONTEND_ORIGIN }}
+          JWT_EXPIRES_IN: ${{ secrets.JWT_EXPIRES_IN }}
+          MQTT_BROKER: ${{ secrets.MQTT_BROKER }}

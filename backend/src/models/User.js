@@ -4,44 +4,55 @@ const User = {
   /**
    * Busca usuário por email
    * @param {string} email 
-   * @returns {Object|null}
+   * @returns {Promise<Object|null>}
    */
-  findByEmail(email) {
-    return queryOne('SELECT * FROM users WHERE email = ?', [email]);
+  async findByEmail(email) {
+    return await queryOne(
+      `SELECT u.*, d.name AS domain_name
+       FROM users u
+       LEFT JOIN domains d ON d.id = u.domain_id
+       WHERE u.email = $1`,
+      [email]
+    );
   },
 
   /**
    * Busca usuário por ID
    * @param {number} id 
-   * @returns {Object|null}
+   * @returns {Promise<Object|null>}
    */
-  findById(id) {
-    return queryOne('SELECT * FROM users WHERE id = ?', [id]);
+  async findById(id) {
+    return await queryOne(
+      `SELECT u.*, d.name AS domain_name
+       FROM users u
+       LEFT JOIN domains d ON d.id = u.domain_id
+       WHERE u.id = $1`,
+      [id]
+    );
   },
 
   /**
    * Cria um novo usuário
-   * @param {Object} userData - { username, email, password, role?, has_access? }
-   * @returns {Object} Usuário criado
+   * @param {Object} userData - { username, email, password, role?, has_access?, domain_id? }
+   * @returns {Promise<Object>} Usuário criado
    */
-  create(userData) {
-    const { username, email, password, role = 'user', has_access = 0 } = userData;
+  async create(userData) {
+    const { username, email, password, role = 'user', has_access = 0, domain_id = null } = userData;
     
-    run(`
-      INSERT INTO users (username, email, password, role, has_access)
-      VALUES (?, ?, ?, ?, ?)
-    `, [username, email, password, role, has_access]);
+    await run(`
+      INSERT INTO users (username, email, password, role, has_access, domain_id)
+      VALUES ($1, $2, $3, $4, $5, $6)
+    `, [username, email, password, role, has_access, domain_id]);
 
-    // Busca pelo email pois lastInsertRowId não funciona bem com sql.js
-    return this.findByEmail(email);
+    return await this.findByEmail(email);
   },
 
   /**
    * Lista todos os usuários (sem senha)
-   * @returns {Array}
+   * @returns {Promise<Array>}
    */
-  findAll() {
-    return query(`
+  async findAll() {
+    return await query(`
       SELECT id, username, email, role, has_access, created_at 
       FROM users 
       ORDER BY created_at DESC
@@ -52,59 +63,63 @@ const User = {
    * Atualiza o acesso do usuário
    * @param {number} id 
    * @param {boolean} hasAccess 
-   * @returns {Object|null}
+   * @returns {Promise<Object|null>}
    */
-  updateAccess(id, hasAccess) {
-    run('UPDATE users SET has_access = ? WHERE id = ?', [hasAccess ? 1 : 0, id]);
-    return this.findById(id);
+  async updateAccess(id, hasAccess) {
+    await run('UPDATE users SET has_access = $1 WHERE id = $2', [hasAccess ? 1 : 0, id]);
+    return await this.findById(id);
   },
 
   /**
    * Atualiza dados do usuário
    * @param {number} id 
    * @param {Object} data 
-   * @returns {Object|null}
+   * @returns {Promise<Object|null>}
    */
-  update(id, data) {
+  async update(id, data) {
     const fields = [];
     const values = [];
 
     if (data.username !== undefined) {
-      fields.push('username = ?');
+      fields.push(`username = $${fields.length + 1}`);
       values.push(data.username);
     }
     if (data.email !== undefined) {
-      fields.push('email = ?');
+      fields.push(`email = $${fields.length + 1}`);
       values.push(data.email);
     }
     if (data.password !== undefined) {
-      fields.push('password = ?');
+      fields.push(`password = $${fields.length + 1}`);
       values.push(data.password);
     }
     if (data.role !== undefined) {
-      fields.push('role = ?');
+      fields.push(`role = $${fields.length + 1}`);
       values.push(data.role);
     }
     if (data.has_access !== undefined) {
-      fields.push('has_access = ?');
+      fields.push(`has_access = $${fields.length + 1}`);
       values.push(data.has_access ? 1 : 0);
     }
+    if (data.domain_id !== undefined) {
+      fields.push(`domain_id = $${fields.length + 1}`);
+      values.push(data.domain_id);
+    }
 
-    if (fields.length === 0) return this.findById(id);
+    if (fields.length === 0) return await this.findById(id);
 
     values.push(id);
-    run(`UPDATE users SET ${fields.join(', ')} WHERE id = ?`, values);
+    await run(`UPDATE users SET ${fields.join(', ')} WHERE id = $${fields.length + 1}`, values);
     
-    return this.findById(id);
+    return await this.findById(id);
   },
 
   /**
    * Remove um usuário
    * @param {number} id 
-   * @returns {boolean}
+   * @returns {Promise<boolean>}
    */
-  delete(id) {
-    run('DELETE FROM users WHERE id = ?', [id]);
+  async delete(id) {
+    await run('DELETE FROM users WHERE id = $1', [id]);
     return true;
   },
 
@@ -115,10 +130,12 @@ const User = {
    */
   toPublic(user) {
     if (!user) return null;
-    const { password, ...publicData } = user;
+    const { password, domain_name, ...publicData } = user;
     return {
       ...publicData,
-      hasAccess: Boolean(publicData.has_access)
+      hasAccess: Boolean(publicData.has_access),
+      domainId: publicData.domain_id ?? null,
+      domainName: domain_name ?? null
     };
   }
 };

@@ -6,7 +6,9 @@ import DevicesPage from './components/DevicesPage';
 import DashboardPage from './components/DashboardPage';
 import AdminDevicesPage from './components/AdminDevicesPage';
 import AdminDashboardPage from './components/AdminDashboardPage';
+import { ToastProvider, useToast } from './components/ToastContext';
 import api from './services/api';
+import { getSocket, closeSocket } from './services/socket';
 
 // Páginas disponíveis na aplicação
 const PAGES = {
@@ -20,8 +22,18 @@ const PAGES = {
 };
 
 function App() {
+  return (
+    <ToastProvider>
+      <AppContent />
+    </ToastProvider>
+  );
+}
+
+function AppContent() {
+  const toast = useToast();
   const [currentPage, setCurrentPage] = useState(PAGES.LOGIN);
   const [user, setUser] = useState(null);
+  const [domainName, setDomainName] = useState(null);
   const [selectedDevice, setSelectedDevice] = useState(null);
   const [hasAccess, setHasAccess] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -56,6 +68,7 @@ function App() {
             username: userData.username, 
             email: userData.email 
           });
+          setDomainName(userData.domainName || null);
           setHasAccess(userData.hasAccess);
           setIsAdmin(userData.role === 'admin');
           
@@ -67,6 +80,8 @@ function App() {
           } else {
             setCurrentPage(PAGES.WAITING);
           }
+          // Inicializar socket após autenticação
+          try { getSocket(); } catch (e) { console.warn('Erro ao inicializar socket:', e); }
         } catch (err) {
           console.error('Erro ao verificar autenticação:', err);
           api.auth.logout();
@@ -80,16 +95,14 @@ function App() {
 
   // Carregar dispositivos quando usuário tiver acesso
   const loadDevices = useCallback(async () => {
-    if (!hasAccess && !isAdmin) return;
-    
     try {
       const response = await api.devices.getAll();
-      setDevices(response.devices || []);
+      setDevices(response.data || []);
     } catch (err) {
       console.error('Erro ao carregar dispositivos:', err);
       setError('Erro ao carregar dispositivos');
     }
-  }, [hasAccess, isAdmin]);
+  }, []);
 
   // Carregar notificações pendentes (admin)
   const loadNotifications = useCallback(async () => {
@@ -125,8 +138,8 @@ function App() {
         api.devices.getAll()
       ]);
       
-      const allPublicDevices = publicResponse.devices || [];
-      const userDeviceIds = (userDevicesResponse.devices || []).map(d => d.id);
+      const allPublicDevices = publicResponse.data || [];
+      const userDeviceIds = (userDevicesResponse.data || []).map(d => d.id);
       
       // Filtrar apenas dispositivos que o usuário NÃO tem acesso
       const availableDevices = allPublicDevices.filter(d => !userDeviceIds.includes(d.id));
@@ -150,13 +163,15 @@ function App() {
     }
   }, [user, hasAccess, isAdmin, loadDevices, loadNotifications, loadUsers, loadPublicDevices]);
 
+
+
   // Carregar widgets quando dispositivo selecionado
   const loadWidgets = useCallback(async () => {
     if (!selectedDevice) return;
     
     try {
       const response = await api.widgets.getByDevice(selectedDevice.id);
-      setWidgets(response.widgets || []);
+      setWidgets(response.data || []);
     } catch (err) {
       console.error('Erro ao carregar widgets:', err);
     }
@@ -172,7 +187,7 @@ function App() {
   const handleLogin = async (credentials) => {
     setError(null);
     try {
-      const response = await api.auth.login(credentials.email, credentials.password);
+      const response = await api.auth.login(credentials.email, credentials.password, credentials.domainCode || '');
       const userData = response.data.user;
       
       setUser({ 
@@ -180,8 +195,12 @@ function App() {
         username: userData.username, 
         email: userData.email 
       });
+      setDomainName(userData.domainName || null);
       setHasAccess(userData.hasAccess);
       setIsAdmin(userData.role === 'admin');
+      
+      // Mostrar toast de sucesso
+      toast.success('Login realizado com sucesso!');
       
       if (userData.role === 'admin') {
         setCurrentPage(PAGES.ADMIN_DEVICES);
@@ -190,9 +209,11 @@ function App() {
       } else {
         setCurrentPage(PAGES.WAITING);
       }
+      // Inicializar socket após login
+      try { getSocket(); } catch (e) { console.warn('Erro ao inicializar socket:', e); }
     } catch (err) {
       setError(err.message);
-      alert(err.message || 'Erro ao fazer login');
+      toast.error(err.message || 'Erro ao fazer login');
     }
   };
 
@@ -207,21 +228,29 @@ function App() {
         formData.username, 
         formData.email, 
         formData.password,
-        formData.requestedDevices || []
+        {
+          isManager: formData.isManager || false,
+          domainName: formData.domainName || '',
+          domainCode: formData.domainCode || '',
+          requestedDevices: formData.requestedDevices || []
+        }
       );
       
       // Após cadastro, remove o token (não faz login automático)
       api.auth.logout();
       
       // Mostra mensagem de sucesso e volta para login
-      const deviceMsg = formData.requestedDevices?.length > 0 
-        ? ' Sua solicitação de acesso aos dispositivos foi enviada para aprovação.'
-        : '';
-      alert(`Conta criada com sucesso!${deviceMsg} Faça login para continuar.`);
+      const msg = formData.isManager
+        ? 'Domínio criado e conta de gerente registrada! Faça login para continuar.'
+        : formData.requestedDevices?.length > 0
+          ? 'Conta criada! Sua solicitação de acesso aos dispositivos foi enviada para aprovação.'
+          : 'Conta criada com sucesso! Faça login para continuar.';
+
+      toast.success(msg, 6000);
       setCurrentPage(PAGES.LOGIN);
     } catch (err) {
       setError(err.message);
-      alert(err.message || 'Erro ao criar conta');
+      toast.error(err.message || 'Erro ao criar conta');
     }
   };
 
@@ -260,7 +289,9 @@ function App() {
   const handleLogout = () => {
     console.log('Logout chamado!');
     api.auth.logout();
+    try { closeSocket(); } catch (e) {}
     setUser(null);
+    setDomainName(null);
     setHasAccess(false);
     setIsAdmin(false);
     setSelectedDevice(null);
@@ -271,26 +302,39 @@ function App() {
     console.log('Logout concluído, página:', PAGES.LOGIN);
   };
 
+  // Handler chamado após editar perfil com sucesso
+  const handleUserSaved = (updatedUser) => {
+    setUser(prev => ({
+      ...prev,
+      username: updatedUser.username || prev.username,
+      email:    updatedUser.email    || prev.email
+    }));
+  };
+
   // Handlers para notificações de acesso
   const handleAcceptUser = async (notification) => {
     try {
       await api.access.approve(notification.id);
-      // Recarregar notificações
+      toast.success('Acesso aprovado com sucesso!');
+      // Recarregar notificações e dispositivos
       loadNotifications();
+      loadDevices();
+      loadPublicDevices();
     } catch (err) {
       console.error('Erro ao aprovar acesso:', err);
-      alert('Erro ao aprovar acesso');
+      toast.error('Erro ao aprovar acesso');
     }
   };
 
   const handleRejectUser = async (notification) => {
     try {
       await api.access.reject(notification.id);
+      toast.success('Acesso rejeitado');
       // Recarregar notificações
       loadNotifications();
     } catch (err) {
       console.error('Erro ao rejeitar acesso:', err);
-      alert('Erro ao rejeitar acesso');
+      toast.error('Erro ao rejeitar acesso');
     }
   };
 
@@ -322,12 +366,13 @@ function App() {
         const csvContent = convertToCSV(response.data);
         console.log('CSV gerado (primeiras 500 chars):', csvContent.substring(0, 500));
         downloadCSV(csvContent, `${selectedDevice.name}_${chartType}.csv`);
+        toast.success('Dados baixados com sucesso!');
       } else {
-        alert('Nenhum dado disponível para download');
+        toast.warning('Nenhum dado disponível para download');
       }
     } catch (err) {
       console.error('Erro ao baixar dados:', err);
-      alert('Erro ao baixar dados');
+      toast.error('Erro ao baixar dados');
     }
   };
 
@@ -466,6 +511,7 @@ function App() {
     try {
       await api.devices.delete(device.id);
       setDevices(devices.filter(d => d.id !== device.id));
+      toast.success('Dispositivo excluído com sucesso!');
       
       if (selectedDevice?.id === device.id) {
         setSelectedDevice(null);
@@ -473,7 +519,7 @@ function App() {
       }
     } catch (err) {
       console.error('Erro ao excluir dispositivo:', err);
-      alert('Erro ao excluir dispositivo');
+      toast.error('Erro ao excluir dispositivo');
     }
   };
 
@@ -481,11 +527,23 @@ function App() {
   useEffect(() => {
     if (!user || hasAccess || isAdmin) return;
 
+    // Polling para verificar acesso (a cada 10 segundos)
     const checkAccess = async () => {
       try {
-        const response = await api.auth.me();
-        if (response.data.user.hasAccess) {
+        // MT-04: verifica perfil E dispositivos atribuídos em paralelo
+        const [meResponse, devicesResponse] = await Promise.all([
+          api.auth.me(),
+          api.devices.getAll()
+        ]);
+
+        const serverUser = meResponse.data.user;
+        const assignedDevices = devicesResponse.data || [];
+        const hasAnyDevice = assignedDevices.length > 0;
+
+        if ((serverUser.hasAccess || hasAnyDevice) && !hasAccess) {
           setHasAccess(true);
+          setDevices(assignedDevices); // seta diretamente para não depender do timing de setState
+          loadPublicDevices();
           setCurrentPage(PAGES.DEVICES);
         }
       } catch (err) {
@@ -494,8 +552,11 @@ function App() {
     };
 
     const interval = setInterval(checkAccess, 10000); // A cada 10 segundos
-    return () => clearInterval(interval);
-  }, [user, hasAccess, isAdmin]);
+    
+    return () => {
+      clearInterval(interval);
+    };
+  }, [user, hasAccess, isAdmin, loadPublicDevices]);
 
   // Loading screen
   if (loading) {
@@ -548,12 +609,15 @@ function App() {
         return (
           <DevicesPage 
             username={user?.username}
+            domainName={domainName}
             devices={devices}
             onDeviceClick={handleDeviceClick}
             onLogout={handleLogout}
             onLogoClick={handleLogoClick}
             availableDevices={publicDevices}
             onRequestAccess={handleRequestAccess}
+            user={user}
+            onUserSaved={handleUserSaved}
           />
         );
       
@@ -561,12 +625,15 @@ function App() {
         return (
           <DashboardPage 
             username={user?.username}
+            domainName={domainName}
             deviceName={selectedDevice?.name}
             device={selectedDevice}
             widgets={widgets}
             onDownloadExcel={handleDownloadExcel}
             onBackToDevices={handleBackToDevices}
             onLogout={handleLogout}
+            user={user}
+            onUserSaved={handleUserSaved}
           />
         );
       
@@ -574,6 +641,7 @@ function App() {
         return (
           <AdminDevicesPage 
             username={user?.username}
+            domainName={domainName}
             devices={devices}
             setDevices={setDevices}
             onDeviceClick={handleDeviceClick}
@@ -591,6 +659,8 @@ function App() {
             onAcceptUser={handleAcceptUser}
             onRejectUser={handleRejectUser}
             allUsers={allUsers}
+            user={user}
+            onUserSaved={handleUserSaved}
           />
         );
       
@@ -598,6 +668,7 @@ function App() {
         return (
           <AdminDashboardPage 
             username={user?.username}
+            domainName={domainName}
             deviceName={selectedDevice?.name}
             device={selectedDevice}
             widgets={widgets}
@@ -609,6 +680,8 @@ function App() {
             notifications={notifications}
             onAcceptUser={handleAcceptUser}
             onRejectUser={handleRejectUser}
+            user={user}
+            onUserSaved={handleUserSaved}
           />
         );
       

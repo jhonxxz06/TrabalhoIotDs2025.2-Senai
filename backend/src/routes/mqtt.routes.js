@@ -28,4 +28,7 @@ router.get('/:id/latest', mqttController.getLatest);
 // GET /api/mqtt/:id/exceedances - Excedências (alertas de thresholds)
 router.get('/:id/exceedances', mqttController.getExceedances);
 
+// GET /api/mqtt/:id/rejected - Payloads rejeitados pela validação (diagnóstico)
+router.get('/:id/rejected', mqttController.getRejected);
+
 module.exports = router;

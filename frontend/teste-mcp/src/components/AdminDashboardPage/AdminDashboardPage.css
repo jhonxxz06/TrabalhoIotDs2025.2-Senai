@@ -7,6 +7,8 @@
   background: #FFFFFF;
   display: flex;
   flex-direction: column;
+  position: relative;
+  z-index: 1;
 }
 
 .admin-dashboard-content {
@@ -16,6 +18,8 @@
   flex-direction: column;
   align-items: center;
   gap: 30px;
+  position: relative;
+  z-index: 1;
 }
 
 /* ========================================

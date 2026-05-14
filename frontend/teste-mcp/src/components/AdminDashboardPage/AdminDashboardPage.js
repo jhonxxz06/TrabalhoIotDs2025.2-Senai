@@ -7,6 +7,8 @@ import GraphEditorModal from '../GraphEditorModal';
 import TableWidget from '../TableWidget';
 import excelIcon from '../../assets/excel-icon.png';
 import { widgets as widgetsApi, mqtt as mqttApi } from '../../services/api';
+import { getSocket } from '../../services/socket';
+import logger from '../../utils/logger';
 
 // Registrar todos os componentes do Chart.js
 Chart.register(...registerables);
@@ -20,23 +22,60 @@ const DynamicWidgetCard = ({ widget, deviceId, position, dragging, onMouseDown, 
   // Buscar dados MQTT
   const fetchMqttData = useCallback(async () => {
     if (!deviceId) return;
-    
+
     try {
       const response = await mqttApi.getData(deviceId, { limit: 20 });
       if (response.success && response.data && response.data.length > 0) {
         setMqttData(response.data);
       }
     } catch (err) {
-      console.log('Aguardando dados MQTT...');
+      // Aguardando dados MQTT
     }
   }, [deviceId]);
 
-  // Polling para atualizar dados a cada 5 segundos
+  // WebSocket + polling fallback para atualizar dados
   useEffect(() => {
+    if (!deviceId) return;
+
     fetchMqttData();
-    const interval = setInterval(fetchMqttData, 5000);
-    return () => clearInterval(interval);
-  }, [fetchMqttData]);
+
+    const socket = getSocket();
+    try {
+      if (!socket.connected) socket.connect();
+      socket.emit('subscribe:device', deviceId);
+    } catch (e) {
+      logger.warn('Socket não disponível, usando polling como fallback');
+    }
+
+    const handleMqttData = (data) => {
+      if (!data || data.deviceId.toString() !== deviceId.toString()) return;
+      setMqttData(prev => {
+        // Formatar Data e Hora no fuso de Brasília
+        const date = new Date(data.timestamp);
+        const Data = date.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+        const Hora = date.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+
+        const newData = [{
+          id: Date.now(),
+          device_id: data.deviceId,
+          topic: data.topic,
+          payload: data.payload,
+          timestamp: data.timestamp,
+          received_at: data.timestamp,
+          Data,
+          Hora
+        }, ...(prev || [])];
+        return newData.slice(0, 20);
+      });
+    };
+
+    socket.on('mqtt:data', handleMqttData);
+
+    return () => {
+      try { socket.emit('unsubscribe:device', deviceId); } catch (e) { }
+      socket.off('mqtt:data', handleMqttData);
+    };
+  }, [deviceId, fetchMqttData]);
 
   // Criar/atualizar gráfico
   useEffect(() => {
@@ -48,27 +87,23 @@ const DynamicWidgetCard = ({ widget, deviceId, position, dragging, onMouseDown, 
 
     try {
       const config = typeof widget.config === 'string' ? JSON.parse(widget.config) : widget.config;
-      
+
       // Se temos dados MQTT, usá-los no gráfico
       let chartData = config.data || { labels: [], datasets: [] };
-      
+
       if (mqttData && mqttData.length > 0 && config.mqttField) {
-        console.log('🎨 Renderizando gráfico - mqttField:', config.mqttField, '| mqttField2:', config.mqttField2);
-        
-        // Usar dados MQTT reais com campos definidos
+        // Usar apenas Hora do backend para os labels (mais limpo)
         const labels = mqttData.map(d => {
-          const date = new Date(d.timestamp);
-          if (isNaN(date.getTime())) {
-            return 'N/A';
+          if (d.Hora) {
+            return d.Hora;
           }
-          return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+          return 'N/A';
         }).reverse();
-        
+
         const datasets = [];
-        
+
         // Dataset principal (mqttField) - somente se preenchido
         if (config.mqttField && config.mqttField.trim() !== '') {
-          console.log('📈 Criando dataset 1:', config.mqttField);
           const values = mqttData.map(d => {
             const payload = typeof d.payload === 'string' ? JSON.parse(d.payload) : d.payload;
             return payload[config.mqttField] || 0;
@@ -93,7 +128,6 @@ const DynamicWidgetCard = ({ widget, deviceId, position, dragging, onMouseDown, 
 
         // Dataset secundário (mqttField2) - SOMENTE se preenchido
         if (config.mqttField2 && config.mqttField2.trim() !== '') {
-          console.log('📈 Criando dataset 2:', config.mqttField2);
           const values2 = mqttData.map(d => {
             const payload = typeof d.payload === 'string' ? JSON.parse(d.payload) : d.payload;
             return payload[config.mqttField2] || 0;
@@ -116,25 +150,21 @@ const DynamicWidgetCard = ({ widget, deviceId, position, dragging, onMouseDown, 
           });
         }
 
-        console.log('📊 Total de datasets criados:', datasets.length);
         chartData = { labels, datasets };
       } else if (mqttData && mqttData.length > 0) {
         // Tentar detectar campos automaticamente SOMENTE se não houver mqttField configurado
-        const lastPayload = typeof mqttData[0].payload === 'string' 
-          ? JSON.parse(mqttData[0].payload) 
+        const lastPayload = typeof mqttData[0].payload === 'string'
+          ? JSON.parse(mqttData[0].payload)
           : mqttData[0].payload;
-        
         const fields = Object.keys(lastPayload).filter(k => typeof lastPayload[k] === 'number');
-        
         if (fields.length > 0) {
+          // Usar Data e Hora do backend diretamente para os labels
           const labels = mqttData.map(d => {
-            const date = new Date(d.timestamp);
-            if (isNaN(date.getTime())) {
-              return 'N/A';
+            if (d.Hora) {
+              return d.Hora;
             }
-            return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            return 'N/A';
           }).reverse();
-
           // Usar apenas o primeiro campo quando auto-detectar
           const datasets = [fields[0]].map((field, idx) => ({
             label: field,
@@ -154,7 +184,6 @@ const DynamicWidgetCard = ({ widget, deviceId, position, dragging, onMouseDown, 
             pointBorderWidth: 0,
             pointHoverBorderWidth: 0
           }));
-
           chartData = { labels, datasets };
         }
       }
@@ -213,7 +242,7 @@ const DynamicWidgetCard = ({ widget, deviceId, position, dragging, onMouseDown, 
         }
       });
     } catch (err) {
-      console.error('Erro ao criar gráfico:', err);
+      logger.error('Erro ao criar gráfico:', err.message);
     }
 
     return () => {
@@ -228,7 +257,7 @@ const DynamicWidgetCard = ({ widget, deviceId, position, dragging, onMouseDown, 
   // Se for tabela, renderizar TableWidget (tamanho maior)
   if (config && config.type === 'table') {
     return (
-      <div 
+      <div
         className={`admin-chart-card admin-table-card ${dragging ? 'dragging' : ''}`}
         style={{ left: position.x, top: position.y }}
         onMouseDown={onMouseDown}
@@ -238,22 +267,22 @@ const DynamicWidgetCard = ({ widget, deviceId, position, dragging, onMouseDown, 
             {widget.name || config.title || 'Tabela'}
           </h3>
           <div className="chart-actions">
-            <button 
-              className="chart-action-btn edit" 
+            <button
+              className="chart-action-btn edit"
               onClick={(e) => { e.stopPropagation(); onEdit(); }}
               title="Editar tabela"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                <path d="M3 17.25V21H6.75L17.81 9.94L14.06 6.19L3 17.25ZM20.71 7.04C21.1 6.65 21.1 6.02 20.71 5.63L18.37 3.29C17.98 2.9 17.35 2.9 16.96 3.29L15.13 5.12L18.88 8.87L20.71 7.04Z" fill="currentColor"/>
+                <path d="M3 17.25V21H6.75L17.81 9.94L14.06 6.19L3 17.25ZM20.71 7.04C21.1 6.65 21.1 6.02 20.71 5.63L18.37 3.29C17.98 2.9 17.35 2.9 16.96 3.29L15.13 5.12L18.88 8.87L20.71 7.04Z" fill="currentColor" />
               </svg>
             </button>
-            <button 
-              className="chart-action-btn delete" 
+            <button
+              className="chart-action-btn delete"
               onClick={(e) => { e.stopPropagation(); onDelete(); }}
               title="Excluir tabela"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                <path d="M6 19C6 20.1 6.9 21 8 21H16C17.1 21 18 20.1 18 19V7H6V19ZM19 4H15.5L14.5 3H9.5L8.5 4H5V6H19V4Z" fill="currentColor"/>
+                <path d="M6 19C6 20.1 6.9 21 8 21H16C17.1 21 18 20.1 18 19V7H6V19ZM19 4H15.5L14.5 3H9.5L8.5 4H5V6H19V4Z" fill="currentColor" />
               </svg>
             </button>
           </div>
@@ -266,7 +295,7 @@ const DynamicWidgetCard = ({ widget, deviceId, position, dragging, onMouseDown, 
   }
 
   return (
-    <div 
+    <div
       className={`admin-chart-card ${dragging ? 'dragging' : ''}`}
       style={{ left: position.x, top: position.y }}
       onMouseDown={onMouseDown}
@@ -276,29 +305,29 @@ const DynamicWidgetCard = ({ widget, deviceId, position, dragging, onMouseDown, 
           {widget.name || widget.title || 'Gráfico'}
         </h3>
         <div className="chart-actions">
-          <button 
-            className="chart-action-btn download" 
+          <button
+            className="chart-action-btn download"
             onClick={(e) => { e.stopPropagation(); onDownload(); }}
             title="Download Excel"
           >
             <img src={excelIcon} alt="Excel" className="chart-action-icon" />
           </button>
-          <button 
-            className="chart-action-btn edit" 
+          <button
+            className="chart-action-btn edit"
             onClick={(e) => { e.stopPropagation(); onEdit(); }}
             title="Editar gráfico"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-              <path d="M3 17.25V21H6.75L17.81 9.94L14.06 6.19L3 17.25ZM20.71 7.04C21.1 6.65 21.1 6.02 20.71 5.63L18.37 3.29C17.98 2.9 17.35 2.9 16.96 3.29L15.13 5.12L18.88 8.87L20.71 7.04Z" fill="currentColor"/>
+              <path d="M3 17.25V21H6.75L17.81 9.94L14.06 6.19L3 17.25ZM20.71 7.04C21.1 6.65 21.1 6.02 20.71 5.63L18.37 3.29C17.98 2.9 17.35 2.9 16.96 3.29L15.13 5.12L18.88 8.87L20.71 7.04Z" fill="currentColor" />
             </svg>
           </button>
-          <button 
-            className="chart-action-btn delete" 
+          <button
+            className="chart-action-btn delete"
             onClick={(e) => { e.stopPropagation(); onDelete(); }}
             title="Excluir gráfico"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-              <path d="M6 19C6 20.1 6.9 21 8 21H16C17.1 21 18 20.1 18 19V7H6V19ZM19 4H15.5L14.5 3H9.5L8.5 4H5V6H19V4Z" fill="currentColor"/>
+              <path d="M6 19C6 20.1 6.9 21 8 21H16C17.1 21 18 20.1 18 19V7H6V19ZM19 4H15.5L14.5 3H9.5L8.5 4H5V6H19V4Z" fill="currentColor" />
             </svg>
           </button>
         </div>
@@ -310,8 +339,9 @@ const DynamicWidgetCard = ({ widget, deviceId, position, dragging, onMouseDown, 
   );
 };
 
-const AdminDashboardPage = ({ 
-  username, 
+const AdminDashboardPage = ({
+  username,
+  domainName,
   deviceName = 'Nome do dispositivo',
   device,
   widgets = [],
@@ -323,13 +353,14 @@ const AdminDashboardPage = ({
   onRefreshWidgets,
   notifications = [],
   onAcceptUser,
-  onRejectUser
+  onRejectUser,
+  user,
+  onUserSaved
 }) => {
   const [showGraphEditor, setShowGraphEditor] = useState(false);
   const [editingWidget, setEditingWidget] = useState(null);
   const [draggingWidget, setDraggingWidget] = useState(null);
   const [widgetPositions, setWidgetPositions] = useState({});
-  const [mqttConnecting, setMqttConnecting] = useState(false);
   const [whiteboardHeight, setWhiteboardHeight] = useState(600);
   const whiteboardRef = useRef(null);
 
@@ -349,37 +380,21 @@ const AdminDashboardPage = ({
     }
   }, [widgets]);
 
-  // Conectar dispositivo ao MQTT
-  const handleConnectMqtt = async () => {
-    if (!device || !device.id) return;
-    
-    setMqttConnecting(true);
-    try {
-      await mqttApi.connect(device.id);
-      alert(`✅ Conectado ao broker MQTT!\n\nTópico: ${device.mqttTopic || 'N/A'}\n\nAgora você pode enviar dados para o tópico usando:\n- HiveMQ Web Client (https://www.hivemq.com/demos/websocket-client/)\n- Seu ESP32\n\nExemplo de payload: {"temperature": 25.5, "humidity": 60}`);
-    } catch (error) {
-      console.error('Erro ao conectar MQTT:', error);
-      alert('Erro ao conectar ao MQTT: ' + error.message);
-    } finally {
-      setMqttConnecting(false);
-    }
-  };
-
   // Drag handlers para mover widgets livremente
   const handleMouseDown = (e, widgetId) => {
     if (e.target.closest('.chart-action-btn')) return; // Não arrastar se clicar nos botões
-    
+
     const widget = e.currentTarget;
     const rect = widget.getBoundingClientRect();
     const whiteboardRect = whiteboardRef.current.getBoundingClientRect();
-    
+
     // Identificar se é tabela para calcular limites corretos
     const widgetData = widgets.find(w => w.id === widgetId);
-    const config = widgetData?.config ? 
-      (typeof widgetData.config === 'string' ? JSON.parse(widgetData.config) : widgetData.config) 
+    const config = widgetData?.config ?
+      (typeof widgetData.config === 'string' ? JSON.parse(widgetData.config) : widgetData.config)
       : {};
     const isTable = config?.type === 'table';
-    
+
     setDraggingWidget({
       id: widgetId,
       offsetX: e.clientX - rect.left,
@@ -390,21 +405,21 @@ const AdminDashboardPage = ({
       widgetWidth: isTable ? 720 : 350,
       widgetHeight: isTable ? 450 : 280
     });
-    
+
     widget.style.zIndex = 1000;
   };
 
   const handleMouseMove = (e) => {
     if (!draggingWidget || !whiteboardRef.current) return;
-    
+
     const whiteboardRect = whiteboardRef.current.getBoundingClientRect();
     const newX = e.clientX - whiteboardRect.left - draggingWidget.offsetX;
     const newY = e.clientY - whiteboardRect.top - draggingWidget.offsetY;
-    
+
     // Limitar dentro do whiteboard usando tamanho real do widget
     const maxX = whiteboardRect.width - draggingWidget.widgetWidth;
     const maxY = whiteboardRect.height - draggingWidget.widgetHeight;
-    
+
     setWidgetPositions(prev => ({
       ...prev,
       [draggingWidget.id]: {
@@ -421,9 +436,8 @@ const AdminDashboardPage = ({
       if (newPosition) {
         try {
           await widgetsApi.update(draggingWidget.id, { position: newPosition });
-          console.log(`✅ Posição do widget ${draggingWidget.id} salva no backend:`, newPosition);
         } catch (error) {
-          console.error('Erro ao salvar posição do widget:', error);
+          logger.error('Erro ao salvar posição do widget:', error.message);
         }
       }
     }
@@ -439,6 +453,7 @@ const AdminDashboardPage = ({
         window.removeEventListener('mouseup', handleMouseUp);
       };
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draggingWidget, widgetPositions]);
 
   // Calcular altura do whiteboard baseado nas posições dos widgets
@@ -449,20 +464,20 @@ const AdminDashboardPage = ({
     }
 
     let maxBottom = 600; // Altura mínima
-    
+
     widgets.forEach(widget => {
       const position = widgetPositions[widget.id] || { x: 0, y: 0 };
       const config = typeof widget.config === 'string' ? JSON.parse(widget.config) : widget.config;
-      
+
       // Altura baseada no tipo (tabela é maior)
       const widgetHeight = config?.type === 'table' ? 450 : 280;
       const bottom = position.y + widgetHeight + 50; // +50 de margem
-      
+
       if (bottom > maxBottom) {
         maxBottom = bottom;
       }
     });
-    
+
     setWhiteboardHeight(maxBottom);
   }, [widgets, widgetPositions]);
 
@@ -492,7 +507,7 @@ const AdminDashboardPage = ({
         setWidgets(widgets.filter(w => w.id !== widgetId));
       }
     } catch (error) {
-      console.error('Erro ao deletar widget:', error);
+      logger.error('Erro ao deletar widget:', error.message);
       alert('Erro ao deletar widget: ' + (error.message || 'Erro desconhecido'));
     }
   };
@@ -516,9 +531,6 @@ const AdminDashboardPage = ({
         }
       };
 
-      console.log('Salvando widget:', widgetData);
-      console.log('Thresholds sendo salvos:', widgetConfig.thresholds);
-
       if (editingWidget && editingWidget.id) {
         // Editando widget existente
         await widgetsApi.update(editingWidget.id, widgetData);
@@ -531,7 +543,7 @@ const AdminDashboardPage = ({
         onRefreshWidgets();
       }
     } catch (error) {
-      console.error('Erro ao salvar widget:', error);
+      logger.error('Erro ao salvar widget:', error.message);
       alert('Erro ao salvar widget: ' + (error.message || 'Erro desconhecido'));
     }
     setShowGraphEditor(false);
@@ -540,8 +552,9 @@ const AdminDashboardPage = ({
 
   return (
     <div className="admin-dashboard-container">
-      <AdminHeader 
+      <AdminHeader
         username={username}
+        domainName={domainName}
         onLogout={onLogout}
         onAddDevice={onAddDevice}
         onBackToDevices={onBackToDevices}
@@ -551,8 +564,10 @@ const AdminDashboardPage = ({
         notifications={notifications}
         onAcceptUser={onAcceptUser}
         onRejectUser={onRejectUser}
+        user={user}
+        onUserSaved={onUserSaved}
       />
-      
+
       <main className="admin-dashboard-content">
         {/* Device Title */}
         <div className="admin-device-title-section">
@@ -560,8 +575,8 @@ const AdminDashboardPage = ({
         </div>
 
         {/* Charts Whiteboard - Miro Style */}
-        <div 
-          className="admin-charts-whiteboard" 
+        <div
+          className="admin-charts-whiteboard"
           ref={whiteboardRef}
           style={{ height: `${whiteboardHeight}px` }}
         >
@@ -569,14 +584,14 @@ const AdminDashboardPage = ({
             <div className="empty-whiteboard">
               <div className="empty-whiteboard-content">
                 <svg width="80" height="80" viewBox="0 0 24 24" fill="none" className="empty-icon">
-                  <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="1.5"/>
-                  <path d="M12 8V16M8 12H16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                  <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="1.5" />
+                  <path d="M12 8V16M8 12H16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
                 </svg>
                 <h3>Nenhum gráfico ainda</h3>
                 <p>Clique no botão abaixo para criar seu primeiro gráfico</p>
                 <button className="create-first-graph-btn" onClick={handleCreateGraph}>
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                    <path d="M12 5V19M5 12H19" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                    <path d="M12 5V19M5 12H19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                   </svg>
                   Criar Gráfico
                 </button>
@@ -610,8 +625,8 @@ const AdminDashboardPage = ({
       <GraphEditorModal
         isOpen={showGraphEditor}
         existingWidget={editingWidget ? (() => {
-          const config = typeof editingWidget.config === 'string' 
-            ? JSON.parse(editingWidget.config) 
+          const config = typeof editingWidget.config === 'string'
+            ? JSON.parse(editingWidget.config)
             : editingWidget.config;
           return {
             ...config,

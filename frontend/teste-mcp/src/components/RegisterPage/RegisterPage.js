@@ -1,65 +1,111 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import './RegisterPage.css';
 import logo from '../../assets/logo.png';
 import background from '../../assets/background.png';
-import { devices as devicesApi } from '../../services/api';
+import { domains as domainsApi } from '../../services/api';
+
+const ClearIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+    <path d="M19 6.41L17.59 5L12 10.59L6.41 5L5 6.41L10.59 12L5 17.59L6.41 19L12 13.41L17.59 19L19 17.59L13.41 12L19 6.41Z" fill="#49454F"/>
+  </svg>
+);
 
 const RegisterPage = ({ onBackToLogin, onRegisterSuccess }) => {
   const [formData, setFormData] = useState({
     username: '',
     email: '',
-    password: ''
+    password: '',
+    domainCode: '',
+    domainName: ''
   });
+  const [isManager, setIsManager] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Seleção de dispositivos (fluxo não-gerente)
   const [availableDevices, setAvailableDevices] = useState([]);
   const [selectedDevices, setSelectedDevices] = useState([]);
   const [showDeviceDropdown, setShowDeviceDropdown] = useState(false);
-  const [loadingDevices, setLoadingDevices] = useState(true);
+  const [domainVerified, setDomainVerified] = useState(false);
+  const [domainError, setDomainError] = useState('');
+  const [verifyingDomain, setVerifyingDomain] = useState(false);
 
-  // Carrega dispositivos disponíveis ao montar o componente
+  // Reseta o estado de domínio quando troca o modo
   useEffect(() => {
-    const loadDevices = async () => {
-      try {
-        const response = await devicesApi.getPublicList();
-        if (response.success) {
-          setAvailableDevices(response.devices);
-        }
-      } catch (error) {
-        console.error('Erro ao carregar dispositivos:', error);
-      } finally {
-        setLoadingDevices(false);
-      }
-    };
-    loadDevices();
-  }, []);
+    setAvailableDevices([]);
+    setSelectedDevices([]);
+    setDomainVerified(false);
+    setDomainError('');
+    setFormData(prev => ({ ...prev, domainCode: '', domainName: '' }));
+    setShowDeviceDropdown(false);
+  }, [isManager]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    // Force email to lowercase regardless of CAPS LOCK state
+    const normalizedValue = name === 'email' ? value.toLowerCase() : value;
+    setFormData(prev => ({ ...prev, [name]: normalizedValue }));
+
+    // Reseta verificação se o código de domínio mudar
+    if (name === 'domainCode') {
+      setDomainVerified(false);
+      setDomainError('');
+      setAvailableDevices([]);
+      setSelectedDevices([]);
+    }
   };
 
-  const handleDeviceToggle = (deviceId) => {
-    setSelectedDevices(prev => {
-      if (prev.includes(deviceId)) {
-        return prev.filter(id => id !== deviceId);
-      } else {
-        return [...prev, deviceId];
+  // Verifica o código de domínio ao sair do campo (onBlur) — apenas fluxo não-gerente
+  const handleDomainCodeBlur = useCallback(async () => {
+    if (isManager) return;
+    const code = formData.domainCode.trim();
+    if (!code) return;
+
+    setVerifyingDomain(true);
+    setDomainError('');
+    try {
+      const res = await domainsApi.verify(code);
+      if (res.success) {
+        setDomainVerified(true);
+        setAvailableDevices(res.data.devices || []);
       }
-    });
+    } catch (err) {
+      setDomainVerified(false);
+      setDomainError(err.message || 'Domínio não encontrado');
+      setAvailableDevices([]);
+    } finally {
+      setVerifyingDomain(false);
+    }
+  }, [isManager, formData.domainCode]);
+
+  const handleDeviceToggle = (deviceId) => {
+    setSelectedDevices(prev =>
+      prev.includes(deviceId) ? prev.filter(id => id !== deviceId) : [...prev, deviceId]
+    );
+  };
+
+  const getSelectedDevicesText = () => {
+    if (selectedDevices.length === 0) return 'Selecione os dispositivos';
+    const names = selectedDevices.map(id => {
+      const device = availableDevices.find(d => d.id === id);
+      return device ? device.name : '';
+    }).filter(Boolean);
+    if (names.length <= 2) return names.join(', ');
+    return `${names.slice(0, 2).join(', ')} +${names.length - 2}`;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
-    
     try {
       if (onRegisterSuccess) {
         await onRegisterSuccess({
-          ...formData,
+          username: formData.username,
+          email: formData.email,
+          password: formData.password,
+          isManager,
+          domainName: formData.domainName,
+          domainCode: formData.domainCode,
           requestedDevices: selectedDevices
         });
       }
@@ -70,29 +116,14 @@ const RegisterPage = ({ onBackToLogin, onRegisterSuccess }) => {
     }
   };
 
-  const getSelectedDevicesText = () => {
-    if (selectedDevices.length === 0) {
-      return 'Selecione os dispositivos';
-    }
-    const names = selectedDevices.map(id => {
-      const device = availableDevices.find(d => d.id === id);
-      return device ? device.name : '';
-    }).filter(Boolean);
-    
-    if (names.length <= 2) {
-      return names.join(', ');
-    }
-    return `${names.slice(0, 2).join(', ')} +${names.length - 2}`;
-  };
-
   return (
     <div className="register-container">
       {/* Background Image */}
-      <div 
-        className="background-image" 
+      <div
+        className="background-image"
         style={{ backgroundImage: `url(${background})` }}
       />
-      
+
       {/* Register Card */}
       <div className="register-card">
         {/* Logo */}
@@ -102,6 +133,7 @@ const RegisterPage = ({ onBackToLogin, onRegisterSuccess }) => {
 
         {/* Form */}
         <form className="register-form" onSubmit={handleSubmit}>
+
           {/* Username Field */}
           <div className="text-field">
             <div className="text-field-container">
@@ -117,15 +149,13 @@ const RegisterPage = ({ onBackToLogin, onRegisterSuccess }) => {
                   required
                 />
               </div>
-              <button 
-                type="button" 
+              <button
+                type="button"
                 className="trailing-icon"
                 onClick={() => setFormData(prev => ({ ...prev, username: '' }))}
                 aria-label="Limpar username"
               >
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                  <path d="M19 6.41L17.59 5L12 10.59L6.41 5L5 6.41L10.59 12L5 17.59L6.41 19L12 13.41L17.59 19L19 17.59L13.41 12L19 6.41Z" fill="#49454F"/>
-                </svg>
+                <ClearIcon />
               </button>
             </div>
             <div className="active-indicator" />
@@ -146,15 +176,13 @@ const RegisterPage = ({ onBackToLogin, onRegisterSuccess }) => {
                   required
                 />
               </div>
-              <button 
-                type="button" 
+              <button
+                type="button"
                 className="trailing-icon"
                 onClick={() => setFormData(prev => ({ ...prev, email: '' }))}
                 aria-label="Limpar e-mail"
               >
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                  <path d="M19 6.41L17.59 5L12 10.59L6.41 5L5 6.41L10.59 12L5 17.59L6.41 19L12 13.41L17.59 19L19 17.59L13.41 12L19 6.41Z" fill="#49454F"/>
-                </svg>
+                <ClearIcon />
               </button>
             </div>
             <div className="active-indicator" />
@@ -175,8 +203,8 @@ const RegisterPage = ({ onBackToLogin, onRegisterSuccess }) => {
                   required
                 />
               </div>
-              <button 
-                type="button" 
+              <button
+                type="button"
                 className="trailing-icon"
                 onClick={() => setShowPassword(!showPassword)}
                 aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
@@ -195,69 +223,183 @@ const RegisterPage = ({ onBackToLogin, onRegisterSuccess }) => {
             <div className="active-indicator" />
           </div>
 
-          {/* Devices Dropdown */}
-          <div className="device-selector">
-            <div 
-              className="menu-item" 
-              onClick={() => setShowDeviceDropdown(!showDeviceDropdown)}
-            >
-              <div className="menu-item-content">
-                <div className="menu-item-leading">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                    <path d="M12 17.27L18.18 21L16.54 13.97L22 9.24L14.81 8.63L12 2L9.19 8.63L2 9.24L7.46 13.97L5.82 21L12 17.27Z" fill="#49454F"/>
+          {/* ── Sou Gerente Checkbox ─────────────────────────────────────── */}
+          <div className="manager-checkbox-row">
+            <span className="manager-label">Sou gerente</span>
+            <label className="manager-checkbox-wrapper" htmlFor="isManagerCheckbox">
+              <input
+                id="isManagerCheckbox"
+                type="checkbox"
+                className="manager-checkbox-input"
+                checked={isManager}
+                onChange={e => setIsManager(e.target.checked)}
+              />
+              <span className="manager-checkbox-custom" aria-hidden="true">
+                {isManager && (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" fill="#fff"/>
                   </svg>
-                </div>
-                <span className="menu-item-label">
-                  {loadingDevices ? 'Carregando...' : getSelectedDevicesText()}
-                </span>
-                <div className="menu-item-trailing">
-                  <svg 
-                    width="24" 
-                    height="24" 
-                    viewBox="0 0 24 24" 
-                    fill="none"
-                    style={{ 
-                      transform: showDeviceDropdown ? 'rotate(90deg)' : 'rotate(0deg)',
-                      transition: 'transform 0.2s'
-                    }}
-                  >
-                    <path d="M8.59 16.59L13.17 12L8.59 7.41L10 6L16 12L10 18L8.59 16.59Z" fill="#49454F"/>
-                  </svg>
-                </div>
-              </div>
-            </div>
-            
-            {showDeviceDropdown && (
-              <div className="device-dropdown">
-                {availableDevices.length === 0 ? (
-                  <div className="device-dropdown-empty">
-                    Nenhum dispositivo disponível
-                  </div>
-                ) : (
-                  availableDevices.map(device => (
-                    <div 
-                      key={device.id} 
-                      className={`device-dropdown-item ${selectedDevices.includes(device.id) ? 'selected' : ''}`}
-                      onClick={() => handleDeviceToggle(device.id)}
-                    >
-                      <div className="device-checkbox">
-                        {selectedDevices.includes(device.id) && (
-                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" fill="#84B6F4"/>
-                          </svg>
-                        )}
-                      </div>
-                      <span className="device-name">{device.name}</span>
-                    </div>
-                  ))
                 )}
-              </div>
-            )}
+              </span>
+            </label>
           </div>
 
+          {/* ── Campos condicionais ──────────────────────────────────────── */}
+          {isManager ? (
+            /* GERENTE: Nome do Domínio + Código do Domínio lado a lado */
+            <div className="domain-fields-row">
+              <div className="text-field domain-field-half">
+                <div className="text-field-container">
+                  <div className="text-field-content">
+                    <label className="text-field-label">Nome do Domínio</label>
+                    <input
+                      type="text"
+                      name="domainName"
+                      className="text-field-input"
+                      placeholder="Ex: SENAI Florianópolis"
+                      value={formData.domainName}
+                      onChange={handleChange}
+                      required={isManager}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    className="trailing-icon"
+                    onClick={() => setFormData(prev => ({ ...prev, domainName: '' }))}
+                    aria-label="Limpar nome do domínio"
+                  >
+                    <ClearIcon />
+                  </button>
+                </div>
+                <div className="active-indicator" />
+              </div>
+
+              <div className="text-field domain-field-half">
+                <div className="text-field-container">
+                  <div className="text-field-content">
+                    <label className="text-field-label">Código do Domínio</label>
+                    <input
+                      type="text"
+                      name="domainCode"
+                      className="text-field-input"
+                      placeholder="Ex: SENAI-FLN-2025"
+                      value={formData.domainCode}
+                      onChange={handleChange}
+                      required={isManager}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    className="trailing-icon"
+                    onClick={() => setFormData(prev => ({ ...prev, domainCode: '' }))}
+                    aria-label="Limpar código do domínio"
+                  >
+                    <ClearIcon />
+                  </button>
+                </div>
+                <div className="active-indicator" />
+              </div>
+            </div>
+          ) : (
+            /* USUÁRIO: Código do Domínio (com verificação) + Seletor de Dispositivos */
+            <>
+              <div className="text-field">
+                <div className="text-field-container">
+                  <div className="text-field-content">
+                    <label className="text-field-label">
+                      Código do Domínio
+                      {verifyingDomain && <span className="domain-verifying"> verificando...</span>}
+                      {domainVerified && <span className="domain-verified"> ✓</span>}
+                    </label>
+                    <input
+                      type="text"
+                      name="domainCode"
+                      className={`text-field-input ${domainError ? 'input-error' : ''} ${domainVerified ? 'input-success' : ''}`}
+                      placeholder="Informe o código do seu domínio"
+                      value={formData.domainCode}
+                      onChange={handleChange}
+                      onBlur={handleDomainCodeBlur}
+                      required
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    className="trailing-icon"
+                    onClick={() => setFormData(prev => ({ ...prev, domainCode: '' }))}
+                    aria-label="Limpar código do domínio"
+                  >
+                    <ClearIcon />
+                  </button>
+                </div>
+                <div className={`active-indicator ${domainError ? 'indicator-error' : ''} ${domainVerified ? 'indicator-success' : ''}`} />
+                {domainError && <span className="domain-error-msg">{domainError}</span>}
+              </div>
+
+              {/* Seletor de dispositivos — só aparece após domínio verificado */}
+              {domainVerified && (
+                <div className="device-selector">
+                  <div
+                    className="menu-item"
+                    onClick={() => setShowDeviceDropdown(!showDeviceDropdown)}
+                  >
+                    <div className="menu-item-content">
+                      <div className="menu-item-leading">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                          <path d="M12 17.27L18.18 21L16.54 13.97L22 9.24L14.81 8.63L12 2L9.19 8.63L2 9.24L7.46 13.97L5.82 21L12 17.27Z" fill="#49454F"/>
+                        </svg>
+                      </div>
+                      <span className="menu-item-label">{getSelectedDevicesText()}</span>
+                      <div className="menu-item-trailing">
+                        <svg
+                          width="24"
+                          height="24"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          style={{
+                            transform: showDeviceDropdown ? 'rotate(90deg)' : 'rotate(0deg)',
+                            transition: 'transform 0.2s'
+                          }}
+                        >
+                          <path d="M8.59 16.59L13.17 12L8.59 7.41L10 6L16 12L10 18L8.59 16.59Z" fill="#49454F"/>
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+
+                  {showDeviceDropdown && (
+                    <div className="device-dropdown">
+                      {availableDevices.length === 0 ? (
+                        <div className="device-dropdown-empty">
+                          Nenhum dispositivo neste domínio
+                        </div>
+                      ) : (
+                        availableDevices.map(device => (
+                          <div
+                            key={device.id}
+                            className={`device-dropdown-item ${selectedDevices.includes(device.id) ? 'selected' : ''}`}
+                            onClick={() => handleDeviceToggle(device.id)}
+                          >
+                            <div className="device-checkbox">
+                              {selectedDevices.includes(device.id) && (
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                                  <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" fill="#84B6F4"/>
+                                </svg>
+                              )}
+                            </div>
+                            <span className="device-name">{device.name}</span>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+
           {/* Register Button */}
-          <button 
-            type="submit" 
+          <button
+            type="submit"
             className={`register-button ${isLoading ? 'loading' : ''}`}
             disabled={isLoading}
           >
@@ -269,9 +411,9 @@ const RegisterPage = ({ onBackToLogin, onRegisterSuccess }) => {
           {/* Back to Login Link */}
           <div className="back-to-login">
             <span>Já tem uma conta? </span>
-            <button 
-              type="button" 
-              className="back-to-login-link" 
+            <button
+              type="button"
+              className="back-to-login-link"
               onClick={onBackToLogin}
             >
               Faça login

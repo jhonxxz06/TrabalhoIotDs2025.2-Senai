@@ -23,7 +23,7 @@ async function seed() {
     
     for (const user of users) {
       // Verifica se o usuário já existe
-      const existing = query('SELECT id FROM users WHERE email = ?', [user.email]);
+      const existing = await query('SELECT id FROM users WHERE email = $1', [user.email]);
       
       if (existing.length > 0) {
         console.log(`⚠️  Usuário já existe: ${user.email}`);
@@ -34,9 +34,9 @@ async function seed() {
       const hashedPassword = await bcrypt.hash(user.password, 10);
       
       // Insere o usuário
-      run(`
+      await run(`
         INSERT INTO users (username, email, password, role, has_access)
-        VALUES (?, ?, ?, ?, ?)
+        VALUES ($1, $2, $3, $4, $5)
       `, [user.username, user.email, hashedPassword, user.role, user.has_access]);
       
       const accessStatus = user.has_access ? 'com acesso' : 'sem acesso';
@@ -47,7 +47,7 @@ async function seed() {
     console.log(`\n🎉 Seed concluído! ${created} usuário(s) criado(s).\n`);
     
     // Lista todos os usuários
-    const allUsers = query('SELECT id, username, email, role, has_access FROM users');
+    const allUsers = await query('SELECT id, username, email, role, has_access FROM users');
     console.log('📋 Usuários no banco:');
     console.table(allUsers);
     

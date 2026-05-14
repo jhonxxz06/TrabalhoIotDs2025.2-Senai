@@ -1,4 +1,10 @@
-const API_URL = 'https://projetocleanair.onrender.com/api';
+import logger from '../utils/logger';
+
+let API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
+// Garantir que a base termine com /api
+if (!API_URL.endsWith('/api')) {
+  API_URL = API_URL.replace(/\/$/, '') + '/api';
+}
 
 // Helpers
 const getToken = () => localStorage.getItem('token');
@@ -12,20 +18,29 @@ const headers = (includeAuth = true) => {
 };
 
 const handleResponse = async (response) => {
-  const data = await response.json();
-  if (!response.ok) {
-    // Monta mensagem de erro detalhada
-    let errorMessage = data.message || data.error || 'Erro na requisição';
-    
-    // Se houver detalhes de validação, adiciona à mensagem
-    if (data.details && Array.isArray(data.details)) {
-      const detailMessages = data.details.map(d => d.message).join('. ');
-      errorMessage = detailMessages || errorMessage;
+  try {
+    const data = await response.json();
+    if (!response.ok) {
+      // Monta mensagem de erro detalhada
+      let errorMessage = data.message || data.error || `Erro ${response.status}`;
+      
+      // Se houver detalhes de validação, adiciona à mensagem
+      if (data.details && Array.isArray(data.details)) {
+        const detailMessages = data.details.map(d => d.message).join('. ');
+        errorMessage = detailMessages || errorMessage;
+      }
+      
+      logger.error('Erro na resposta:', { status: response.status, message: errorMessage });
+      throw new Error(errorMessage);
     }
-    
-    throw new Error(errorMessage);
+    return data;
+  } catch (err) {
+    if (err instanceof SyntaxError) {
+      logger.error('Erro ao parsear JSON. Status:', response.status);
+      throw new Error(`Erro de servidor: ${response.status}`);
+    }
+    throw err;
   }
-  return data;
 };
 
 // ============================================
@@ -33,11 +48,11 @@ const handleResponse = async (response) => {
 // ============================================
 
 export const auth = {
-  async login(email, password) {
+  async login(email, password, domainCode = '') {
     const response = await fetch(`${API_URL}/auth/login`, {
       method: 'POST',
       headers: headers(false),
-      body: JSON.stringify({ email, password })
+      body: JSON.stringify({ email, password, domainCode })
     });
     const data = await handleResponse(response);
     if (data.data?.token) {
@@ -46,11 +61,11 @@ export const auth = {
     return data;
   },
 
-  async register(username, email, password, requestedDevices = []) {
+  async register(username, email, password, { isManager = false, domainName = '', domainCode = '', requestedDevices = [] } = {}) {
     const response = await fetch(`${API_URL}/auth/register`, {
       method: 'POST',
       headers: headers(false),
-      body: JSON.stringify({ username, email, password, requestedDevices })
+      body: JSON.stringify({ username, email, password, isManager, domainName, domainCode, requestedDevices })
     });
     const data = await handleResponse(response);
     if (data.data?.token) {
@@ -61,6 +76,31 @@ export const auth = {
 
   async me() {
     const response = await fetch(`${API_URL}/auth/me`, {
+      headers: headers()
+    });
+    return handleResponse(response);
+  },
+
+  async updateProfile(data) {
+    const response = await fetch(`${API_URL}/auth/profile`, {
+      method: 'PUT',
+      headers: headers(),
+      body: JSON.stringify(data)
+    });
+    return handleResponse(response);
+  },
+
+  async deleteAccount() {
+    const response = await fetch(`${API_URL}/auth/account`, {
+      method: 'DELETE',
+      headers: headers()
+    });
+    return handleResponse(response);
+  },
+
+  async leaveDomain() {
+    const response = await fetch(`${API_URL}/auth/leave-domain`, {
+      method: 'PUT',
       headers: headers()
     });
     return handleResponse(response);
@@ -155,6 +195,41 @@ export const devices = {
       method: 'PUT',
       headers: headers(),
       body: JSON.stringify({ userIds })
+    });
+    return handleResponse(response);
+  }
+};
+
+// ============================================
+// DOMAINS
+// ============================================
+
+export const domains = {
+  /**
+   * Verifica se um código de domínio existe (rota pública)
+   * Retorna o domínio e seus dispositivos
+   */
+  async verify(code) {
+    const response = await fetch(`${API_URL}/domains/verify/${encodeURIComponent(code)}`, {
+      headers: headers(false)
+    });
+    return handleResponse(response);
+  },
+
+  async getAll() {
+    const response = await fetch(`${API_URL}/domains`, {
+      headers: headers()
+    });
+    return handleResponse(response);
+  },
+
+  /**
+   * Lista usuários de um domínio específico (rota privada — admin)
+   * Usado para popular "Usuários com Acesso" no modal de edição de dispositivo
+   */
+  async getUsersByDomain(domainId) {
+    const response = await fetch(`${API_URL}/domains/${domainId}/users`, {
+      headers: headers()
     });
     return handleResponse(response);
   }
@@ -338,5 +413,5 @@ export const mqtt = {
 };
 
 // Export default com todos os serviços
-const api = { auth, users, devices, widgets, access, mqtt };
+const api = { auth, users, devices, widgets, access, mqtt, domains };
 export default api;

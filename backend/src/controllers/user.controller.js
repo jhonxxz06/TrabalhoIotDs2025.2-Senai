@@ -7,7 +7,7 @@ const userController = {
    */
   async getAll(req, res) {
     try {
-      const users = User.findAll();
+      const users = await User.findAll();
       
       return res.status(200).json({
         success: true,
@@ -37,7 +37,7 @@ const userController = {
       const { hasAccess } = req.body;
 
       // Verifica se o usuário existe
-      const user = User.findById(parseInt(id));
+      const user = await User.findById(parseInt(id));
       if (!user) {
         return res.status(404).json({
           success: false,
@@ -54,7 +54,7 @@ const userController = {
       }
 
       // Atualiza o acesso
-      const updatedUser = User.updateAccess(parseInt(id), hasAccess);
+      const updatedUser = await User.updateAccess(parseInt(id), hasAccess);
 
       return res.status(200).json({
         success: true,

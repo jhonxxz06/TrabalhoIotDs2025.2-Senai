@@ -10,10 +10,31 @@ const app = express();
 const server = http.createServer(app);
 const PORT = process.env.PORT || 3001;
 
-// Configurar Socket.IO com CORS (aceita todas as origens)
+// Configurar origem(es) permitida(s) para CORS e Socket.IO via variável de ambiente
+// Pode ser uma única URL ou várias separadas por vírgula
+const rawOrigins = process.env.FRONTEND_ORIGIN || process.env.REACT_APP_API_URL || '';
+const FRONTEND_ORIGINS = rawOrigins.split(',').map(s => s.trim()).filter(Boolean);
+
+function allowOrigin(origin, callback) {
+  // Allow requests with no origin (curl, server-to-server)
+  if (!origin) return callback(null, true);
+  // If no origins configured, allow all (development)
+  if (FRONTEND_ORIGINS.length === 0) return callback(null, true);
+  if (FRONTEND_ORIGINS.includes(origin)) return callback(null, true);
+  return callback(new Error('CORS not allowed'), false);
+}
+
+const corsOptions = {
+  origin: allowOrigin,
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+};
+
+// Configurar Socket.IO com CORS (usa mesma lógica)
 const io = new Server(server, {
   cors: {
-    origin: '*',
+    origin: (origin, callback) => allowOrigin(origin, callback),
     credentials: true
   }
 });
@@ -22,7 +43,7 @@ const io = new Server(server, {
 app.use(helmet({
   crossOriginResourcePolicy: false
 }));
-app.use(cors()); // Aceita qualquer origem
+app.use(cors(corsOptions));
 app.use(express.json());
 
 // Socket.IO - Gerenciar conexões
@@ -61,6 +82,7 @@ const deviceRoutes = require('./routes/device.routes');
 const widgetRoutes = require('./routes/widget.routes');
 const accessRoutes = require('./routes/access.routes');
 const mqttRoutes = require('./routes/mqtt.routes');
+const domainRoutes = require('./routes/domain.routes');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
@@ -68,6 +90,7 @@ app.use('/api/devices', deviceRoutes);
 app.use('/api/widgets', widgetRoutes);
 app.use('/api/access', accessRoutes);
 app.use('/api/mqtt', mqttRoutes);
+app.use('/api/domains', domainRoutes);
 
 // Middleware de erro global
 app.use((err, req, res, next) => {
@@ -89,15 +112,16 @@ app.use((req, res) => {
 // Inicializa o banco de dados e depois inicia o servidor
 initDatabase()
   .then(() => {
-    server.listen(PORT, () => {
+    server.listen(PORT, '0.0.0.0', async () => {
       console.log(`🚀 Servidor rodando em http://localhost:${PORT}`);
-      console.log(`🔌 WebSocket pronto na porta ${PORT}`);
+      const originsDisplay = FRONTEND_ORIGINS.length ? FRONTEND_ORIGINS.join(',') : 'any';
+      console.log(`🔌 WebSocket pronto na porta ${PORT} (CORS origins: ${originsDisplay})`);
       console.log(`📡 Health check: http://localhost:${PORT}/api/health`);
       
       // Inicializa conexões MQTT após servidor estar pronto
       const { initMqttConnections } = require('./config/mqtt');
-      setTimeout(() => {
-        initMqttConnections(io);
+      setTimeout(async () => {
+        await initMqttConnections(io);
       }, 1000);
     });
   })

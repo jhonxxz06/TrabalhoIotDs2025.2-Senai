@@ -4,10 +4,10 @@ const Device = require('../models/Device');
 /**
  * Conecta a um dispositivo MQTT
  */
-const connect = (req, res) => {
+const connect = async (req, res) => {
   try {
     const { id } = req.params;
-    const device = Device.findById(id);
+    const device = await Device.findById(id);
 
     if (!device) {
       return res.status(404).json({
@@ -34,10 +34,10 @@ const connect = (req, res) => {
 /**
  * Desconecta de um dispositivo MQTT
  */
-const disconnect = (req, res) => {
+const disconnect = async (req, res) => {
   try {
     const { id } = req.params;
-    MqttService.disconnect(parseInt(id));
+    await MqttService.disconnect(parseInt(id));
 
     res.json({
       success: true,
@@ -55,9 +55,9 @@ const disconnect = (req, res) => {
 /**
  * Retorna status das conexões MQTT
  */
-const getStatus = (req, res) => {
+const getStatus = async (req, res) => {
   try {
-    const status = MqttService.getStatus();
+    const status = await MqttService.getStatus();
     res.json({
       success: true,
       connections: status
@@ -74,13 +74,13 @@ const getStatus = (req, res) => {
 /**
  * Busca dados históricos de um dispositivo
  */
-const getData = (req, res) => {
+const getData = async (req, res) => {
   try {
     const { id } = req.params;
     const { limit = 100, period } = req.query;
 
     // Verifica acesso
-    if (req.user.role !== 'admin' && !Device.userHasAccess(id, req.user.id)) {
+    if (req.user.role !== 'admin' && !await Device.userHasAccess(id, req.user.id)) {
       return res.status(403).json({
         success: false,
         message: 'Acesso negado a este dispositivo'
@@ -89,64 +89,38 @@ const getData = (req, res) => {
 
     let data;
     if (period === 'day') {
-      data = MqttService.getDayData(id);
+      data = await MqttService.getDayData(id);
     } else if (period === 'week') {
-      data = MqttService.getWeekData(id);
+      data = await MqttService.getWeekData(id);
     } else {
-      data = MqttService.getData(id, { limit: parseInt(limit) });
+      data = await MqttService.getData(id, { limit: parseInt(limit) });
+    }
+
+    // Garantir que data é um array
+    if (!Array.isArray(data)) {
+      data = [];
     }
 
     // Parse do payload JSON se possível
+    // Data e Hora já vêm formatados da query SQL no timezone de Brasília
     const parsedData = data.map(item => {
-      // Garantir que received_at seja uma data válida
-      let date = new Date(item.received_at);
-      
-      // Se a data for inválida, usar data atual
-      if (isNaN(date.getTime())) {
-        date = new Date();
-      }
-      
-      // Ajustar para horário de Brasília (UTC-3)
-      const brasiliaOffset = -3 * 60; // -3 horas em minutos
-      const localOffset = date.getTimezoneOffset(); // offset atual em minutos
-      const offsetDiff = localOffset + brasiliaOffset;
-      
-      const brasiliaDate = new Date(date.getTime() - offsetDiff * 60 * 1000);
-      
-      // Formatar manualmente para garantir formato correto
-      const dia = String(brasiliaDate.getDate()).padStart(2, '0');
-      const mes = String(brasiliaDate.getMonth() + 1).padStart(2, '0');
-      const ano = brasiliaDate.getFullYear();
-      const dataFormatada = `${dia}/${mes}/${ano}`;
-      
-      const hora = String(brasiliaDate.getHours()).padStart(2, '0');
-      const minuto = String(brasiliaDate.getMinutes()).padStart(2, '0');
-      const segundo = String(brasiliaDate.getSeconds()).padStart(2, '0');
-      const horaFormatada = `${hora}:${minuto}:${segundo}`;
-      
+      let parsedPayload;
       try {
-        return {
-          id: item.id,
-          deviceId: item.device_id,
-          topic: item.topic,
-          payload: JSON.parse(item.payload),
-          receivedAt: item.received_at,
-          timestamp: item.received_at,
-          Data: dataFormatada,
-          Hora: horaFormatada
-        };
+        parsedPayload = typeof item.payload === 'string' ? JSON.parse(item.payload) : item.payload;
       } catch {
-        return {
-          id: item.id,
-          deviceId: item.device_id,
-          topic: item.topic,
-          payload: item.payload,
-          receivedAt: item.received_at,
-          timestamp: item.received_at,
-          Data: dataFormatada,
-          Hora: horaFormatada
-        };
+        parsedPayload = item.payload;
       }
+
+      return {
+        id: item.id,
+        deviceId: item.device_id,
+        topic: item.topic,
+        payload: parsedPayload,
+        receivedAt: item.received_at,
+        timestamp: new Date(item.received_at).toISOString(),
+        Data: item.Data,  // Já formatado pela query SQL
+        Hora: item.Hora   // Já formatado pela query SQL
+      };
     });
 
     res.json({
@@ -166,19 +140,19 @@ const getData = (req, res) => {
 /**
  * Busca último dado de um dispositivo
  */
-const getLatest = (req, res) => {
+const getLatest = async (req, res) => {
   try {
     const { id } = req.params;
 
     // Verifica acesso
-    if (req.user.role !== 'admin' && !Device.userHasAccess(id, req.user.id)) {
+    if (req.user.role !== 'admin' && !await Device.userHasAccess(id, req.user.id)) {
       return res.status(403).json({
         success: false,
         message: 'Acesso negado a este dispositivo'
       });
     }
 
-    const device = Device.findById(id);
+    const device = await Device.findById(id);
     if (!device) {
       return res.status(404).json({
         success: false,
@@ -234,9 +208,9 @@ const getLatest = (req, res) => {
 /**
  * Conecta todos os dispositivos (chamado no startup)
  */
-const connectAll = (req, res) => {
+const connectAll = async (req, res) => {
   try {
-    const devices = Device.findAll();
+    const devices = await Device.findAll();
     let connected = 0;
 
     for (const device of devices) {
@@ -258,15 +232,48 @@ const connectAll = (req, res) => {
 };
 
 /**
+ * Retorna os últimos payloads rejeitados pela validação (buffer em memória)
+ */
+const getRejected = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Verifica acesso
+    if (req.user.role !== 'admin' && !await Device.userHasAccess(id, req.user.id)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Acesso negado a este dispositivo'
+      });
+    }
+
+    const data = MqttService.getRejected(parseInt(id));
+
+    res.json({
+      success: true,
+      count: data.length,
+      data
+    });
+  } catch (error) {
+    console.error('Erro ao buscar payloads rejeitados:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro interno do servidor'
+    });
+  }
+};
+
+/**
  * Busca excedências (valores fora dos thresholds)
  */
-const getExceedances = (req, res) => {
+const getExceedances = async (req, res) => {
   try {
     const { id } = req.params;
     const { limit = 100, since } = req.query;
 
+    console.log('[Controller] getExceedances chamado:', { id, limit, since, query: req.query });
+
     // Verifica acesso
-    if (req.user.role !== 'admin' && !Device.userHasAccess(id, req.user.id)) {
+    if (req.user.role !== 'admin' && !await Device.userHasAccess(id, req.user.id)) {
       return res.status(403).json({
         success: false,
         message: 'Acesso negado a este dispositivo'
@@ -291,12 +298,14 @@ const getExceedances = (req, res) => {
       }
     });
 
+    console.log('[Controller] Thresholds extraídos:', thresholds);
+
     const options = {
       limit: parseInt(limit),
       since: since || null
     };
 
-    const data = MqttService.getExceedances(parseInt(id), thresholds, options);
+    const data = await MqttService.getExceedances(parseInt(id), thresholds, options);
 
     console.log('[Controller] Dados do service:', data.length, 'registros');
 
@@ -307,13 +316,16 @@ const getExceedances = (req, res) => {
           ...item,
           payload: typeof item.payload === 'string' ? JSON.parse(item.payload) : item.payload
         };
-      } catch {
+      } catch (e) {
+        console.error('[Controller] Erro ao parsear payload:', e);
         return item;
       }
     });
 
     console.log('[Controller] Dados parseados:', parsedData.length, 'registros');
-    console.log('[Controller] Primeiro item:', JSON.stringify(parsedData[0], null, 2));
+    if (parsedData.length > 0) {
+      console.log('[Controller] Primeiro item:', JSON.stringify(parsedData[0], null, 2));
+    }
 
     res.json({
       success: true,
@@ -322,10 +334,12 @@ const getExceedances = (req, res) => {
       thresholds
     });
   } catch (error) {
-    console.error('Erro ao buscar excedências:', error);
+    console.error('[Controller] Erro ao buscar excedências:', error);
+    console.error('[Controller] Stack:', error.stack);
     res.status(500).json({
       success: false,
-      message: 'Erro interno do servidor'
+      message: error.message || 'Erro interno do servidor',
+      error: process.env.NODE_ENV === 'development' ? error.toString() : undefined
     });
   }
 };
@@ -337,5 +351,6 @@ module.exports = {
   getData,
   getLatest,
   connectAll,
-  getExceedances
+  getExceedances,
+  getRejected
 };

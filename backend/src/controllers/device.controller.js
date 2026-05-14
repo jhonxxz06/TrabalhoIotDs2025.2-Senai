@@ -1,17 +1,26 @@
 const Device = require('../models/Device');
+const User = require('../models/User');
 const MqttService = require('../services/mqtt.service');
+
+const SUPERADMIN_EMAIL = 'admin@teste.com';
+
+/**
+ * Verifica se o usuário é o superadmin global
+ */
+const isSuperAdmin = (user) => user.email === SUPERADMIN_EMAIL;
 
 /**
  * Lista dispositivos públicos (para tela de cadastro - sem autenticação)
  * Retorna apenas id e nome
  */
-const getPublicList = (req, res) => {
+const getPublicList = async (req, res) => {
   try {
-    const devices = Device.findAll();
-    
+    const devices = await Device.findAll();
+
     res.json({
       success: true,
-      devices: devices.map(d => ({
+      message: 'Dispositivos públicos listados com sucesso',
+      data: devices.map(d => ({
         id: d.id,
         name: d.name
       }))
@@ -26,21 +35,36 @@ const getPublicList = (req, res) => {
 };
 
 /**
- * Lista todos os dispositivos (admin) ou só os do usuário
+ * Lista todos os dispositivos:
+ * - Superadmin (admin@teste.com): vê todos
+ * - Admin de domínio: vê apenas os do seu domínio
+ * - Usuário comum: vê apenas os que tem acesso via device_users
  */
-const getAll = (req, res) => {
+const getAll = async (req, res) => {
   try {
     let devices;
-    
+
     if (req.user.role === 'admin') {
-      devices = Device.findAll();
+      if (isSuperAdmin(req.user)) {
+        // Superadmin vê tudo
+        devices = await Device.findAll();
+      } else {
+        // Admin de domínio: busca o usuário para pegar domain_id
+        const dbUser = await User.findById(req.user.id);
+        if (dbUser?.domain_id) {
+          devices = await Device.findByDomainId(dbUser.domain_id);
+        } else {
+          devices = await Device.findAll();
+        }
+      }
     } else {
-      devices = Device.findByUserId(req.user.id);
+      devices = await Device.findByUserId(req.user.id);
     }
 
     res.json({
       success: true,
-      devices: devices.map(Device.toPublic)
+      message: 'Dispositivos listados com sucesso',
+      data: devices.map(Device.toPublic)
     });
   } catch (error) {
     console.error('Erro ao listar dispositivos:', error);
@@ -54,10 +78,10 @@ const getAll = (req, res) => {
 /**
  * Busca um dispositivo por ID
  */
-const getById = (req, res) => {
+const getById = async (req, res) => {
   try {
     const { id } = req.params;
-    const device = Device.findById(id);
+    const device = await Device.findById(id);
 
     if (!device) {
       return res.status(404).json({
@@ -78,7 +102,7 @@ const getById = (req, res) => {
     
     // Admin pode ver usuários atribuídos
     if (req.user.role === 'admin') {
-      devicePublic.assignedUsers = Device.getAssignedUsers(id);
+      devicePublic.assignedUsers = await Device.getAssignedUsers(id);
     }
 
     res.json({
@@ -96,18 +120,28 @@ const getById = (req, res) => {
 
 /**
  * Cria um novo dispositivo (apenas admin)
+ * O device herda automaticamente o domain_id do admin que o criou.
+ * Superadmin pode criar sem domínio.
  */
-const create = (req, res) => {
+const create = async (req, res) => {
   try {
     const { name, mqttBroker, mqttPort, mqttTopic, mqttUsername, mqttPassword, assignedUsers } = req.body;
 
-    const device = Device.create({
+    // Recupera o domínio do admin criador
+    let domain_id = null;
+    if (!isSuperAdmin(req.user)) {
+      const dbUser = await User.findById(req.user.id);
+      domain_id = dbUser?.domain_id ?? null;
+    }
+
+    const device = await Device.create({
       name,
       mqttBroker,
       mqttPort,
       mqttTopic,
       mqttUsername,
-      mqttPassword
+      mqttPassword,
+      domain_id
     });
 
     if (!device) {
@@ -152,10 +186,10 @@ const create = (req, res) => {
 /**
  * Atualiza um dispositivo (apenas admin)
  */
-const update = (req, res) => {
+const update = async (req, res) => {
   try {
     const { id } = req.params;
-    const device = Device.findById(id);
+    const device = await Device.findById(id);
 
     if (!device) {
       return res.status(404).json({
@@ -166,7 +200,7 @@ const update = (req, res) => {
 
     const { name, mqttBroker, mqttPort, mqttTopic, mqttUsername, mqttPassword, assignedUsers } = req.body;
 
-    const updatedDevice = Device.update(id, {
+    const updatedDevice = await Device.update(id, {
       name,
       mqttBroker,
       mqttPort,
@@ -175,9 +209,18 @@ const update = (req, res) => {
       mqttPassword
     });
 
-    // Atualiza usuários se informados
+    // Atualiza usuários se informados (MT-03)
     if (assignedUsers !== undefined) {
-      Device.setAssignedUsers(id, assignedUsers);
+      // Calcula diff: apenas usuários recém-adicionados recebem has_access = true
+      const previousUsers = await Device.getAssignedUsers(id);
+      const previousUserIds = previousUsers.map(u => u.id);
+      const newlyAddedIds = assignedUsers.filter(uid => !previousUserIds.includes(uid));
+
+      await Device.setAssignedUsers(id, assignedUsers);
+
+      for (const userId of newlyAddedIds) {
+        await User.updateAccess(userId, true);
+      }
     }
 
     const devicePublic = Device.toPublic(updatedDevice);
@@ -211,10 +254,10 @@ const update = (req, res) => {
 /**
  * Remove um dispositivo (apenas admin)
  */
-const remove = (req, res) => {
+const remove = async (req, res) => {
   try {
     const { id } = req.params;
-    const device = Device.findById(id);
+    const device = await Device.findById(id);
 
     if (!device) {
       return res.status(404).json({
@@ -231,7 +274,7 @@ const remove = (req, res) => {
       console.warn(`⚠️ Erro ao desconectar MQTT:`, error.message);
     }
 
-    Device.delete(id);
+    await Device.delete(id);
 
     res.json({
       success: true,
@@ -249,12 +292,12 @@ const remove = (req, res) => {
 /**
  * Atualiza apenas os usuários atribuídos (apenas admin)
  */
-const updateUsers = (req, res) => {
+const updateUsers = async (req, res) => {
   try {
     const { id } = req.params;
     const { userIds } = req.body;
 
-    const device = Device.findById(id);
+    const device = await Device.findById(id);
 
     if (!device) {
       return res.status(404).json({
@@ -270,7 +313,17 @@ const updateUsers = (req, res) => {
       });
     }
 
-    const assignedUsers = Device.setAssignedUsers(id, userIds);
+    // MT-02: Calcula diff — somente novos usuários recebem has_access = true
+    const previousUsers = await Device.getAssignedUsers(id);
+    const previousUserIds = previousUsers.map(u => u.id);
+    const newlyAddedIds = userIds.filter(uid => !previousUserIds.includes(uid));
+
+    const assignedUsers = await Device.setAssignedUsers(id, userIds);
+
+    // MT-01: Ativa has_access para quem acabou de receber acesso ao device
+    for (const userId of newlyAddedIds) {
+      await User.updateAccess(userId, true);
+    }
 
     res.json({
       success: true,

@@ -2,9 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import './Header.css';
 import logo from '../../assets/logo.png';
 import settingsIcon from '../../assets/settings-icon.png';
+import EditProfileModal from '../EditProfileModal';
 
 const Header = ({ 
-  username, 
+  username,
+  domainName,
   onUserClick, 
   onSettingsClick, 
   onLogoClick, 
@@ -12,10 +14,13 @@ const Header = ({
   onBackToDevices, 
   isOnDevicesPage,
   availableDevices = [],
-  onRequestAccess
+  onRequestAccess,
+  user,
+  onUserSaved
 }) => {
   const [showMenu, setShowMenu] = useState(false);
   const [showRequestModal, setShowRequestModal] = useState(false);
+  const [showEditProfile, setShowEditProfile] = useState(false);
   const [selectedDevices, setSelectedDevices] = useState([]);
   const [requestMessage, setRequestMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -89,13 +94,17 @@ const Header = ({
     <>
       <header className="app-header">
         <div className="header-left">
-          {onBackToDevices && (
+          {onBackToDevices ? (
             <button className="back-button" onClick={onBackToDevices}>
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
                 <path d="M20 11H7.83L13.42 5.41L12 4L4 12L12 20L13.41 18.59L7.83 13H20V11Z" fill="white"/>
               </svg>
               <span>Voltar</span>
             </button>
+          ) : (
+            domainName && (
+              <span className="header-domain-name">{domainName}</span>
+            )
           )}
         </div>
 
@@ -141,6 +150,9 @@ const Header = ({
             
             {showMenu && (
               <div className="user-dropdown">
+                <button onClick={() => { setShowMenu(false); setShowEditProfile(true); }}>
+                  Editar Perfil
+                </button>
                 <button onClick={() => { 
                   setShowMenu(false); 
                   if (onLogout) {
@@ -151,6 +163,15 @@ const Header = ({
                 </button>
               </div>
             )}
+
+            <EditProfileModal
+              isOpen={showEditProfile}
+              onClose={() => setShowEditProfile(false)}
+              user={user}
+              isAdmin={false}
+              onSaved={onUserSaved}
+              onLogout={onLogout}
+            />
           </div>
         </div>
       </header>
