@@ -5,9 +5,13 @@ on:
     branches:
       - main
       - cloud-database
-      
+
+  pull_request:
+    branches:
+      - main
+
   workflow_dispatch:
-  
+
 jobs:
 
   CI-FRONTEND:
@@ -32,7 +36,7 @@ jobs:
       - name: Instalar dependências
         run: npm ci
 
-      - name: Executar build de verificação
+      - name: Build do frontend
         run: npm run build
         env:
           CI: false
@@ -60,8 +64,11 @@ jobs:
       - name: Instalar dependências
         run: npm ci
 
-      - name: Iniciar servidor backend
-        run: node src/index.js &
+      - name: Subir backend e validar health
+        run: |
+          node src/index.js &
+          sleep 5
+          curl --fail http://localhost:${{ secrets.PORT }}/api/health
         env:
           PORT: ${{ secrets.PORT }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
@@ -69,14 +76,6 @@ jobs:
           FRONTEND_ORIGIN: ${{ secrets.FRONTEND_ORIGIN }}
           JWT_EXPIRES_IN: ${{ secrets.JWT_EXPIRES_IN }}
           MQTT_BROKER: ${{ secrets.MQTT_BROKER }}
-
-      - name: Aguardar inicialização do servidor
-        run: sleep 5
-
-      - name: Verificar funcionamento da API
-        run: curl --fail --max-time 10 http://localhost:${{ secrets.PORT }}/api/health
-        env:
-          PORT: ${{ secrets.PORT }}
 
   CI-STATUS:
     name: CI - Status Final
@@ -86,5 +85,5 @@ jobs:
       - CI-BACKEND
 
     steps:
-      - name: Confirmar conclusão da CI
-        run: echo "Pipeline de CI concluída com sucesso!"
+      - name: OK
+        run: echo "CI aprovada com sucesso"
