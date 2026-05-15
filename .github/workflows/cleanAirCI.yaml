@@ -3,7 +3,6 @@ name: CI Clean Air
 on:
   push:
     branches:
-      - main
       - cloud-database
 
   pull_request:
