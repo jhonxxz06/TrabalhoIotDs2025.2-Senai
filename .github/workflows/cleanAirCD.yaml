@@ -1,53 +1,15 @@
 name: CD Clean Air
 
 on:
-  workflow_run:
-    workflows:
-      - CI Clean Air
-    types:
-      - completed
+  push:
+    branches:
+      - main
 
 jobs:
-
   DEPLOY:
-    name: Deploy da Aplicação
-    
-    if: |
-      github.event_name == 'workflow_dispatch' ||
-      (
-        github.event.workflow_run.conclusion == 'success' &&
-        github.event.workflow_run.head_branch == 'main'
-      )
-    
+    name: Deploy Backend (Render)
     runs-on: ubuntu-latest
 
-    env:
-      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-      
-    defaults:
-      run:
-        working-directory: ./frontend/teste-mcp
-        
     steps:
-      - name: Checkout do código
-        uses: actions/checkout@v4
-
-      # FRONTEND - VERCEL
-
-      - name: Instalar Vercel CLI
-        run: npm install -g vercel
-
-      - name: Baixar configurações da Vercel
-        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
-
-      - name: Build do projeto
-        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
-      
-      - name: Deploy para produção
-        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
-
-      # BACKEND - RENDER
-
-      - name: Realizar deploy do backend
+      - name: Deploy no Render
         run: curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK }}
