@@ -98,10 +98,29 @@ export const auth = {
     return handleResponse(response);
   },
 
-  async leaveDomain() {
+  async leaveDomain(transferToUserId = null) {
     const response = await fetch(`${API_URL}/auth/leave-domain`, {
       method: 'PUT',
-      headers: headers()
+      headers: headers(),
+      body: JSON.stringify(transferToUserId ? { transferToUserId } : {})
+    });
+    return handleResponse(response);
+  },
+
+  async joinDomain(domainCode, requestedDevices = []) {
+    const response = await fetch(`${API_URL}/auth/join-domain`, {
+      method: 'PUT',
+      headers: headers(),
+      body: JSON.stringify({ domainCode, requestedDevices })
+    });
+    return handleResponse(response);
+  },
+
+  async createDomain(domainName, domainCode) {
+    const response = await fetch(`${API_URL}/auth/create-domain`, {
+      method: 'PUT',
+      headers: headers(),
+      body: JSON.stringify({ domainName, domainCode })
     });
     return handleResponse(response);
   },
@@ -132,6 +151,23 @@ export const users = {
       method: 'PUT',
       headers: headers(),
       body: JSON.stringify({ hasAccess })
+    });
+    return handleResponse(response);
+  },
+
+  async updateRole(userId, role) {
+    const response = await fetch(`${API_URL}/users/${userId}/role`, {
+      method: 'PUT',
+      headers: headers(),
+      body: JSON.stringify({ role })
+    });
+    return handleResponse(response);
+  },
+
+  async removeFromDomain(userId) {
+    const response = await fetch(`${API_URL}/users/${userId}/remove-from-domain`, {
+      method: 'PUT',
+      headers: headers()
     });
     return handleResponse(response);
   }

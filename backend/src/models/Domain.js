@@ -6,12 +6,13 @@ const Domain = {
    * @param {string} name  - Nome do domínio
    * @param {string} code  - Código único do domínio
    * @param {number} adminId - ID do usuário que será admin
+   * @param {number} maxUsers - Limite de usuários do domínio
    * @returns {Promise<Object>} Domínio criado
    */
-  async create(name, code, adminId) {
+  async create(name, code, adminId, maxUsers = 10) {
     await run(
-      `INSERT INTO domains (name, code, admin_id) VALUES ($1, $2, $3)`,
-      [name, code, adminId]
+      `INSERT INTO domains (name, code, admin_id, max_users) VALUES ($1, $2, $3, $4)`,
+      [name, code, adminId, maxUsers]
     );
     return await this.findByCode(code);
   },
@@ -84,6 +85,31 @@ const Domain = {
   },
 
   /**
+   * Conta quantos usuários pertencem a um domínio
+   * @param {number} domainId
+   * @returns {Promise<number>}
+   */
+  async countUsers(domainId) {
+    const result = await queryOne(
+      'SELECT COUNT(*)::int AS count FROM users WHERE domain_id = $1',
+      [domainId]
+    );
+    return result ? result.count : 0;
+  },
+
+  /**
+   * Lista os administradores de um domínio
+   * @param {number} domainId
+   * @returns {Promise<Array>}
+   */
+  async getAdmins(domainId) {
+    return await query(
+      `SELECT id, username, email FROM users WHERE domain_id = $1 AND role = 'admin'`,
+      [domainId]
+    );
+  },
+
+  /**
    * Remove um domínio
    * @param {number} id
    * @returns {Promise<boolean>}
@@ -105,6 +131,7 @@ const Domain = {
       name: domain.name,
       code: domain.code,
       adminId: domain.admin_id,
+      maxUsers: domain.max_users,
       createdAt: domain.created_at
     };
   }

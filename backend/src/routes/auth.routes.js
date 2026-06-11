@@ -2,7 +2,13 @@ const express = require('express');
 const router = express.Router();
 const authController = require('../controllers/auth.controller');
 const { validate } = require('../middleware/validate.middleware');
-const { loginSchema, registerSchema } = require('../schemas/auth.schema');
+const {
+  loginSchema,
+  registerSchema,
+  joinDomainSchema,
+  createDomainSchema,
+  leaveDomainSchema
+} = require('../schemas/auth.schema');
 const { authenticate } = require('../middleware/auth.middleware');
 
 // Rotas públicas
@@ -13,6 +19,8 @@ router.post('/login', validate(loginSchema), authController.login);
 router.get('/me', authenticate, authController.me);
 router.put('/profile', authenticate, authController.updateProfile);
 router.delete('/account', authenticate, authController.deleteAccount);
-router.put('/leave-domain', authenticate, authController.leaveDomain);
+router.put('/leave-domain', authenticate, validate(leaveDomainSchema), authController.leaveDomain);
+router.put('/join-domain', authenticate, validate(joinDomainSchema), authController.joinDomain);
+router.put('/create-domain', authenticate, validate(createDomainSchema), authController.createDomain);
 
 module.exports = router;

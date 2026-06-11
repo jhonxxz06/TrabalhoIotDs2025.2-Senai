@@ -2,10 +2,12 @@ import React, { useState, useEffect, useCallback } from 'react';
 import LoginPage from './components/LoginPage';
 import RegisterPage from './components/RegisterPage';
 import WaitingAccess from './components/WaitingAccess';
+import NoDomainPage from './components/NoDomainPage';
 import DevicesPage from './components/DevicesPage';
 import DashboardPage from './components/DashboardPage';
 import AdminDevicesPage from './components/AdminDevicesPage';
 import AdminDashboardPage from './components/AdminDashboardPage';
+import MembersPage from './components/MembersPage';
 import { ToastProvider, useToast } from './components/ToastContext';
 import api from './services/api';
 import { getSocket, closeSocket } from './services/socket';
@@ -15,10 +17,12 @@ const PAGES = {
   LOGIN: 'login',
   REGISTER: 'register',
   WAITING: 'waiting',
+  NO_DOMAIN: 'no_domain',
   DEVICES: 'devices',
   DASHBOARD: 'dashboard',
   ADMIN_DEVICES: 'admin_devices',
-  ADMIN_DASHBOARD: 'admin_dashboard'
+  ADMIN_DASHBOARD: 'admin_dashboard',
+  ADMIN_MEMBERS: 'admin_members'
 };
 
 function App() {
@@ -40,6 +44,10 @@ function AppContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Estatísticas de usuários do domínio (ex.: 3/12)
+  const [domainUserCount, setDomainUserCount] = useState(null);
+  const [domainUserLimit, setDomainUserLimit] = useState(null);
+
   // Dispositivos carregados da API
   const [devices, setDevices] = useState([]);
 
@@ -55,6 +63,42 @@ function AppContent() {
   // Dispositivos públicos (para solicitar acesso)
   const [publicDevices, setPublicDevices] = useState([]);
 
+  // Aplica os dados do usuário retornados pela API ao estado local e
+  // determina para qual página o usuário deve ser direcionado.
+  const applyUserData = useCallback((userData) => {
+    setUser({
+      id: userData.id,
+      username: userData.username,
+      email: userData.email,
+      domainId: userData.domainId ?? null
+    });
+    setDomainName(userData.domainName || null);
+    setHasAccess(userData.hasAccess);
+    setIsAdmin(userData.role === 'admin');
+    setDomainUserCount(userData.domainUserCount ?? null);
+    setDomainUserLimit(userData.domainUserLimit ?? null);
+
+    if (userData.domainId === null && userData.role !== 'admin') {
+      return PAGES.NO_DOMAIN;
+    }
+    if (userData.role === 'admin') {
+      return PAGES.ADMIN_DEVICES;
+    }
+    if (userData.hasAccess) {
+      return PAGES.DEVICES;
+    }
+    return PAGES.WAITING;
+  }, []);
+
+  // Recarrega os dados do usuário logado e atualiza a navegação
+  const refreshSession = useCallback(async () => {
+    const response = await api.auth.me();
+    const userData = response.data.user;
+    const nextPage = applyUserData(userData);
+    setCurrentPage(nextPage);
+    return userData;
+  }, [applyUserData]);
+
   // Verificar se há token salvo ao carregar
   useEffect(() => {
     const checkAuth = async () => {
@@ -62,24 +106,8 @@ function AppContent() {
         try {
           const response = await api.auth.me();
           const userData = response.data.user;
-          
-          setUser({ 
-            id: userData.id,
-            username: userData.username, 
-            email: userData.email 
-          });
-          setDomainName(userData.domainName || null);
-          setHasAccess(userData.hasAccess);
-          setIsAdmin(userData.role === 'admin');
-          
-          // Navegar para página correta
-          if (userData.role === 'admin') {
-            setCurrentPage(PAGES.ADMIN_DEVICES);
-          } else if (userData.hasAccess) {
-            setCurrentPage(PAGES.DEVICES);
-          } else {
-            setCurrentPage(PAGES.WAITING);
-          }
+          const nextPage = applyUserData(userData);
+          setCurrentPage(nextPage);
           // Inicializar socket após autenticação
           try { getSocket(); } catch (e) { console.warn('Erro ao inicializar socket:', e); }
         } catch (err) {
@@ -91,7 +119,7 @@ function AppContent() {
     };
 
     checkAuth();
-  }, []);
+  }, [applyUserData]);
 
   // Carregar dispositivos quando usuário tiver acesso
   const loadDevices = useCallback(async () => {
@@ -189,26 +217,12 @@ function AppContent() {
     try {
       const response = await api.auth.login(credentials.email, credentials.password, credentials.domainCode || '');
       const userData = response.data.user;
-      
-      setUser({ 
-        id: userData.id,
-        username: userData.username, 
-        email: userData.email 
-      });
-      setDomainName(userData.domainName || null);
-      setHasAccess(userData.hasAccess);
-      setIsAdmin(userData.role === 'admin');
-      
+      const nextPage = applyUserData(userData);
+
       // Mostrar toast de sucesso
       toast.success('Login realizado com sucesso!');
-      
-      if (userData.role === 'admin') {
-        setCurrentPage(PAGES.ADMIN_DEVICES);
-      } else if (userData.hasAccess) {
-        setCurrentPage(PAGES.DEVICES);
-      } else {
-        setCurrentPage(PAGES.WAITING);
-      }
+
+      setCurrentPage(nextPage);
       // Inicializar socket após login
       try { getSocket(); } catch (e) { console.warn('Erro ao inicializar socket:', e); }
     } catch (err) {
@@ -294,12 +308,31 @@ function AppContent() {
     setDomainName(null);
     setHasAccess(false);
     setIsAdmin(false);
+    setDomainUserCount(null);
+    setDomainUserLimit(null);
     setSelectedDevice(null);
     setDevices([]);
     setWidgets([]);
     setNotifications([]);
     setCurrentPage(PAGES.LOGIN);
     console.log('Logout concluído, página:', PAGES.LOGIN);
+  };
+
+  // Navegação para a página de membros do domínio (admin)
+  const handleNavigateToMembers = () => {
+    setCurrentPage(PAGES.ADMIN_MEMBERS);
+  };
+
+  // Usuário órfão solicita acesso a um domínio existente
+  const handleJoinDomain = async (domainCode, requestedDevices) => {
+    await api.auth.joinDomain(domainCode, requestedDevices);
+    await refreshSession();
+  };
+
+  // Usuário órfão cria seu próprio domínio
+  const handleCreateDomain = async (domainName, domainCode) => {
+    await api.auth.createDomain(domainName, domainCode);
+    await refreshSession();
   };
 
   // Handler chamado após editar perfil com sucesso
@@ -525,7 +558,7 @@ function AppContent() {
 
   // Verificar acesso periodicamente (polling)
   useEffect(() => {
-    if (!user || hasAccess || isAdmin) return;
+    if (!user || hasAccess || isAdmin || currentPage === PAGES.NO_DOMAIN) return;
 
     // Polling para verificar acesso (a cada 10 segundos)
     const checkAccess = async () => {
@@ -556,7 +589,7 @@ function AppContent() {
     return () => {
       clearInterval(interval);
     };
-  }, [user, hasAccess, isAdmin, loadPublicDevices]);
+  }, [user, hasAccess, isAdmin, currentPage, loadPublicDevices]);
 
   // Loading screen
   if (loading) {
@@ -598,18 +631,30 @@ function AppContent() {
       
       case PAGES.WAITING:
         return (
-          <WaitingAccess 
+          <WaitingAccess
             username={user?.username}
             onRequestAccess={handleRequestAccess}
             onLogout={handleLogout}
           />
         );
-      
+
+      case PAGES.NO_DOMAIN:
+        return (
+          <NoDomainPage
+            username={user?.username}
+            onLogout={handleLogout}
+            onJoinDomain={handleJoinDomain}
+            onCreateDomain={handleCreateDomain}
+          />
+        );
+
       case PAGES.DEVICES:
         return (
-          <DevicesPage 
+          <DevicesPage
             username={user?.username}
             domainName={domainName}
+            domainUserCount={domainUserCount}
+            domainUserLimit={domainUserLimit}
             devices={devices}
             onDeviceClick={handleDeviceClick}
             onLogout={handleLogout}
@@ -620,12 +665,14 @@ function AppContent() {
             onUserSaved={handleUserSaved}
           />
         );
-      
+
       case PAGES.DASHBOARD:
         return (
-          <DashboardPage 
+          <DashboardPage
             username={user?.username}
             domainName={domainName}
+            domainUserCount={domainUserCount}
+            domainUserLimit={domainUserLimit}
             deviceName={selectedDevice?.name}
             device={selectedDevice}
             widgets={widgets}
@@ -636,12 +683,14 @@ function AppContent() {
             onUserSaved={handleUserSaved}
           />
         );
-      
+
       case PAGES.ADMIN_DEVICES:
         return (
-          <AdminDevicesPage 
+          <AdminDevicesPage
             username={user?.username}
             domainName={domainName}
+            domainUserCount={domainUserCount}
+            domainUserLimit={domainUserLimit}
             devices={devices}
             setDevices={setDevices}
             onDeviceClick={handleDeviceClick}
@@ -649,6 +698,7 @@ function AppContent() {
             onEditDevice={handleEditDevice}
             onDeleteDevice={handleDeleteDevice}
             onNavigateToDashboard={() => setCurrentPage(PAGES.ADMIN_DASHBOARD)}
+            onNavigateToMembers={handleNavigateToMembers}
             onCreateGraph={() => {
               setSelectedDevice(devices[0] || null);
               setCurrentPage(PAGES.ADMIN_DASHBOARD);
@@ -663,18 +713,21 @@ function AppContent() {
             onUserSaved={handleUserSaved}
           />
         );
-      
+
       case PAGES.ADMIN_DASHBOARD:
         return (
-          <AdminDashboardPage 
+          <AdminDashboardPage
             username={user?.username}
             domainName={domainName}
+            domainUserCount={domainUserCount}
+            domainUserLimit={domainUserLimit}
             deviceName={selectedDevice?.name}
             device={selectedDevice}
             widgets={widgets}
             setWidgets={setWidgets}
             onDownloadExcel={handleDownloadExcel}
             onBackToDevices={handleBackToDevices}
+            onNavigateToMembers={handleNavigateToMembers}
             onLogout={handleLogout}
             onRefreshWidgets={loadWidgets}
             notifications={notifications}
@@ -684,7 +737,22 @@ function AppContent() {
             onUserSaved={handleUserSaved}
           />
         );
-      
+
+      case PAGES.ADMIN_MEMBERS:
+        return (
+          <MembersPage
+            username={user?.username}
+            domainName={domainName}
+            domainUserCount={domainUserCount}
+            domainUserLimit={domainUserLimit}
+            user={user}
+            onUserSaved={handleUserSaved}
+            onLogout={handleLogout}
+            onBackToDevices={() => setCurrentPage(PAGES.ADMIN_DEVICES)}
+            onRefreshSession={refreshSession}
+          />
+        );
+
       default:
         return <LoginPage onLogin={handleLogin} onCreateAccount={handleCreateAccount} />;
     }

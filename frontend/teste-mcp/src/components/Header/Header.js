@@ -4,14 +4,16 @@ import logo from '../../assets/logo.png';
 import settingsIcon from '../../assets/settings-icon.png';
 import EditProfileModal from '../EditProfileModal';
 
-const Header = ({ 
+const Header = ({
   username,
   domainName,
-  onUserClick, 
-  onSettingsClick, 
-  onLogoClick, 
-  onLogout, 
-  onBackToDevices, 
+  domainUserCount,
+  domainUserLimit,
+  onUserClick,
+  onSettingsClick,
+  onLogoClick,
+  onLogout,
+  onBackToDevices,
   isOnDevicesPage,
   availableDevices = [],
   onRequestAccess,
@@ -103,7 +105,12 @@ const Header = ({
             </button>
           ) : (
             domainName && (
-              <span className="header-domain-name">{domainName}</span>
+              <span className="header-domain-name">
+                {domainName}
+                {domainUserLimit != null && (
+                  <span className="header-user-count">{domainUserCount}/{domainUserLimit}</span>
+                )}
+              </span>
             )
           )}
         </div>

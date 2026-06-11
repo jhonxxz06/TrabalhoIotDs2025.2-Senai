@@ -197,6 +197,15 @@
   background: #1D1B20;
 }
 
+/* Helper text below a field */
+.field-helper-text {
+  display: block;
+  margin-top: 6px;
+  font-family: 'Roboto', sans-serif;
+  font-size: 12px;
+  color: #888;
+}
+
 /* Login Button */
 .login-button {
   width: 100%;

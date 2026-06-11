@@ -4,12 +4,14 @@ import Header from '../Header';
 import Footer from '../Footer';
 import waitingImage from '../../assets/waiting-image.png';
 
-const DevicesPage = ({ 
+const DevicesPage = ({
   username,
   domainName,
-  devices = [], 
-  onDeviceClick, 
-  onLogout, 
+  domainUserCount,
+  domainUserLimit,
+  devices = [],
+  onDeviceClick,
+  onLogout,
   onLogoClick,
   availableDevices = [],
   onRequestAccess,
@@ -20,9 +22,11 @@ const DevicesPage = ({
 
   return (
     <div className="devices-container">
-      <Header 
+      <Header
         username={username}
         domainName={domainName}
+        domainUserCount={domainUserCount}
+        domainUserLimit={domainUserLimit}
         onLogout={onLogout}
         onLogoClick={onLogoClick}
         isOnDevicesPage={true}

@@ -137,6 +137,9 @@ const LoginPage = ({ onLogin, onCreateAccount }) => {
               </button>
             </div>
             <div className="active-indicator" />
+            <span className="field-helper-text">
+              Deixe em branco se você não pertence a nenhum domínio.
+            </span>
           </div>
 
           {/* Login Button */}

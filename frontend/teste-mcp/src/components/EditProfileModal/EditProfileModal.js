@@ -29,9 +29,13 @@ const EditProfileModal = ({ isOpen, onClose, user, isAdmin, onSaved, onLogout })
   const [errorMsg, setErrorMsg]           = useState('');
   const [fieldErrors, setFieldErrors]     = useState({});
 
-  // Warning dialog state: null | 'leave' | 'delete'
+  // Warning dialog state: null | 'leave' | 'transfer' | 'delete'
   const [warning, setWarning]             = useState(null);
   const [warningLoading, setWarningLoading] = useState(false);
+
+  // Candidatos para transferência de posse (quando o admin é o único da área)
+  const [transferCandidates, setTransferCandidates] = useState([]);
+  const [selectedTransferUserId, setSelectedTransferUserId] = useState(null);
 
   const panelRef = useRef(null);
 
@@ -45,6 +49,8 @@ const EditProfileModal = ({ isOpen, onClose, user, isAdmin, onSaved, onLogout })
       setErrorMsg('');
       setFieldErrors({});
       setWarning(null);
+      setTransferCandidates([]);
+      setSelectedTransferUserId(null);
     }
   }, [isOpen, user]);
 
@@ -107,7 +113,13 @@ const EditProfileModal = ({ isOpen, onClose, user, isAdmin, onSaved, onLogout })
   const handleLeaveDomainConfirm = async () => {
     setWarningLoading(true);
     try {
-      await api.auth.leaveDomain();
+      const res = await api.auth.leaveDomain();
+      if (res?.requiresTransfer) {
+        setTransferCandidates(res.candidates || []);
+        setSelectedTransferUserId(res.candidates?.[0]?.id ?? null);
+        setWarning('transfer');
+        return;
+      }
       toast.success('Você saiu do domínio com sucesso.');
       setWarning(null);
       onClose();
@@ -115,6 +127,23 @@ const EditProfileModal = ({ isOpen, onClose, user, isAdmin, onSaved, onLogout })
     } catch (err) {
       toast.error(err.message || 'Erro ao sair do domínio');
       setWarning(null);
+    } finally {
+      setWarningLoading(false);
+    }
+  };
+
+  // ── Transfer ownership and leave domain ─────────────────────────────────
+  const handleTransferAndLeave = async () => {
+    if (!selectedTransferUserId) return;
+    setWarningLoading(true);
+    try {
+      await api.auth.leaveDomain(selectedTransferUserId);
+      toast.success('Posse transferida e saída realizada com sucesso.');
+      setWarning(null);
+      onClose();
+      if (onLogout) onLogout();
+    } catch (err) {
+      toast.error(err.message || 'Erro ao transferir posse e sair do domínio');
     } finally {
       setWarningLoading(false);
     }
@@ -260,6 +289,54 @@ const EditProfileModal = ({ isOpen, onClose, user, isAdmin, onSaved, onLogout })
               </button>
               <button className="ep-warn-confirm" onClick={handleLeaveDomainConfirm} disabled={warningLoading}>
                 {warningLoading ? 'Aguarde...' : 'Confirmar Saída'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Warning: Transfer Ownership before leaving ── */}
+      {warning === 'transfer' && (
+        <div className="ep-warning-overlay" onClick={() => !warningLoading && setWarning(null)}>
+          <div className="ep-warning-box" onClick={(e) => e.stopPropagation()}>
+            <div className="ep-warning-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                <line x1="12" y1="9" x2="12" y2="13"/>
+                <line x1="12" y1="17" x2="12.01" y2="17"/>
+              </svg>
+            </div>
+            <h3>Transferir posse do domínio</h3>
+            <p>
+              Você é o único administrador deste domínio. Escolha quem se tornará o novo
+              administrador antes de sair.
+            </p>
+            <div className="ep-transfer-list">
+              {transferCandidates.map((candidate) => (
+                <label key={candidate.id} className="ep-transfer-option">
+                  <input
+                    type="radio"
+                    name="transferToUserId"
+                    value={candidate.id}
+                    checked={selectedTransferUserId === candidate.id}
+                    onChange={() => setSelectedTransferUserId(candidate.id)}
+                  />
+                  <span>
+                    <strong>{candidate.username}</strong> ({candidate.email})
+                  </span>
+                </label>
+              ))}
+            </div>
+            <div className="ep-warning-actions">
+              <button className="ep-warn-cancel" onClick={() => setWarning(null)} disabled={warningLoading}>
+                Cancelar
+              </button>
+              <button
+                className="ep-warn-confirm"
+                onClick={handleTransferAndLeave}
+                disabled={warningLoading || !selectedTransferUserId}
+              >
+                {warningLoading ? 'Aguarde...' : 'Confirmar transferência e sair'}
               </button>
             </div>
           </div>

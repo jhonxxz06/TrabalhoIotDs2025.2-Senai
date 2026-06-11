@@ -1,0 +1,253 @@
+/* ========================================
+   Members Page Styles
+   ======================================== */
+
+.members-page-container {
+  min-height: 100vh;
+  background: #FFFFFF;
+  display: flex;
+  flex-direction: column;
+}
+
+.members-content {
+  flex: 1;
+  padding: 100px 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.members-title {
+  font-family: 'Roboto', sans-serif;
+  font-weight: 500;
+  font-size: 28px;
+  color: #1D1B20;
+  margin-bottom: 30px;
+  text-align: center;
+}
+
+.members-loading,
+.members-empty {
+  font-family: 'Roboto', sans-serif;
+  font-size: 16px;
+  color: #49454F;
+}
+
+.members-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 800px;
+  width: 100%;
+}
+
+.member-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  background: rgba(168, 212, 239, 0.31);
+  border-radius: 12px;
+  padding: 20px 24px;
+}
+
+.member-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 180px;
+}
+
+.member-name {
+  font-family: 'Roboto', sans-serif;
+  font-weight: 500;
+  font-size: 18px;
+  color: #1D1B20;
+}
+
+.member-email {
+  font-family: 'Roboto', sans-serif;
+  font-size: 14px;
+  color: #49454F;
+}
+
+.member-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.member-role-badge {
+  font-family: 'Roboto', sans-serif;
+  font-weight: 500;
+  font-size: 13px;
+  padding: 6px 14px;
+  border-radius: 20px;
+}
+
+.role-admin {
+  background: #84B6F4;
+  color: white;
+}
+
+.role-user {
+  background: #E0E0E0;
+  color: #1D1B20;
+}
+
+.member-access-badge {
+  font-family: 'Roboto', sans-serif;
+  font-weight: 500;
+  font-size: 13px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  background: #FFE0B2;
+  color: #E65100;
+}
+
+.member-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.member-btn {
+  padding: 10px 18px;
+  border-radius: 8px;
+  border: none;
+  font-family: 'Roboto', sans-serif;
+  font-weight: 500;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.role-btn {
+  background: linear-gradient(135deg, #84B6F4 0%, #A8D4EF 100%);
+  color: white;
+}
+
+.role-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(132, 182, 244, 0.4);
+}
+
+.remove-btn {
+  background: #FBE9E7;
+  color: #d32f2f;
+}
+
+.remove-btn:hover {
+  background: #d32f2f;
+  color: white;
+}
+
+@media (max-width: 768px) {
+  .members-content {
+    padding: 80px 20px;
+  }
+
+  .member-card {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+/* ========================================
+   Confirmation Modal
+   ======================================== */
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modal-content {
+  background: white;
+  border-radius: 16px;
+  padding: 30px;
+  max-width: 400px;
+  width: 90%;
+  text-align: center;
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.modal-content h3 {
+  font-family: 'Roboto', sans-serif;
+  font-size: 22px;
+  color: #1D1B20;
+  margin-bottom: 16px;
+}
+
+.modal-content p {
+  font-family: 'Roboto', sans-serif;
+  font-size: 16px;
+  color: #49454F;
+  margin-bottom: 12px;
+}
+
+.modal-warning {
+  color: #d32f2f !important;
+  font-size: 14px !important;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  margin-top: 24px;
+}
+
+.modal-btn {
+  padding: 12px 28px;
+  border-radius: 8px;
+  font-family: 'Roboto', sans-serif;
+  font-weight: 500;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+}
+
+.cancel-btn {
+  background: #E0E0E0;
+  color: #1D1B20;
+}
+
+.cancel-btn:hover {
+  background: #BDBDBD;
+}
+
+.confirm-btn {
+  background: #d32f2f;
+  color: white;
+}
+
+.confirm-btn:hover {
+  background: #b71c1c;
+}

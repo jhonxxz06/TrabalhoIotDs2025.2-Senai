@@ -7,13 +7,16 @@ import waitingImage from '../../assets/waiting-image.png';
 import { devices as devicesApi, domains as domainsApi } from '../../services/api';
 import logger from '../../utils/logger';
 
-const AdminDevicesPage = ({ 
+const AdminDevicesPage = ({
   username,
   domainName,
-  devices = [], 
+  domainUserCount,
+  domainUserLimit,
+  devices = [],
   setDevices,
   onDeviceClick,
   onNavigateToDashboard,
+  onNavigateToMembers,
   onCreateGraph,
   onLogout,
   notifications = [],
@@ -118,12 +121,15 @@ const AdminDevicesPage = ({
 
   return (
     <div className="admin-devices-container">
-      <AdminHeader 
+      <AdminHeader
         username={username}
         domainName={domainName}
+        domainUserCount={domainUserCount}
+        domainUserLimit={domainUserLimit}
         onLogout={onLogout}
         onAddDevice={handleAddDevice}
         onBackToDevices={onNavigateToDashboard}
+        onNavigateToMembers={onNavigateToMembers}
         onCreateGraph={onCreateGraph}
         isOnDevicesPage={true}
         isOnDashboard={false}
