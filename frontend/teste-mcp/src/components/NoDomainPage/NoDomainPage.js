@@ -93,7 +93,10 @@ const NoDomainPage = ({ username, onLogout, onJoinDomain, onCreateDomain }) => {
   return (
     <div className="no-domain-container">
       <header className="no-domain-header">
-        <img src={logo} alt="Logo" className="no-domain-logo" />
+        <div className="no-domain-header-left" />
+        <div className="no-domain-header-center">
+          <img src={logo} alt="Logo" className="no-domain-logo" />
+        </div>
         <div className="no-domain-header-right">
           <span className="no-domain-username">{username || '{username}'}</span>
           <button className="no-domain-logout-btn" onClick={onLogout}>Sair</button>

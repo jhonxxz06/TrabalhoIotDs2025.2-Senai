@@ -202,8 +202,9 @@
   display: block;
   margin-top: 6px;
   font-family: 'Roboto', sans-serif;
-  font-size: 12px;
-  color: #888;
+  font-size: 13px;
+  font-weight: 500;
+  color: #5f6368;
 }
 
 /* Login Button */
