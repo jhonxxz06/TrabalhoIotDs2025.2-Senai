@@ -4,8 +4,6 @@ const Domain = require('../models/Domain');
 const AccessRequest = require('../models/AccessRequest');
 const { generateToken } = require('../services/token.service');
 
-const SUPERADMIN_EMAIL = 'admin@teste.com';
-
 /**
  * Monta os dados públicos do usuário, incluindo estatísticas do domínio
  * (contagem de usuários e limite do plano), quando aplicável.
@@ -158,8 +156,11 @@ const authController = {
    * POST /api/auth/login
    * Autentica o usuário.
    *
-   * - admin@teste.com (superadmin): ignora domainCode, acesso total
-   * - Demais: valida que domainCode corresponde ao domain_id do usuário
+   * Usuários vinculados a um domínio (domain_id != null) devem informar
+   * domainCode, que precisa corresponder ao seu domain_id. Usuários órfãos
+   * (sem domínio) podem logar sem domainCode, para então ingressar ou criar
+   * um domínio. O sistema é estritamente multi-tenant: não há usuários com
+   * privilégios especiais baseados em e-mail.
    */
   async login(req, res) {
     try {
@@ -177,9 +178,8 @@ const authController = {
         return res.status(401).json({ success: false, error: 'E-mail ou senha inválidos' });
       }
 
-      // Validação de domínio (ignorada para o superadmin e para usuários sem domínio)
-      const isSuperAdmin = email.toLowerCase() === SUPERADMIN_EMAIL;
-      if (!isSuperAdmin && user.domain_id !== null) {
+      // Validação de domínio (obrigatória para usuários vinculados a um domínio)
+      if (user.domain_id !== null) {
         if (!domainCode) {
           return res.status(400).json({ success: false, error: 'Código do domínio é obrigatório' });
         }

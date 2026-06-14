@@ -4,6 +4,8 @@ const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
 const helmet = require('helmet');
+const swaggerUi = require('swagger-ui-express');
+const { swaggerSpec } = require('./config/swagger');
 const { initDatabase } = require('./config/database');
 
 const app = express();
@@ -38,6 +40,13 @@ const io = new Server(server, {
     credentials: true
   }
 });
+
+// Documentação Swagger UI — montada antes do helmet para evitar conflito de CSP
+// (Swagger UI utiliza scripts e estilos inline que seriam bloqueados pelo header CSP padrão)
+app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+  customSiteTitle: 'CleanAir API Docs',
+  swaggerOptions: { persistAuthorization: true }
+}));
 
 // Middlewares de segurança e parsing
 app.use(helmet({
@@ -117,6 +126,7 @@ initDatabase()
       const originsDisplay = FRONTEND_ORIGINS.length ? FRONTEND_ORIGINS.join(',') : 'any';
       console.log(`🔌 WebSocket pronto na porta ${PORT} (CORS origins: ${originsDisplay})`);
       console.log(`📡 Health check: http://localhost:${PORT}/api/health`);
+      console.log(`📖 Documentação: http://localhost:${PORT}/api/docs`);
       
       // Inicializa conexões MQTT após servidor estar pronto
       const { initMqttConnections } = require('./config/mqtt');

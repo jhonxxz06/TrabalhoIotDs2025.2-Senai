@@ -2,13 +2,6 @@ const Device = require('../models/Device');
 const User = require('../models/User');
 const MqttService = require('../services/mqtt.service');
 
-const SUPERADMIN_EMAIL = 'admin@teste.com';
-
-/**
- * Verifica se o usuário é o superadmin global
- */
-const isSuperAdmin = (user) => user.email === SUPERADMIN_EMAIL;
-
 /**
  * Lista dispositivos públicos (para tela de cadastro - sem autenticação)
  * Retorna apenas id e nome
@@ -36,7 +29,6 @@ const getPublicList = async (req, res) => {
 
 /**
  * Lista todos os dispositivos:
- * - Superadmin (admin@teste.com): vê todos
  * - Admin de domínio: vê apenas os do seu domínio
  * - Usuário comum: vê apenas os que tem acesso via device_users
  */
@@ -45,17 +37,14 @@ const getAll = async (req, res) => {
     let devices;
 
     if (req.user.role === 'admin') {
-      if (isSuperAdmin(req.user)) {
-        // Superadmin vê tudo
-        devices = await Device.findAll();
+      // Admin de domínio: busca o usuário para pegar domain_id
+      const dbUser = await User.findById(req.user.id);
+      if (dbUser?.domain_id) {
+        devices = await Device.findByDomainId(dbUser.domain_id);
       } else {
-        // Admin de domínio: busca o usuário para pegar domain_id
-        const dbUser = await User.findById(req.user.id);
-        if (dbUser?.domain_id) {
-          devices = await Device.findByDomainId(dbUser.domain_id);
-        } else {
-          devices = await Device.findAll();
-        }
+        // Admin sem domínio associado: nenhum dispositivo é retornado
+        // (evita acesso global a dados de outros domínios)
+        devices = [];
       }
     } else {
       devices = await Device.findByUserId(req.user.id);
@@ -121,18 +110,14 @@ const getById = async (req, res) => {
 /**
  * Cria um novo dispositivo (apenas admin)
  * O device herda automaticamente o domain_id do admin que o criou.
- * Superadmin pode criar sem domínio.
  */
 const create = async (req, res) => {
   try {
     const { name, mqttBroker, mqttPort, mqttTopic, mqttUsername, mqttPassword, assignedUsers } = req.body;
 
     // Recupera o domínio do admin criador
-    let domain_id = null;
-    if (!isSuperAdmin(req.user)) {
-      const dbUser = await User.findById(req.user.id);
-      domain_id = dbUser?.domain_id ?? null;
-    }
+    const dbUser = await User.findById(req.user.id);
+    const domain_id = dbUser?.domain_id ?? null;
 
     const device = await Device.create({
       name,

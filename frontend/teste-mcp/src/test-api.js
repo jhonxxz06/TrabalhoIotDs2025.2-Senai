@@ -48,7 +48,8 @@ async function testLogin() {
     console.log('\n3️⃣ Testing User Login...');
     const loginData = {
       email: 'admin@teste.com',
-      password: 'admin123'
+      password: 'admin123',
+      domainCode: 'SenaiLauro123'
     };
     
     const response = await api.post('/api/auth/login', loginData);
