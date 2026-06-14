@@ -1,4 +1,5 @@
 const Domain = require('../models/Domain');
+const User = require('../models/User');
 
 const domainController = {
   /**
@@ -47,14 +48,20 @@ const domainController = {
 
   /**
    * GET /api/domains
-   * Rota PRIVADA (admin) — lista todos os domínios
+   * Rota PRIVADA — retorna apenas o domínio ao qual o usuário autenticado pertence
    */
   async getAll(req, res) {
     try {
-      const domains = await Domain.findAll();
+      const callingUser = await User.findById(req.user.id);
+
+      if (!callingUser?.domain_id) {
+        return res.status(200).json({ success: true, data: [] });
+      }
+
+      const domain = await Domain.findById(callingUser.domain_id);
       return res.status(200).json({
         success: true,
-        data: domains.map(Domain.toPublic)
+        data: domain ? [Domain.toPublic(domain)] : []
       });
     } catch (error) {
       console.error('Erro ao listar domínios:', error);
@@ -67,7 +74,7 @@ const domainController = {
 
   /**
    * GET /api/domains/:id/devices
-   * Rota PRIVADA — lista devices de um domínio
+   * Rota PRIVADA — lista devices de um domínio (apenas o próprio domínio do usuário)
    */
   async getDevices(req, res) {
     try {
@@ -76,6 +83,11 @@ const domainController = {
 
       if (!domain) {
         return res.status(404).json({ success: false, error: 'Domínio não encontrado' });
+      }
+
+      const callingUser = await User.findById(req.user.id);
+      if (callingUser?.domain_id !== domain.id) {
+        return res.status(403).json({ success: false, error: 'Acesso negado a este domínio' });
       }
 
       const devices = await Domain.getDevices(domain.id);
@@ -88,7 +100,7 @@ const domainController = {
 
   /**
    * GET /api/domains/:id/users
-   * Rota PRIVADA (admin) — lista usuários pertencentes a um domínio específico.
+   * Rota PRIVADA — lista usuários pertencentes a um domínio (apenas o próprio domínio do usuário).
    * Usado para popular a seção "Usuários com Acesso" no modal de edição de dispositivo.
    */
   async getUsers(req, res) {
@@ -98,6 +110,11 @@ const domainController = {
 
       if (!domain) {
         return res.status(404).json({ success: false, error: 'Domínio não encontrado' });
+      }
+
+      const callingUser = await User.findById(req.user.id);
+      if (callingUser?.domain_id !== domain.id) {
+        return res.status(403).json({ success: false, error: 'Acesso negado a este domínio' });
       }
 
       const users = await Domain.getUsers(domain.id);

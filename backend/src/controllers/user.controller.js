@@ -4,12 +4,15 @@ const Domain = require('../models/Domain');
 const userController = {
   /**
    * GET /api/users
-   * Lista todos os usuários (admin only)
+   * Lista os usuários do mesmo domínio do admin autenticado
    */
   async getAll(req, res) {
     try {
-      const users = await User.findAll();
-      
+      const callingUser = await User.findById(req.user.id);
+      const users = callingUser?.domain_id
+        ? await User.findByDomainId(callingUser.domain_id)
+        : [];
+
       return res.status(200).json({
         success: true,
         data: {

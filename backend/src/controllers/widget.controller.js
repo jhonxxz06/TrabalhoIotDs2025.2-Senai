@@ -1,15 +1,19 @@
 const Widget = require('../models/Widget');
 const Device = require('../models/Device');
+const User = require('../models/User');
 
 /**
- * Lista widgets (admin: todos, user: apenas dos seus dispositivos)
+ * Lista widgets (admin: apenas do seu domínio, user: apenas dos seus dispositivos)
  */
 const getAll = async (req, res) => {
   try {
     let widgets;
-    
+
     if (req.user.role === 'admin') {
-      widgets = await Widget.findAll();
+      const dbUser = await User.findById(req.user.id);
+      widgets = dbUser?.domain_id
+        ? await Widget.findByDomainId(dbUser.domain_id)
+        : [];
     } else {
       widgets = await Widget.findByUserId(req.user.id);
     }
