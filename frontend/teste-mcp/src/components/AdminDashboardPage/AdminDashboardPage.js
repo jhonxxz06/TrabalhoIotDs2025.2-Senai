@@ -342,12 +342,15 @@ const DynamicWidgetCard = ({ widget, deviceId, position, dragging, onMouseDown, 
 const AdminDashboardPage = ({
   username,
   domainName,
+  domainUserCount,
+  domainUserLimit,
   deviceName = 'Nome do dispositivo',
   device,
   widgets = [],
   setWidgets,
   onDownloadExcel,
   onBackToDevices,
+  onNavigateToMembers,
   onAddDevice,
   onLogout,
   onRefreshWidgets,
@@ -555,9 +558,12 @@ const AdminDashboardPage = ({
       <AdminHeader
         username={username}
         domainName={domainName}
+        domainUserCount={domainUserCount}
+        domainUserLimit={domainUserLimit}
         onLogout={onLogout}
         onAddDevice={onAddDevice}
         onBackToDevices={onBackToDevices}
+        onNavigateToMembers={onNavigateToMembers}
         onCreateGraph={handleCreateGraph}
         isOnDevicesPage={false}
         isOnDashboard={true}

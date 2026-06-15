@@ -3,7 +3,7 @@ const User = require('../models/User');
 const Device = require('../models/Device');
 
 /**
- * Lista solicitações (admin: todas, user: apenas suas)
+ * Lista solicitações (admin: do seu domínio, user: apenas suas)
  */
 const getAll = async (req, res) => {
   try {
@@ -11,7 +11,10 @@ const getAll = async (req, res) => {
     let requests;
 
     if (req.user.role === 'admin') {
-      requests = await AccessRequest.findAll(status);
+      const dbUser = await User.findById(req.user.id);
+      requests = dbUser?.domain_id
+        ? await AccessRequest.findByDomainId(dbUser.domain_id, status)
+        : [];
     } else {
       // Usuário comum pode filtrar suas próprias solicitações por status
       requests = await AccessRequest.findByUserId(req.user.id, status);
@@ -31,11 +34,14 @@ const getAll = async (req, res) => {
 };
 
 /**
- * Conta solicitações pendentes (para badge de notificação)
+ * Conta solicitações pendentes do domínio do admin (para badge de notificação)
  */
 const countPending = async (req, res) => {
   try {
-    const count = await AccessRequest.countPending();
+    const dbUser = await User.findById(req.user.id);
+    const count = dbUser?.domain_id
+      ? await AccessRequest.countPendingByDomainId(dbUser.domain_id)
+      : 0;
     res.json({
       success: true,
       count
@@ -77,15 +83,24 @@ const create = async (req, res) => {
       });
     }
 
-    // Se especificou deviceId, verifica se dispositivo existe
+    // Se especificou deviceId, verifica se dispositivo existe e pertence ao domínio do usuário
     if (deviceId) {
-      if (!await Device.findById(deviceId)) {
+      const device = await Device.findById(deviceId);
+      if (!device) {
         return res.status(404).json({
           success: false,
           message: 'Dispositivo não encontrado'
         });
       }
-      
+
+      const dbUser = await User.findById(userId);
+      if (device.domain_id !== dbUser?.domain_id) {
+        return res.status(403).json({
+          success: false,
+          message: 'Acesso negado a este dispositivo'
+        });
+      }
+
       // Verifica se usuário já tem acesso a este dispositivo específico
       if (await Device.userHasAccess(deviceId, userId)) {
         return res.status(400).json({
@@ -112,7 +127,7 @@ const create = async (req, res) => {
 };
 
 /**
- * Aprova solicitação (admin)
+ * Aprova solicitação (admin do mesmo domínio do solicitante)
  */
 const approve = async (req, res) => {
   try {
@@ -133,6 +148,26 @@ const approve = async (req, res) => {
       });
     }
 
+    // Garante que a solicitação pertence ao domínio do admin autenticado
+    const dbAdmin = await User.findById(req.user.id);
+    if (!dbAdmin?.domain_id || request.user_domain_id !== dbAdmin.domain_id) {
+      return res.status(403).json({
+        success: false,
+        message: 'Acesso negado a esta solicitação'
+      });
+    }
+
+    // Se for para dispositivo específico, garante que o device pertence ao mesmo domínio
+    if (request.device_id) {
+      const device = await Device.findById(request.device_id);
+      if (!device || device.domain_id !== dbAdmin.domain_id) {
+        return res.status(403).json({
+          success: false,
+          message: 'Acesso negado a este dispositivo'
+        });
+      }
+    }
+
     // Aprova a solicitação
     await AccessRequest.approve(id);
 
@@ -147,9 +182,9 @@ const approve = async (req, res) => {
         request.user_id
       ]);
     } else {
-      // Se for uma solicitação geral (device_id = null), adiciona a TODOS os dispositivos
-      const allDevices = await Device.findAll();
-      for (const device of allDevices) {
+      // Se for uma solicitação geral (device_id = null), adiciona a todos os dispositivos do domínio do admin
+      const domainDevices = await Device.findByDomainId(dbAdmin.domain_id);
+      for (const device of domainDevices) {
         const hasAccess = await Device.userHasAccess(device.id, request.user_id);
         if (!hasAccess) {
           const currentUsers = await Device.getAssignedUsers(device.id);
@@ -175,7 +210,7 @@ const approve = async (req, res) => {
 };
 
 /**
- * Rejeita solicitação (admin)
+ * Rejeita solicitação (admin do mesmo domínio do solicitante)
  */
 const reject = async (req, res) => {
   try {
@@ -193,6 +228,15 @@ const reject = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Esta solicitação já foi processada'
+      });
+    }
+
+    // Garante que a solicitação pertence ao domínio do admin autenticado
+    const dbAdmin = await User.findById(req.user.id);
+    if (!dbAdmin?.domain_id || request.user_domain_id !== dbAdmin.domain_id) {
+      return res.status(403).json({
+        success: false,
+        message: 'Acesso negado a esta solicitação'
       });
     }
 

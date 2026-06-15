@@ -23,6 +23,18 @@ const Widget = {
   },
 
   /**
+   * Lista widgets dos dispositivos pertencentes a um domínio
+   */
+  async findByDomainId(domainId) {
+    return await query(`
+      SELECT w.* FROM widgets w
+      INNER JOIN devices d ON w.device_id = d.id
+      WHERE d.domain_id = $1
+      ORDER BY w.created_at DESC
+    `, [domainId]);
+  },
+
+  /**
    * Lista widgets acessíveis por um usuário (via dispositivos atribuídos)
    */
   async findByUserId(userId) {

@@ -25,7 +25,37 @@ const registerSchema = z.object({
     .max(100, 'Senha deve ter no máximo 100 caracteres')
 });
 
+// Schema para solicitar acesso a um domínio existente (usuário sem domínio)
+const joinDomainSchema = z.object({
+  domainCode: z
+    .string({ required_error: 'Código do domínio é obrigatório' })
+    .min(1, 'Código do domínio é obrigatório'),
+  requestedDevices: z
+    .array(z.number())
+    .optional()
+});
+
+// Schema para criar um novo domínio (usuário sem domínio)
+const createDomainSchema = z.object({
+  domainName: z
+    .string({ required_error: 'Nome do domínio é obrigatório' })
+    .min(1, 'Nome do domínio é obrigatório'),
+  domainCode: z
+    .string({ required_error: 'Código do domínio é obrigatório' })
+    .min(1, 'Código do domínio é obrigatório')
+});
+
+// Schema para sair do domínio (com transferência de posse opcional)
+const leaveDomainSchema = z.object({
+  transferToUserId: z
+    .number()
+    .optional()
+});
+
 module.exports = {
   loginSchema,
-  registerSchema
+  registerSchema,
+  joinDomainSchema,
+  createDomainSchema,
+  leaveDomainSchema
 };

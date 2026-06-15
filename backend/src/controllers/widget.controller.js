@@ -1,15 +1,19 @@
 const Widget = require('../models/Widget');
 const Device = require('../models/Device');
+const User = require('../models/User');
 
 /**
- * Lista widgets (admin: todos, user: apenas dos seus dispositivos)
+ * Lista widgets (admin: apenas do seu domínio, user: apenas dos seus dispositivos)
  */
 const getAll = async (req, res) => {
   try {
     let widgets;
-    
+
     if (req.user.role === 'admin') {
-      widgets = await Widget.findAll();
+      const dbUser = await User.findById(req.user.id);
+      widgets = dbUser?.domain_id
+        ? await Widget.findByDomainId(dbUser.domain_id)
+        : [];
     } else {
       widgets = await Widget.findByUserId(req.user.id);
     }
@@ -41,6 +45,15 @@ const getByDevice = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'Dispositivo não encontrado'
+      });
+    }
+
+    // Garante que o dispositivo pertence ao mesmo domínio do usuário autenticado
+    const dbUser = await User.findById(req.user.id);
+    if (device.domain_id !== dbUser?.domain_id) {
+      return res.status(403).json({
+        success: false,
+        message: 'Acesso negado a este dispositivo'
       });
     }
 
@@ -83,6 +96,16 @@ const getById = async (req, res) => {
       });
     }
 
+    // Garante que o widget pertence a um dispositivo do mesmo domínio do usuário autenticado
+    const device = await Device.findById(widget.device_id);
+    const dbUser = await User.findById(req.user.id);
+    if (!device || device.domain_id !== dbUser?.domain_id) {
+      return res.status(403).json({
+        success: false,
+        message: 'Acesso negado a este widget'
+      });
+    }
+
     // Verifica acesso via dispositivo se não for admin
     if (req.user.role !== 'admin' && !await Device.userHasAccess(widget.device_id, req.user.id)) {
       return res.status(403).json({
@@ -117,6 +140,15 @@ const create = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'Dispositivo não encontrado'
+      });
+    }
+
+    // Garante que o dispositivo pertence ao mesmo domínio do usuário autenticado
+    const dbUser = await User.findById(req.user.id);
+    if (device.domain_id !== dbUser?.domain_id) {
+      return res.status(403).json({
+        success: false,
+        message: 'Acesso negado a este dispositivo'
       });
     }
 
@@ -164,14 +196,33 @@ const update = async (req, res) => {
       });
     }
 
+    // Garante que o widget pertence a um dispositivo do mesmo domínio do usuário autenticado
+    const dbUser = await User.findById(req.user.id);
+    const currentDevice = await Device.findById(widget.device_id);
+    if (!currentDevice || currentDevice.domain_id !== dbUser?.domain_id) {
+      return res.status(403).json({
+        success: false,
+        message: 'Acesso negado a este widget'
+      });
+    }
+
     const { name, type, deviceId, config, position } = req.body;
 
-    // Se mudar deviceId, verifica se existe
-    if (deviceId && !await Device.findById(deviceId)) {
-      return res.status(404).json({
-        success: false,
-        message: 'Dispositivo não encontrado'
-      });
+    // Se mudar deviceId, verifica se existe e pertence ao mesmo domínio
+    if (deviceId) {
+      const newDevice = await Device.findById(deviceId);
+      if (!newDevice) {
+        return res.status(404).json({
+          success: false,
+          message: 'Dispositivo não encontrado'
+        });
+      }
+      if (newDevice.domain_id !== dbUser?.domain_id) {
+        return res.status(403).json({
+          success: false,
+          message: 'Acesso negado a este dispositivo'
+        });
+      }
     }
 
     const updatedWidget = await Widget.update(id, {
@@ -208,6 +259,16 @@ const remove = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'Widget não encontrado'
+      });
+    }
+
+    // Garante que o widget pertence a um dispositivo do mesmo domínio do usuário autenticado
+    const dbUser = await User.findById(req.user.id);
+    const device = await Device.findById(widget.device_id);
+    if (!device || device.domain_id !== dbUser?.domain_id) {
+      return res.status(403).json({
+        success: false,
+        message: 'Acesso negado a este widget'
       });
     }
 

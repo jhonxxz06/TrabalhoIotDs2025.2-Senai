@@ -44,8 +44,14 @@ async function createTables(client) {
         name TEXT NOT NULL,
         code TEXT UNIQUE NOT NULL,
         admin_id INTEGER,
+        max_users INTEGER DEFAULT 10,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
+    `);
+
+    // Migração segura: adiciona max_users em domains se já existir a tabela sem a coluna
+    await client.query(`
+      ALTER TABLE domains ADD COLUMN IF NOT EXISTS max_users INTEGER DEFAULT 10
     `);
 
     // Tabela de usuários

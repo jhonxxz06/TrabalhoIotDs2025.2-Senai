@@ -53,10 +53,24 @@ const User = {
    */
   async findAll() {
     return await query(`
-      SELECT id, username, email, role, has_access, created_at 
-      FROM users 
+      SELECT id, username, email, role, has_access, created_at
+      FROM users
       ORDER BY created_at DESC
     `);
+  },
+
+  /**
+   * Lista usuários de um domínio específico (sem senha)
+   * @param {number} domainId
+   * @returns {Promise<Array>}
+   */
+  async findByDomainId(domainId) {
+    return await query(`
+      SELECT id, username, email, role, has_access, created_at
+      FROM users
+      WHERE domain_id = $1
+      ORDER BY created_at DESC
+    `, [domainId]);
   },
 
   /**

@@ -2,12 +2,18 @@ const Device = require('../models/Device');
 const User = require('../models/User');
 const MqttService = require('../services/mqtt.service');
 
-const SUPERADMIN_EMAIL = 'admin@teste.com';
-
 /**
- * Verifica se o usuário é o superadmin global
+ * Verifica se todos os userIds informados pertencem ao domínio indicado
  */
-const isSuperAdmin = (user) => user.email === SUPERADMIN_EMAIL;
+const usersBelongToDomain = async (userIds, domainId) => {
+  for (const userId of userIds) {
+    const user = await User.findById(userId);
+    if (!user || user.domain_id !== domainId) {
+      return false;
+    }
+  }
+  return true;
+};
 
 /**
  * Lista dispositivos públicos (para tela de cadastro - sem autenticação)
@@ -15,7 +21,16 @@ const isSuperAdmin = (user) => user.email === SUPERADMIN_EMAIL;
  */
 const getPublicList = async (req, res) => {
   try {
-    const devices = await Device.findAll();
+    let devices;
+
+    if (req.user) {
+      // Requisição autenticada: restringe ao domínio do usuário
+      const dbUser = await User.findById(req.user.id);
+      devices = dbUser?.domain_id ? await Device.findByDomainId(dbUser.domain_id) : [];
+    } else {
+      // Requisição não autenticada (tela de cadastro): lista completa
+      devices = await Device.findAll();
+    }
 
     res.json({
       success: true,
@@ -36,7 +51,6 @@ const getPublicList = async (req, res) => {
 
 /**
  * Lista todos os dispositivos:
- * - Superadmin (admin@teste.com): vê todos
  * - Admin de domínio: vê apenas os do seu domínio
  * - Usuário comum: vê apenas os que tem acesso via device_users
  */
@@ -45,17 +59,14 @@ const getAll = async (req, res) => {
     let devices;
 
     if (req.user.role === 'admin') {
-      if (isSuperAdmin(req.user)) {
-        // Superadmin vê tudo
-        devices = await Device.findAll();
+      // Admin de domínio: busca o usuário para pegar domain_id
+      const dbUser = await User.findById(req.user.id);
+      if (dbUser?.domain_id) {
+        devices = await Device.findByDomainId(dbUser.domain_id);
       } else {
-        // Admin de domínio: busca o usuário para pegar domain_id
-        const dbUser = await User.findById(req.user.id);
-        if (dbUser?.domain_id) {
-          devices = await Device.findByDomainId(dbUser.domain_id);
-        } else {
-          devices = await Device.findAll();
-        }
+        // Admin sem domínio associado: nenhum dispositivo é retornado
+        // (evita acesso global a dados de outros domínios)
+        devices = [];
       }
     } else {
       devices = await Device.findByUserId(req.user.id);
@@ -90,8 +101,17 @@ const getById = async (req, res) => {
       });
     }
 
+    // Garante que o dispositivo pertence ao mesmo domínio do usuário autenticado
+    const dbUser = await User.findById(req.user.id);
+    if (device.domain_id !== dbUser?.domain_id) {
+      return res.status(403).json({
+        success: false,
+        message: 'Acesso negado a este dispositivo'
+      });
+    }
+
     // Verifica acesso se não for admin
-    if (req.user.role !== 'admin' && !Device.userHasAccess(id, req.user.id)) {
+    if (req.user.role !== 'admin' && !await Device.userHasAccess(id, req.user.id)) {
       return res.status(403).json({
         success: false,
         message: 'Acesso negado a este dispositivo'
@@ -121,17 +141,21 @@ const getById = async (req, res) => {
 /**
  * Cria um novo dispositivo (apenas admin)
  * O device herda automaticamente o domain_id do admin que o criou.
- * Superadmin pode criar sem domínio.
  */
 const create = async (req, res) => {
   try {
     const { name, mqttBroker, mqttPort, mqttTopic, mqttUsername, mqttPassword, assignedUsers } = req.body;
 
     // Recupera o domínio do admin criador
-    let domain_id = null;
-    if (!isSuperAdmin(req.user)) {
-      const dbUser = await User.findById(req.user.id);
-      domain_id = dbUser?.domain_id ?? null;
+    const dbUser = await User.findById(req.user.id);
+    const domain_id = dbUser?.domain_id ?? null;
+
+    // Garante que os usuários atribuídos pertencem ao mesmo domínio
+    if (assignedUsers && assignedUsers.length > 0 && !await usersBelongToDomain(assignedUsers, domain_id)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Acesso negado a um ou mais usuários informados'
+      });
     }
 
     const device = await Device.create({
@@ -198,7 +222,24 @@ const update = async (req, res) => {
       });
     }
 
+    // Garante que o dispositivo pertence ao mesmo domínio do usuário autenticado
+    const dbUser = await User.findById(req.user.id);
+    if (device.domain_id !== dbUser?.domain_id) {
+      return res.status(403).json({
+        success: false,
+        message: 'Acesso negado a este dispositivo'
+      });
+    }
+
     const { name, mqttBroker, mqttPort, mqttTopic, mqttUsername, mqttPassword, assignedUsers } = req.body;
+
+    // Garante que os usuários atribuídos pertencem ao mesmo domínio
+    if (assignedUsers !== undefined && !await usersBelongToDomain(assignedUsers, dbUser.domain_id)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Acesso negado a um ou mais usuários informados'
+      });
+    }
 
     const updatedDevice = await Device.update(id, {
       name,
@@ -266,6 +307,15 @@ const remove = async (req, res) => {
       });
     }
 
+    // Garante que o dispositivo pertence ao mesmo domínio do usuário autenticado
+    const dbUser = await User.findById(req.user.id);
+    if (device.domain_id !== dbUser?.domain_id) {
+      return res.status(403).json({
+        success: false,
+        message: 'Acesso negado a este dispositivo'
+      });
+    }
+
     // Desconectar MQTT antes de excluir
     try {
       MqttService.disconnect(parseInt(id));
@@ -306,10 +356,27 @@ const updateUsers = async (req, res) => {
       });
     }
 
+    // Garante que o dispositivo pertence ao mesmo domínio do usuário autenticado
+    const dbUser = await User.findById(req.user.id);
+    if (device.domain_id !== dbUser?.domain_id) {
+      return res.status(403).json({
+        success: false,
+        message: 'Acesso negado a este dispositivo'
+      });
+    }
+
     if (!Array.isArray(userIds)) {
       return res.status(400).json({
         success: false,
         message: 'userIds deve ser um array'
+      });
+    }
+
+    // Garante que os usuários atribuídos pertencem ao mesmo domínio
+    if (!await usersBelongToDomain(userIds, dbUser.domain_id)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Acesso negado a um ou mais usuários informados'
       });
     }
 

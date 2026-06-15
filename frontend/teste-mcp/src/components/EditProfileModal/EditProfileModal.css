@@ -290,6 +290,41 @@
   line-height: 1.55;
 }
 
+/* ── Transfer ownership candidate list ── */
+.ep-transfer-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 18px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.ep-transfer-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1.5px solid #e0e0e0;
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: 'Roboto', sans-serif;
+  font-size: 13px;
+  color: #1d1b20;
+  text-align: left;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.ep-transfer-option:has(input:checked) {
+  border-color: #84B6F4;
+  background: rgba(132, 182, 244, 0.1);
+}
+
+.ep-transfer-option input[type="radio"] {
+  accent-color: #84B6F4;
+  flex-shrink: 0;
+}
+
 .ep-warning-actions {
   display: flex;
   gap: 10px;
