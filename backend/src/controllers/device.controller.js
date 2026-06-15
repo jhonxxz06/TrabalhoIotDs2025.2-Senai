@@ -21,7 +21,16 @@ const usersBelongToDomain = async (userIds, domainId) => {
  */
 const getPublicList = async (req, res) => {
   try {
-    const devices = await Device.findAll();
+    let devices;
+
+    if (req.user) {
+      // Requisição autenticada: restringe ao domínio do usuário
+      const dbUser = await User.findById(req.user.id);
+      devices = dbUser?.domain_id ? await Device.findByDomainId(dbUser.domain_id) : [];
+    } else {
+      // Requisição não autenticada (tela de cadastro): lista completa
+      devices = await Device.findAll();
+    }
 
     res.json({
       success: true,

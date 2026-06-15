@@ -1,5 +1,6 @@
 const MqttService = require('../services/mqtt.service');
 const Device = require('../models/Device');
+const User = require('../models/User');
 
 /**
  * Conecta a um dispositivo MQTT
@@ -13,6 +14,15 @@ const connect = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'Dispositivo não encontrado'
+      });
+    }
+
+    // Garante que o dispositivo pertence ao mesmo domínio do usuário autenticado
+    const dbUser = await User.findById(req.user.id);
+    if (device.domain_id !== dbUser?.domain_id) {
+      return res.status(403).json({
+        success: false,
+        message: 'Acesso negado a este dispositivo'
       });
     }
 
@@ -37,6 +47,24 @@ const connect = async (req, res) => {
 const disconnect = async (req, res) => {
   try {
     const { id } = req.params;
+    const device = await Device.findById(id);
+
+    if (!device) {
+      return res.status(404).json({
+        success: false,
+        message: 'Dispositivo não encontrado'
+      });
+    }
+
+    // Garante que o dispositivo pertence ao mesmo domínio do usuário autenticado
+    const dbUser = await User.findById(req.user.id);
+    if (device.domain_id !== dbUser?.domain_id) {
+      return res.status(403).json({
+        success: false,
+        message: 'Acesso negado a este dispositivo'
+      });
+    }
+
     await MqttService.disconnect(parseInt(id));
 
     res.json({
@@ -79,7 +107,24 @@ const getData = async (req, res) => {
     const { id } = req.params;
     const { limit = 100, period } = req.query;
 
-    // Verifica acesso
+    const device = await Device.findById(id);
+    if (!device) {
+      return res.status(404).json({
+        success: false,
+        message: 'Dispositivo não encontrado'
+      });
+    }
+
+    // Garante que o dispositivo pertence ao mesmo domínio do usuário autenticado
+    const dbUser = await User.findById(req.user.id);
+    if (device.domain_id !== dbUser?.domain_id) {
+      return res.status(403).json({
+        success: false,
+        message: 'Acesso negado a este dispositivo'
+      });
+    }
+
+    // Verifica acesso se não for admin
     if (req.user.role !== 'admin' && !await Device.userHasAccess(id, req.user.id)) {
       return res.status(403).json({
         success: false,
@@ -144,19 +189,28 @@ const getLatest = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Verifica acesso
-    if (req.user.role !== 'admin' && !await Device.userHasAccess(id, req.user.id)) {
+    const device = await Device.findById(id);
+    if (!device) {
+      return res.status(404).json({
+        success: false,
+        message: 'Dispositivo não encontrado'
+      });
+    }
+
+    // Garante que o dispositivo pertence ao mesmo domínio do usuário autenticado
+    const dbUser = await User.findById(req.user.id);
+    if (device.domain_id !== dbUser?.domain_id) {
       return res.status(403).json({
         success: false,
         message: 'Acesso negado a este dispositivo'
       });
     }
 
-    const device = await Device.findById(id);
-    if (!device) {
-      return res.status(404).json({
+    // Verifica acesso se não for admin
+    if (req.user.role !== 'admin' && !await Device.userHasAccess(id, req.user.id)) {
+      return res.status(403).json({
         success: false,
-        message: 'Dispositivo não encontrado'
+        message: 'Acesso negado a este dispositivo'
       });
     }
 
@@ -210,7 +264,10 @@ const getLatest = async (req, res) => {
  */
 const connectAll = async (req, res) => {
   try {
-    const devices = await Device.findAll();
+    const dbUser = await User.findById(req.user.id);
+    const devices = dbUser?.domain_id
+      ? await Device.findByDomainId(dbUser.domain_id)
+      : [];
     let connected = 0;
 
     for (const device of devices) {
@@ -238,7 +295,24 @@ const getRejected = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Verifica acesso
+    const device = await Device.findById(id);
+    if (!device) {
+      return res.status(404).json({
+        success: false,
+        message: 'Dispositivo não encontrado'
+      });
+    }
+
+    // Garante que o dispositivo pertence ao mesmo domínio do usuário autenticado
+    const dbUser = await User.findById(req.user.id);
+    if (device.domain_id !== dbUser?.domain_id) {
+      return res.status(403).json({
+        success: false,
+        message: 'Acesso negado a este dispositivo'
+      });
+    }
+
+    // Verifica acesso se não for admin
     if (req.user.role !== 'admin' && !await Device.userHasAccess(id, req.user.id)) {
       return res.status(403).json({
         success: false,
@@ -272,7 +346,24 @@ const getExceedances = async (req, res) => {
 
     console.log('[Controller] getExceedances chamado:', { id, limit, since, query: req.query });
 
-    // Verifica acesso
+    const device = await Device.findById(id);
+    if (!device) {
+      return res.status(404).json({
+        success: false,
+        message: 'Dispositivo não encontrado'
+      });
+    }
+
+    // Garante que o dispositivo pertence ao mesmo domínio do usuário autenticado
+    const dbUser = await User.findById(req.user.id);
+    if (device.domain_id !== dbUser?.domain_id) {
+      return res.status(403).json({
+        success: false,
+        message: 'Acesso negado a este dispositivo'
+      });
+    }
+
+    // Verifica acesso se não for admin
     if (req.user.role !== 'admin' && !await Device.userHasAccess(id, req.user.id)) {
       return res.status(403).json({
         success: false,

@@ -83,15 +83,24 @@ const create = async (req, res) => {
       });
     }
 
-    // Se especificou deviceId, verifica se dispositivo existe
+    // Se especificou deviceId, verifica se dispositivo existe e pertence ao domínio do usuário
     if (deviceId) {
-      if (!await Device.findById(deviceId)) {
+      const device = await Device.findById(deviceId);
+      if (!device) {
         return res.status(404).json({
           success: false,
           message: 'Dispositivo não encontrado'
         });
       }
-      
+
+      const dbUser = await User.findById(userId);
+      if (device.domain_id !== dbUser?.domain_id) {
+        return res.status(403).json({
+          success: false,
+          message: 'Acesso negado a este dispositivo'
+        });
+      }
+
       // Verifica se usuário já tem acesso a este dispositivo específico
       if (await Device.userHasAccess(deviceId, userId)) {
         return res.status(400).json({

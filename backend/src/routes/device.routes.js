@@ -1,13 +1,14 @@
 const express = require('express');
 const router = express.Router();
 const deviceController = require('../controllers/device.controller');
-const { authenticate } = require('../middleware/auth.middleware');
+const { authenticate, optionalAuth } = require('../middleware/auth.middleware');
 const { requireAdmin } = require('../middleware/rbac.middleware');
 const { validate } = require('../middleware/validate.middleware');
 const { createDeviceSchema, updateDeviceSchema } = require('../schemas/device.schema');
 
 // Rota pública - lista dispositivos disponíveis (para tela de cadastro)
-router.get('/public', deviceController.getPublicList);
+// Usa optionalAuth: se houver token, restringe ao domínio do usuário autenticado
+router.get('/public', optionalAuth, deviceController.getPublicList);
 
 // Todas as rotas abaixo requerem autenticação
 router.use(authenticate);

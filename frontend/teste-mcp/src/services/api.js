@@ -178,10 +178,11 @@ export const users = {
 // ============================================
 
 export const devices = {
-  // Lista pública de dispositivos (sem autenticação - para tela de cadastro)
+  // Lista dispositivos disponíveis (sem token: lista geral para cadastro;
+  // com token: restrita ao domínio do usuário autenticado)
   async getPublicList() {
     const response = await fetch(`${API_URL}/devices/public`, {
-      headers: headers(false)
+      headers: headers()
     });
     return handleResponse(response);
   },
