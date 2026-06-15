@@ -2,7 +2,27 @@ const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const Domain = require('../models/Domain');
 const AccessRequest = require('../models/AccessRequest');
+const Device = require('../models/Device');
 const { generateToken } = require('../services/token.service');
+
+/**
+ * Cria solicitações de acesso para os devices informados, ignorando
+ * (e logando) qualquer deviceId que não pertença ao domínio informado.
+ */
+async function createDeviceAccessRequests(userId, requestedDevices, domainId, message) {
+  for (const deviceId of requestedDevices) {
+    try {
+      const device = await Device.findById(deviceId);
+      if (!device || device.domain_id !== domainId) {
+        console.error(`Solicitação ignorada: dispositivo ${deviceId} não pertence ao domínio ${domainId}`);
+        continue;
+      }
+      await AccessRequest.create(userId, deviceId, message);
+    } catch (err) {
+      console.error(`Erro ao criar solicitação para dispositivo ${deviceId}:`, err);
+    }
+  }
+}
 
 /**
  * Monta os dados públicos do usuário, incluindo estatísticas do domínio
@@ -119,13 +139,7 @@ const authController = {
       // Cria solicitações de acesso (apenas para usuários comuns)
       if (!isManager) {
         if (requestedDevices && requestedDevices.length > 0) {
-          for (const deviceId of requestedDevices) {
-            try {
-              await AccessRequest.create(user.id, deviceId, 'Solicitação de acesso durante cadastro');
-            } catch (err) {
-              console.error(`Erro ao criar solicitação para dispositivo ${deviceId}:`, err);
-            }
-          }
+          await createDeviceAccessRequests(user.id, requestedDevices, domainId, 'Solicitação de acesso durante cadastro');
         } else {
           try {
             await AccessRequest.create(user.id, null, 'Solicitação de acesso geral durante cadastro');
@@ -421,13 +435,7 @@ const authController = {
       await User.update(userId, { domain_id: domain.id, role: 'user', has_access: 0 });
 
       if (requestedDevices && requestedDevices.length > 0) {
-        for (const deviceId of requestedDevices) {
-          try {
-            await AccessRequest.create(userId, deviceId, 'Solicitação de acesso a domínio');
-          } catch (err) {
-            console.error(`Erro ao criar solicitação para dispositivo ${deviceId}:`, err);
-          }
-        }
+        await createDeviceAccessRequests(userId, requestedDevices, domain.id, 'Solicitação de acesso a domínio');
       } else {
         try {
           await AccessRequest.create(userId, null, 'Solicitação de acesso geral a domínio');
