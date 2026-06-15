@@ -7,6 +7,9 @@ const helmet = require('helmet');
 const swaggerUi = require('swagger-ui-express');
 const { swaggerSpec } = require('./config/swagger');
 const { initDatabase } = require('./config/database');
+const { verifyToken } = require('./services/token.service');
+const User = require('./models/User');
+const Device = require('./models/Device');
 
 const app = express();
 const server = http.createServer(app);
@@ -60,9 +63,29 @@ io.on('connection', (socket) => {
   console.log(`🔌 Cliente WebSocket conectado: ${socket.id}`);
   
   // Cliente se inscreve em um dispositivo específico
-  socket.on('subscribe:device', (deviceId) => {
-    socket.join(`device:${deviceId}`);
-    console.log(`[WebSocket] Cliente ${socket.id} inscrito no device:${deviceId}`);
+  // Garante que o device pertence ao mesmo domínio do usuário autenticado no socket
+  socket.on('subscribe:device', async (deviceId) => {
+    try {
+      const token = socket.handshake.auth?.token;
+      if (!token) {
+        console.log(`[WebSocket] Cliente ${socket.id} sem token - subscrição negada para device:${deviceId}`);
+        return;
+      }
+
+      const decoded = verifyToken(token);
+      const dbUser = await User.findById(decoded.id);
+      const device = await Device.findById(deviceId);
+
+      if (!device || !dbUser?.domain_id || device.domain_id !== dbUser.domain_id) {
+        console.log(`[WebSocket] Cliente ${socket.id} negado para device:${deviceId} (fora do domínio)`);
+        return;
+      }
+
+      socket.join(`device:${deviceId}`);
+      console.log(`[WebSocket] Cliente ${socket.id} inscrito no device:${deviceId}`);
+    } catch (error) {
+      console.log(`[WebSocket] Falha na subscrição do cliente ${socket.id}:`, error.message);
+    }
   });
   
   socket.on('unsubscribe:device', (deviceId) => {
