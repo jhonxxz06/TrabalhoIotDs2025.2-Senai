@@ -150,6 +150,14 @@ const create = async (req, res) => {
     const dbUser = await User.findById(req.user.id);
     const domain_id = dbUser?.domain_id ?? null;
 
+    // Garante que os usuários atribuídos pertencem ao mesmo domínio
+    if (assignedUsers && assignedUsers.length > 0 && !await usersBelongToDomain(assignedUsers, domain_id)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Acesso negado a um ou mais usuários informados'
+      });
+    }
+
     const device = await Device.create({
       name,
       mqttBroker,

@@ -86,9 +86,22 @@ const disconnect = async (req, res) => {
 const getStatus = async (req, res) => {
   try {
     const status = await MqttService.getStatus();
+
+    // Restringe o status apenas aos devices do domínio do usuário autenticado
+    const dbUser = await User.findById(req.user.id);
+    const domainDevices = dbUser?.domain_id ? await Device.findByDomainId(dbUser.domain_id) : [];
+    const domainDeviceIds = new Set(domainDevices.map(d => String(d.id)));
+
+    const filteredStatus = {};
+    for (const [deviceId, info] of Object.entries(status)) {
+      if (domainDeviceIds.has(String(deviceId))) {
+        filteredStatus[deviceId] = info;
+      }
+    }
+
     res.json({
       success: true,
-      connections: status
+      connections: filteredStatus
     });
   } catch (error) {
     console.error('Erro ao buscar status:', error);
