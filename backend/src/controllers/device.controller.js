@@ -111,7 +111,7 @@ const getById = async (req, res) => {
     }
 
     // Verifica acesso se não for admin
-    if (req.user.role !== 'admin' && !Device.userHasAccess(id, req.user.id)) {
+    if (req.user.role !== 'admin' && !await Device.userHasAccess(id, req.user.id)) {
       return res.status(403).json({
         success: false,
         message: 'Acesso negado a este dispositivo'
