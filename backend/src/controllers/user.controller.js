@@ -57,6 +57,15 @@ const userController = {
         });
       }
 
+      // Garante que o usuário-alvo pertence ao mesmo domínio do admin autenticado
+      const dbAdmin = await User.findById(req.user.id);
+      if (!dbAdmin?.domain_id || user.domain_id !== dbAdmin.domain_id) {
+        return res.status(403).json({
+          success: false,
+          error: 'Acesso negado a este usuário'
+        });
+      }
+
       // Atualiza o acesso
       const updatedUser = await User.updateAccess(parseInt(id), hasAccess);
 

@@ -3,6 +3,19 @@ const User = require('../models/User');
 const MqttService = require('../services/mqtt.service');
 
 /**
+ * Verifica se todos os userIds informados pertencem ao domínio indicado
+ */
+const usersBelongToDomain = async (userIds, domainId) => {
+  for (const userId of userIds) {
+    const user = await User.findById(userId);
+    if (!user || user.domain_id !== domainId) {
+      return false;
+    }
+  }
+  return true;
+};
+
+/**
  * Lista dispositivos públicos (para tela de cadastro - sem autenticação)
  * Retorna apenas id e nome
  */
@@ -76,6 +89,15 @@ const getById = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'Dispositivo não encontrado'
+      });
+    }
+
+    // Garante que o dispositivo pertence ao mesmo domínio do usuário autenticado
+    const dbUser = await User.findById(req.user.id);
+    if (device.domain_id !== dbUser?.domain_id) {
+      return res.status(403).json({
+        success: false,
+        message: 'Acesso negado a este dispositivo'
       });
     }
 
@@ -183,7 +205,24 @@ const update = async (req, res) => {
       });
     }
 
+    // Garante que o dispositivo pertence ao mesmo domínio do usuário autenticado
+    const dbUser = await User.findById(req.user.id);
+    if (device.domain_id !== dbUser?.domain_id) {
+      return res.status(403).json({
+        success: false,
+        message: 'Acesso negado a este dispositivo'
+      });
+    }
+
     const { name, mqttBroker, mqttPort, mqttTopic, mqttUsername, mqttPassword, assignedUsers } = req.body;
+
+    // Garante que os usuários atribuídos pertencem ao mesmo domínio
+    if (assignedUsers !== undefined && !await usersBelongToDomain(assignedUsers, dbUser.domain_id)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Acesso negado a um ou mais usuários informados'
+      });
+    }
 
     const updatedDevice = await Device.update(id, {
       name,
@@ -251,6 +290,15 @@ const remove = async (req, res) => {
       });
     }
 
+    // Garante que o dispositivo pertence ao mesmo domínio do usuário autenticado
+    const dbUser = await User.findById(req.user.id);
+    if (device.domain_id !== dbUser?.domain_id) {
+      return res.status(403).json({
+        success: false,
+        message: 'Acesso negado a este dispositivo'
+      });
+    }
+
     // Desconectar MQTT antes de excluir
     try {
       MqttService.disconnect(parseInt(id));
@@ -291,10 +339,27 @@ const updateUsers = async (req, res) => {
       });
     }
 
+    // Garante que o dispositivo pertence ao mesmo domínio do usuário autenticado
+    const dbUser = await User.findById(req.user.id);
+    if (device.domain_id !== dbUser?.domain_id) {
+      return res.status(403).json({
+        success: false,
+        message: 'Acesso negado a este dispositivo'
+      });
+    }
+
     if (!Array.isArray(userIds)) {
       return res.status(400).json({
         success: false,
         message: 'userIds deve ser um array'
+      });
+    }
+
+    // Garante que os usuários atribuídos pertencem ao mesmo domínio
+    if (!await usersBelongToDomain(userIds, dbUser.domain_id)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Acesso negado a um ou mais usuários informados'
       });
     }
 
