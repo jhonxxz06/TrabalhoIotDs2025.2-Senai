@@ -109,20 +109,21 @@ const DynamicWidgetCard = ({ widget, deviceId, position, dragging, onMouseDown, 
             return payload[config.mqttField] || 0;
           }).reverse();
 
+          const savedDs0 = config.data?.datasets?.[0] || {};
           datasets.push({
             label: config.mqttField,
             data: values,
-            borderColor: 'rgba(255, 99, 132, 1)',
-            backgroundColor: 'rgba(255, 99, 132, 0.2)',
-            fill: true,
-            tension: 0.4,
-            borderWidth: 3,
-            pointRadius: 4,
-            pointHoverRadius: 8,
-            pointBackgroundColor: 'rgba(255, 99, 132, 1)',
-            pointBorderColor: 'rgba(255, 99, 132, 1)',
-            pointBorderWidth: 0,
-            pointHoverBorderWidth: 0
+            borderColor:           savedDs0.borderColor           || 'rgba(255, 99, 132, 1)',
+            backgroundColor:       savedDs0.backgroundColor       || 'rgba(255, 99, 132, 0.2)',
+            fill:                  savedDs0.fill !== undefined     ? savedDs0.fill : true,
+            tension:               savedDs0.tension               ?? 0.4,
+            borderWidth:           savedDs0.borderWidth           || 3,
+            pointRadius:           savedDs0.pointRadius           ?? 4,
+            pointHoverRadius:      savedDs0.pointHoverRadius      ?? 8,
+            pointBackgroundColor:  savedDs0.pointBackgroundColor  || savedDs0.borderColor || 'rgba(255, 99, 132, 1)',
+            pointBorderColor:      savedDs0.pointBorderColor      || savedDs0.borderColor || 'rgba(255, 99, 132, 1)',
+            pointBorderWidth:      savedDs0.pointBorderWidth      ?? 0,
+            pointHoverBorderWidth: savedDs0.pointHoverBorderWidth ?? 0,
           });
         }
 
@@ -133,20 +134,21 @@ const DynamicWidgetCard = ({ widget, deviceId, position, dragging, onMouseDown, 
             return payload[config.mqttField2] || 0;
           }).reverse();
 
+          const savedDs1 = config.data?.datasets?.[1] || {};
           datasets.push({
             label: config.mqttField2,
             data: values2,
-            borderColor: 'rgba(54, 162, 235, 1)',
-            backgroundColor: 'rgba(54, 162, 235, 0.2)',
-            fill: true,
-            tension: 0.4,
-            borderWidth: 3,
-            pointRadius: 4,
-            pointHoverRadius: 8,
-            pointBackgroundColor: 'rgba(54, 162, 235, 1)',
-            pointBorderColor: 'rgba(54, 162, 235, 1)',
-            pointBorderWidth: 0,
-            pointHoverBorderWidth: 0
+            borderColor:           savedDs1.borderColor           || 'rgba(54, 162, 235, 1)',
+            backgroundColor:       savedDs1.backgroundColor       || 'rgba(54, 162, 235, 0.2)',
+            fill:                  savedDs1.fill !== undefined     ? savedDs1.fill : true,
+            tension:               savedDs1.tension               ?? 0.4,
+            borderWidth:           savedDs1.borderWidth           || 3,
+            pointRadius:           savedDs1.pointRadius           ?? 4,
+            pointHoverRadius:      savedDs1.pointHoverRadius      ?? 8,
+            pointBackgroundColor:  savedDs1.pointBackgroundColor  || savedDs1.borderColor || 'rgba(54, 162, 235, 1)',
+            pointBorderColor:      savedDs1.pointBorderColor      || savedDs1.borderColor || 'rgba(54, 162, 235, 1)',
+            pointBorderWidth:      savedDs1.pointBorderWidth      ?? 0,
+            pointHoverBorderWidth: savedDs1.pointHoverBorderWidth ?? 0,
           });
         }
 
@@ -166,24 +168,27 @@ const DynamicWidgetCard = ({ widget, deviceId, position, dragging, onMouseDown, 
             return 'N/A';
           }).reverse();
           // Usar apenas o primeiro campo quando auto-detectar
-          const datasets = [fields[0]].map((field, idx) => ({
-            label: field,
-            data: mqttData.map(d => {
-              const payload = typeof d.payload === 'string' ? JSON.parse(d.payload) : d.payload;
-              return payload[field] || 0;
-            }).reverse(),
-            borderColor: 'rgba(255, 99, 132, 1)',
-            backgroundColor: 'rgba(255, 99, 132, 0.2)',
-            fill: true,
-            tension: 0.4,
-            borderWidth: 3,
-            pointRadius: 4,
-            pointHoverRadius: 8,
-            pointBackgroundColor: 'rgba(255, 99, 132, 1)',
-            pointBorderColor: 'rgba(255, 99, 132, 1)',
-            pointBorderWidth: 0,
-            pointHoverBorderWidth: 0
-          }));
+          const datasets = [fields[0]].map((field, idx) => {
+            const savedDs = config.data?.datasets?.[idx] || {};
+            return {
+              label: field,
+              data: mqttData.map(d => {
+                const payload = typeof d.payload === 'string' ? JSON.parse(d.payload) : d.payload;
+                return payload[field] || 0;
+              }).reverse(),
+              borderColor:           savedDs.borderColor           || 'rgba(255, 99, 132, 1)',
+              backgroundColor:       savedDs.backgroundColor       || 'rgba(255, 99, 132, 0.2)',
+              fill:                  savedDs.fill !== undefined     ? savedDs.fill : true,
+              tension:               savedDs.tension               ?? 0.4,
+              borderWidth:           savedDs.borderWidth           || 3,
+              pointRadius:           savedDs.pointRadius           ?? 4,
+              pointHoverRadius:      savedDs.pointHoverRadius      ?? 8,
+              pointBackgroundColor:  savedDs.pointBackgroundColor  || savedDs.borderColor || 'rgba(255, 99, 132, 1)',
+              pointBorderColor:      savedDs.pointBorderColor      || savedDs.borderColor || 'rgba(255, 99, 132, 1)',
+              pointBorderWidth:      savedDs.pointBorderWidth      ?? 0,
+              pointHoverBorderWidth: savedDs.pointHoverBorderWidth ?? 0,
+            };
+          });
           chartData = { labels, datasets };
         }
       }
