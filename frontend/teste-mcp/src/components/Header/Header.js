@@ -3,6 +3,7 @@ import './Header.css';
 import logo from '../../assets/logo.png';
 import settingsIcon from '../../assets/settings-icon.png';
 import EditProfileModal from '../EditProfileModal';
+import { useToast } from '../ToastContext';
 
 const Header = ({
   username,
@@ -26,6 +27,7 @@ const Header = ({
   const [selectedDevices, setSelectedDevices] = useState([]);
   const [requestMessage, setRequestMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const toast = useToast();
   const menuRef = useRef(null);
   const modalRef = useRef(null);
 
@@ -66,7 +68,7 @@ const Header = ({
 
   const handleSubmitRequest = async () => {
     if (selectedDevices.length === 0) {
-      alert('Selecione pelo menos um dispositivo');
+      toast.warning('Selecione pelo menos um dispositivo');
       return;
     }
 
@@ -78,9 +80,9 @@ const Header = ({
       setShowRequestModal(false);
       setSelectedDevices([]);
       setRequestMessage('');
-      alert('Solicitação enviada com sucesso!');
+      toast.success('Solicitação enviada com sucesso!');
     } catch (error) {
-      alert('Erro ao enviar solicitação: ' + error.message);
+      toast.error(error.message || 'Erro ao enviar solicitação');
     } finally {
       setIsSubmitting(false);
     }
