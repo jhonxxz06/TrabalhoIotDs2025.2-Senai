@@ -350,6 +350,7 @@ const authController = {
 
       if (user.role !== 'admin') {
         await User.update(userId, { domain_id: null, role: 'user', has_access: 0 });
+        await Device.removeAllUserAccess(userId);
         return res.status(200).json({ success: true, message: 'Você saiu do domínio com sucesso' });
       }
 
@@ -363,6 +364,7 @@ const authController = {
           await Domain.setAdmin(domainId, otherAdmins[0].id);
         }
         await User.update(userId, { domain_id: null, role: 'user', has_access: 0 });
+        await Device.removeAllUserAccess(userId);
         return res.status(200).json({ success: true, message: 'Você saiu do domínio com sucesso' });
       }
 
@@ -394,6 +396,7 @@ const authController = {
       await User.update(target.id, { role: 'admin', has_access: 1 });
       await Domain.setAdmin(domainId, target.id);
       await User.update(userId, { domain_id: null, role: 'user', has_access: 0 });
+      await Device.removeAllUserAccess(userId);
 
       return res.status(200).json({
         success: true,
