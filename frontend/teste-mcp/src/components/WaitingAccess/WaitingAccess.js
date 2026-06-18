@@ -10,12 +10,16 @@ const WaitingAccess = ({ username, onLogout }) => {
 
   useEffect(() => {
     // MT-06: verifica se o usuário possui alguma solicitação rejeitada
+    // sem que exista uma solicitação pendente mais recente a sobrepor o estado
     const checkRejections = async () => {
       try {
-        const response = await api.access.getAll('rejected');
-        if (response?.requests?.length > 0) {
-          setHasRejection(true);
-        }
+        const [rejectedRes, pendingRes] = await Promise.all([
+          api.access.getAll('rejected'),
+          api.access.getAll('pending')
+        ]);
+        const hasRejected = rejectedRes?.requests?.length > 0;
+        const hasPending = pendingRes?.requests?.length > 0;
+        setHasRejection(hasRejected && !hasPending);
       } catch (err) {
         // silencioso — não crítico
       }
