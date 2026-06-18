@@ -1,6 +1,7 @@
 const User = require('../models/User');
 const Domain = require('../models/Domain');
 const Device = require('../models/Device');
+const AccessRequest = require('../models/AccessRequest');
 
 const userController = {
   /**
@@ -198,6 +199,7 @@ const userController = {
 
       await User.update(targetId, { domain_id: null, role: 'user', has_access: 0 });
       await Device.removeAllUserAccess(targetId);
+      await AccessRequest.deleteByUserId(targetId);
 
       return res.status(200).json({
         success: true,
