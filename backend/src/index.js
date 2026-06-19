@@ -145,11 +145,11 @@ app.use((req, res) => {
 initDatabase()
   .then(() => {
     server.listen(PORT, '0.0.0.0', async () => {
-      console.log(`🚀 Servidor rodando em http://localhost:${PORT}`);
+      console.log(` Servidor rodando em http://localhost:${PORT}`);
       const originsDisplay = FRONTEND_ORIGINS.length ? FRONTEND_ORIGINS.join(',') : 'any';
-      console.log(`🔌 WebSocket pronto na porta ${PORT} (CORS origins: ${originsDisplay})`);
-      console.log(`📡 Health check: http://localhost:${PORT}/api/health`);
-      console.log(`📖 Documentação: http://localhost:${PORT}/api/docs`);
+      console.log(` WebSocket pronto na porta ${PORT} (CORS origins: ${originsDisplay})`);
+      console.log(` Health check: http://localhost:${PORT}/api/health`);
+      console.log(` Documentação: http://localhost:${PORT}/api/docs`);
       
       // Inicializa conexões MQTT após servidor estar pronto
       const { initMqttConnections } = require('./config/mqtt');
@@ -159,6 +159,6 @@ initDatabase()
     });
   })
   .catch((err) => {
-    console.error('❌ Erro ao inicializar banco de dados:', err);
+    console.error(' Erro ao inicializar banco de dados:', err);
     process.exit(1);
   });

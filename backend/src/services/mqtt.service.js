@@ -100,15 +100,15 @@ const MqttService = {
     const client = mqtt.connect(brokerUrl, options);
 
     client.on('connect', () => {
-      console.log(`[MQTT] ✅ Device ${id} conectado a ${mqtt_broker}`);
+      console.log(`[MQTT]  Device ${id} conectado a ${mqtt_broker}`);
 
       // Subscribe no tópico do dispositivo com QoS 1
       client.subscribe(mqtt_topic, { qos: 1 }, (err) => {
         if (err) {
           console.error(`[MQTT] Erro ao subscrever ${mqtt_topic}:`, err);
         } else {
-          console.log(`[MQTT] 📡 Subscrito em: ${mqtt_topic} (QoS 1)`);
-          console.log(`[MQTT] 👂 Aguardando mensagens...`);
+          console.log(`[MQTT]  Subscrito em: ${mqtt_topic} (QoS 1)`);
+          console.log(`[MQTT]  Aguardando mensagens...`);
         }
       });
     });
@@ -119,7 +119,7 @@ const MqttService = {
         // Usar timestamp UTC ISO para emissões em tempo real
         const timestampIso = new Date().toISOString();
 
-        console.log(`\n[MQTT] 📥 MENSAGEM RECEBIDA!`);
+        console.log(`\n[MQTT]  MENSAGEM RECEBIDA!`);
         console.log(`[MQTT] Device ID: ${id}`);
         console.log(`[MQTT] Tópico: ${topic}`);
         console.log(`[MQTT] Payload: ${payload}`);
@@ -128,7 +128,7 @@ const MqttService = {
         const validation = validateMqttPayload(payload, expectedFields);
 
         if (!validation.valid) {
-          console.warn(`[MQTT] ⚠️ PAYLOAD REJEITADO — Device ${id} | Tópico: ${topic}`);
+          console.warn(`[MQTT]  PAYLOAD REJEITADO — Device ${id} | Tópico: ${topic}`);
           console.warn(`[MQTT] Motivo: ${validation.reason}`);
           console.warn(`[MQTT] Payload recebido: ${payload}`);
 
@@ -160,9 +160,9 @@ const MqttService = {
 
         // Salva no banco (sem await dentro do callback) — deixar o Postgres atribuir received_at (UTC)
         this.saveData(id, topic, payload).catch(err => {
-          console.error('[MQTT] ❌ Erro ao salvar dados:', err);
+          console.error('[MQTT]  Erro ao salvar dados:', err);
         });
-        console.log(`[MQTT] ✅ Dados salvos no banco!`);
+        console.log(`[MQTT]  Dados salvos no banco!`);
 
         // Emite dados via WebSocket para clientes conectados com timestamp UTC
         if (io) {
@@ -172,9 +172,9 @@ const MqttService = {
             payload,
             timestamp: timestampIso
           });
-          console.log(`[MQTT] 🔌 Dados enviados via WebSocket para device:${id}\n`);
+          console.log(`[MQTT]  Dados enviados via WebSocket para device:${id}\n`);
         } else {
-          console.log(`[MQTT] ⚠️ Socket.IO não configurado - WebSocket desabilitado\n`);
+          console.log(`[MQTT]  Socket.IO não configurado - WebSocket desabilitado\n`);
         }
       } catch (error) {
         console.error('[MQTT] Erro ao processar mensagem:', error);
@@ -182,7 +182,7 @@ const MqttService = {
     });
 
     client.on('error', (err) => {
-      console.error(`[MQTT] ❌ Erro device ${id}:`, err.message);
+      console.error(`[MQTT]  Erro device ${id}:`, err.message);
     });
 
     client.on('close', () => {

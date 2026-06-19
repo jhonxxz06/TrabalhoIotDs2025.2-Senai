@@ -179,9 +179,9 @@ async function createTables(client) {
       // constraint já existe — ignorar
     }
 
-    console.log('✅ Tabelas criadas/verificadas com sucesso (incluindo domínios)');
+    console.log('Tabelas criadas/verificadas com sucesso (incluindo domínios)');
   } catch (error) {
-    console.error('❌ Erro ao criar tabelas:', error.message);
+    console.error('Erro ao criar tabelas:', error.message);
     throw error;
   }
 }
@@ -197,7 +197,7 @@ async function run(sql, params = []) {
     const result = await pool.query(sql, params);
     return result;
   } catch (error) {
-    console.error('❌ Erro ao executar query:', sql, params, error.message);
+    console.error('Erro ao executar query:', sql, params, error.message);
     throw error;
   }
 }
@@ -208,7 +208,7 @@ async function query(sql, params = []) {
     const result = await pool.query(sql, params);
     return result.rows;
   } catch (error) {
-    console.error('❌ Erro ao executar query:', sql, params, error.message);
+    console.error('Erro ao executar query:', sql, params, error.message);
     throw error;
   }
 }
@@ -219,7 +219,7 @@ async function queryOne(sql, params = []) {
     const results = await query(sql, params);
     return results.length > 0 ? results[0] : null;
   } catch (error) {
-    console.error('❌ Erro ao executar queryOne:', sql, params, error.message);
+    console.error('Erro ao executar queryOne:', sql, params, error.message);
     throw error;
   }
 }
