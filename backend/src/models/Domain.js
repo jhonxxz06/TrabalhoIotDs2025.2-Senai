@@ -120,6 +120,20 @@ const Domain = {
   },
 
   /**
+   * Atualiza a configuração de notificações via Telegram do domínio
+   * @param {number} id
+   * @param {{chatId: string|null, enabled: boolean}} data
+   * @returns {Promise<Object|null>}
+   */
+  async updateTelegramConfig(id, { chatId, enabled }) {
+    await run(
+      'UPDATE domains SET telegram_chat_id = $1, telegram_enabled = $2 WHERE id = $3',
+      [chatId, enabled, id]
+    );
+    return await this.findById(id);
+  },
+
+  /**
    * Retorna representação pública do domínio
    * @param {Object} domain
    * @returns {Object}

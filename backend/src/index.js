@@ -11,6 +11,14 @@ const { verifyToken } = require('./services/token.service');
 const User = require('./models/User');
 const Device = require('./models/Device');
 
+// Força IPv4 em todas as conexões de saída.
+// O Render (PaaS usado em produção) tem suporte parcial/quebrado a IPv6,
+// o que causa timeouts no fetch nativo do Node (Happy Eyeballs tenta IPv6 primeiro).
+const net = require('net');
+const dns = require('dns');
+net.setDefaultAutoSelectFamily(false);
+dns.setDefaultResultOrder('ipv4first');
+
 const app = express();
 const server = http.createServer(app);
 const PORT = process.env.PORT || 3001;
@@ -155,6 +163,10 @@ initDatabase()
       const { initMqttConnections } = require('./config/mqtt');
       setTimeout(async () => {
         await initMqttConnections(io);
+
+        // Carrega contadores de notificação do banco para memória
+        const notificationService = require('./services/notification.service');
+        await notificationService.init();
       }, 1000);
     });
   })

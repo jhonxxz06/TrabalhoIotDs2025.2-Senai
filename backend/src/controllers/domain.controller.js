@@ -123,6 +123,68 @@ const domainController = {
       console.error('Erro ao buscar usuários do domínio:', error);
       return res.status(500).json({ success: false, error: 'Erro interno do servidor' });
     }
+  },
+
+  /**
+   * GET /api/domains/:id/telegram
+   * Rota PRIVADA (admin) — retorna a configuração de notificações via Telegram do domínio
+   */
+  async getTelegramConfig(req, res) {
+    try {
+      const { id } = req.params;
+      const domain = await Domain.findById(id);
+
+      if (!domain) {
+        return res.status(404).json({ success: false, message: 'Domínio não encontrado' });
+      }
+
+      const callingUser = await User.findById(req.user.id);
+      if (callingUser?.domain_id !== domain.id) {
+        return res.status(403).json({ success: false, message: 'Acesso negado a este domínio' });
+      }
+
+      return res.status(200).json({
+        success: true,
+        data: {
+          chatId: domain.telegram_chat_id ?? null,
+          enabled: domain.telegram_enabled ?? false
+        }
+      });
+    } catch (error) {
+      console.error('Erro ao buscar configuração do Telegram:', error);
+      return res.status(500).json({ success: false, message: 'Erro interno do servidor' });
+    }
+  },
+
+  /**
+   * PUT /api/domains/:id/telegram
+   * Rota PRIVADA (admin) — atualiza a configuração de notificações via Telegram do domínio
+   */
+  async updateTelegramConfig(req, res) {
+    try {
+      const { id } = req.params;
+      const domain = await Domain.findById(id);
+
+      if (!domain) {
+        return res.status(404).json({ success: false, message: 'Domínio não encontrado' });
+      }
+
+      const callingUser = await User.findById(req.user.id);
+      if (callingUser?.domain_id !== domain.id) {
+        return res.status(403).json({ success: false, message: 'Acesso negado a este domínio' });
+      }
+
+      const { chatId, enabled } = req.body;
+      await Domain.updateTelegramConfig(domain.id, { chatId, enabled });
+
+      return res.status(200).json({
+        success: true,
+        message: 'Configuração do Telegram atualizada'
+      });
+    } catch (error) {
+      console.error('Erro ao atualizar configuração do Telegram:', error);
+      return res.status(500).json({ success: false, message: 'Erro interno do servidor' });
+    }
   }
 };
 

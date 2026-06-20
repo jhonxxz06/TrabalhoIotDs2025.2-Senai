@@ -1,6 +1,7 @@
 const mqtt = require('mqtt');
 const { run, query, queryOne, pool } = require('../config/database');
 const { validateMqttPayload } = require('./mqtt-payload.validator');
+const notificationService = require('./notification.service');
 
 // ============================================
 // Helper: Converter data para Brasília (UTC-3)
@@ -163,6 +164,11 @@ const MqttService = {
           console.error('[MQTT]  Erro ao salvar dados:', err);
         });
         console.log(`[MQTT]  Dados salvos no banco!`);
+
+        // Verificação de excedências para notificação (fire-and-forget, não bloqueia o pipeline)
+        notificationService.check(device, validation.data).catch(err => {
+          console.error('[Notification] Erro na verificação:', err.message);
+        });
 
         // Emite dados via WebSocket para clientes conectados com timestamp UTC
         if (io) {
