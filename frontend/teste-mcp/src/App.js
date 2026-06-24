@@ -8,6 +8,7 @@ import DashboardPage from './components/DashboardPage';
 import AdminDevicesPage from './components/AdminDevicesPage';
 import AdminDashboardPage from './components/AdminDashboardPage';
 import MembersPage from './components/MembersPage';
+import NotificationSettingsPage from './components/NotificationSettingsPage';
 import { ToastProvider, useToast } from './components/ToastContext';
 import api from './services/api';
 import { getSocket, closeSocket } from './services/socket';
@@ -22,7 +23,8 @@ const PAGES = {
   DASHBOARD: 'dashboard',
   ADMIN_DEVICES: 'admin_devices',
   ADMIN_DASHBOARD: 'admin_dashboard',
-  ADMIN_MEMBERS: 'admin_members'
+  ADMIN_MEMBERS: 'admin_members',
+  ADMIN_SETTINGS: 'admin_settings'
 };
 
 function App() {
@@ -321,6 +323,11 @@ function AppContent() {
   // Navegação para a página de membros do domínio (admin)
   const handleNavigateToMembers = () => {
     setCurrentPage(PAGES.ADMIN_MEMBERS);
+  };
+
+  // Navegação para a página de configurações de notificações (admin)
+  const handleNavigateToSettings = () => {
+    setCurrentPage(PAGES.ADMIN_SETTINGS);
   };
 
   // Usuário órfão solicita acesso a um domínio existente
@@ -699,6 +706,7 @@ function AppContent() {
             onDeleteDevice={handleDeleteDevice}
             onNavigateToDashboard={() => setCurrentPage(PAGES.ADMIN_DASHBOARD)}
             onNavigateToMembers={handleNavigateToMembers}
+            onNavigateToSettings={handleNavigateToSettings}
             onCreateGraph={() => {
               setSelectedDevice(devices[0] || null);
               setCurrentPage(PAGES.ADMIN_DASHBOARD);
@@ -728,6 +736,7 @@ function AppContent() {
             onDownloadExcel={handleDownloadExcel}
             onBackToDevices={handleBackToDevices}
             onNavigateToMembers={handleNavigateToMembers}
+            onNavigateToSettings={handleNavigateToSettings}
             onLogout={handleLogout}
             onRefreshWidgets={loadWidgets}
             notifications={notifications}
@@ -735,6 +744,20 @@ function AppContent() {
             onRejectUser={handleRejectUser}
             user={user}
             onUserSaved={handleUserSaved}
+          />
+        );
+
+      case PAGES.ADMIN_SETTINGS:
+        return (
+          <NotificationSettingsPage
+            username={user?.username}
+            domainName={domainName}
+            domainUserCount={domainUserCount}
+            domainUserLimit={domainUserLimit}
+            user={user}
+            onUserSaved={handleUserSaved}
+            onLogout={handleLogout}
+            onBackToDevices={() => setCurrentPage(PAGES.ADMIN_DEVICES)}
           />
         );
 

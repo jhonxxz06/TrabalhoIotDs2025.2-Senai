@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import logger from '../../utils/logger';
+import { domains as domainsApi } from '../../services/api';
 import './GraphEditorModal.css';
 
 const WIDGET_TEMPLATES = {
@@ -103,17 +104,18 @@ const WIDGET_TEMPLATES = {
   }
 };
 
-const GraphEditorModal = ({ 
-  isOpen, 
-  onClose, 
+const GraphEditorModal = ({
+  isOpen,
+  onClose,
   onSave,
-  existingWidget = null
+  existingWidget = null,
+  user = null
 }) => {
   const [mode, setMode] = useState('simple'); // 'simple' ou 'advanced'
   const [jsonCode, setJsonCode] = useState('');
   const [error, setError] = useState('');
   const [selectedTemplate, setSelectedTemplate] = useState('line');
-  
+
   // Campos do modo simples
   const [title, setTitle] = useState('');
   const [chartType, setChartType] = useState('line');
@@ -121,6 +123,11 @@ const GraphEditorModal = ({
   const [mqttField2, setMqttField2] = useState('');
   const [useMqttData, setUseMqttData] = useState(true);
   const [thresholds, setThresholds] = useState({});
+
+  // Notificações Telegram por widget
+  const [telegramNotifEnabled, setTelegramNotifEnabled] = useState(false);
+  const [notifThresholds, setNotifThresholds] = useState({});
+  const [telegramConfigured, setTelegramConfigured] = useState(false);
 
   useEffect(() => {
     if (existingWidget) {
@@ -132,6 +139,16 @@ const GraphEditorModal = ({
       setUseMqttData(existingWidget.mqttField ? true : false);
       setThresholds(existingWidget.thresholds || {});
       setMode(existingWidget.mqttField ? 'simple' : 'advanced');
+
+      // Carregar config de notificações do widget existente
+      const notifConfig = existingWidget.notifications?.telegram;
+      if (notifConfig) {
+        setTelegramNotifEnabled(notifConfig.enabled || false);
+        setNotifThresholds(notifConfig.fields || {});
+      } else {
+        setTelegramNotifEnabled(false);
+        setNotifThresholds({});
+      }
     } else {
       setJsonCode('');
       setTitle('');
@@ -140,11 +157,23 @@ const GraphEditorModal = ({
       setMqttField2('humidity');
       setUseMqttData(true);
       setThresholds({});
+      setTelegramNotifEnabled(false);
+      setNotifThresholds({});
       setMode('simple');
     }
     setError('');
     setSelectedTemplate('line');
   }, [existingWidget, isOpen]);
+
+  // Verificar se Telegram está configurado no domínio (só para type table)
+  useEffect(() => {
+    if (!isOpen || !user?.domainId) return;
+    domainsApi.getTelegram(user.domainId)
+      .then(response => {
+        setTelegramConfigured(!!(response.data?.chatId && response.data?.enabled));
+      })
+      .catch(() => setTelegramConfigured(false));
+  }, [isOpen, user?.domainId]);
 
   const handleTemplateSelect = (templateKey) => {
     setSelectedTemplate(templateKey);
@@ -191,15 +220,31 @@ const GraphEditorModal = ({
           };
         });
         
+        // Montar config de notificações: apenas campos que têm threshold definido
+        const notifFields = {};
+        Object.entries(processedThresholds).forEach(([fieldName, limits]) => {
+          if (limits.min !== undefined || limits.max !== undefined) {
+            notifFields[fieldName] = {
+              threshold: Number(notifThresholds[fieldName]?.threshold) || 5
+            };
+          }
+        });
+
         const widget = {
           type: 'table',
           title: title || 'Tabela de Excedências',
           mqttField: mqttField || null,
           useMqttData: true,
           thresholds: processedThresholds,
+          notifications: {
+            telegram: {
+              enabled: telegramNotifEnabled,
+              fields: notifFields
+            }
+          },
           limit: 50
         };
-        
+
         logger.log('Salvando widget tabela com', Object.keys(processedThresholds).length, 'thresholds');
         onSave(widget);
         onClose();
@@ -446,6 +491,74 @@ const GraphEditorModal = ({
                   </div>
                 </>
               )}
+
+              {/* Seção de notificações — só para table com thresholds definidos */}
+              {chartType === 'table' && (() => {
+                const fieldsWithThreshold = (mqttField || '')
+                  .split(',')
+                  .map(f => f.trim())
+                  .filter(f => f)
+                  .filter(f => {
+                    const t = thresholds[f];
+                    return t && (
+                      (t.min !== '' && t.min !== undefined && t.min !== null) ||
+                      (t.max !== '' && t.max !== undefined && t.max !== null)
+                    );
+                  });
+
+                if (fieldsWithThreshold.length === 0) return null;
+
+                return (
+                  <div className="notifications-section">
+                    <h4>🔔 Notificações</h4>
+
+                    <div className="notif-channel-block">
+                      <label className="checkbox-label notif-toggle-label">
+                        <input
+                          type="checkbox"
+                          checked={telegramNotifEnabled}
+                          onChange={(e) => setTelegramNotifEnabled(e.target.checked)}
+                        />
+                        Ativar notificações Telegram para este widget
+                      </label>
+
+                      {telegramNotifEnabled && (
+                        <>
+                          {!telegramConfigured && (
+                            <div className="notif-warning">
+                              ⚠️ As notificações estão ativadas, mas o Telegram ainda não está configurado para este domínio. Acesse <strong>Configurações de Notificações</strong> na página de dispositivos para conectar o Telegram.
+                            </div>
+                          )}
+
+                          <div className="notif-thresholds">
+                            <p className="notif-thresholds-label">Excedências antes de notificar:</p>
+                            {fieldsWithThreshold.map(fieldName => (
+                              <div key={fieldName} className="notif-threshold-row">
+                                <span className="notif-field-name">{fieldName}</span>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  step="1"
+                                  className="notif-threshold-input"
+                                  value={notifThresholds[fieldName]?.threshold ?? 5}
+                                  onChange={(e) => {
+                                    const val = parseInt(e.target.value, 10);
+                                    setNotifThresholds(prev => ({
+                                      ...prev,
+                                      [fieldName]: { threshold: isNaN(val) || val < 1 ? 1 : val }
+                                    }));
+                                  }}
+                                />
+                                <span className="notif-threshold-unit">vezes</span>
+                              </div>
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
 
               <div className="mqtt-example">
                 <h4> Exemplo de Payload MQTT:</h4>

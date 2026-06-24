@@ -269,6 +269,30 @@ export const domains = {
       headers: headers()
     });
     return handleResponse(response);
+  },
+
+  async getTelegram(domainId) {
+    const response = await fetch(`${API_URL}/domains/${domainId}/telegram`, {
+      headers: headers()
+    });
+    return handleResponse(response);
+  },
+
+  async updateTelegram(domainId, data) {
+    const response = await fetch(`${API_URL}/domains/${domainId}/telegram`, {
+      method: 'PUT',
+      headers: headers(),
+      body: JSON.stringify(data)
+    });
+    return handleResponse(response);
+  },
+
+  async generateTelegramCode(domainId) {
+    const response = await fetch(`${API_URL}/domains/${domainId}/telegram/generate-code`, {
+      method: 'POST',
+      headers: headers()
+    });
+    return handleResponse(response);
   }
 };
 

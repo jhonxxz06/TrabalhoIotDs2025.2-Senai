@@ -356,6 +356,7 @@ const AdminDashboardPage = ({
   onDownloadExcel,
   onBackToDevices,
   onNavigateToMembers,
+  onNavigateToSettings,
   onAddDevice,
   onLogout,
   onRefreshWidgets,
@@ -535,6 +536,7 @@ const AdminDashboardPage = ({
           mqttField2: widgetConfig.mqttField2 || null,
           useMqttData: widgetConfig.useMqttData || false,
           thresholds: widgetConfig.thresholds || null,
+          notifications: widgetConfig.notifications || null,
           limit: widgetConfig.limit || null
         }
       };
@@ -569,6 +571,7 @@ const AdminDashboardPage = ({
         onAddDevice={onAddDevice}
         onBackToDevices={onBackToDevices}
         onNavigateToMembers={onNavigateToMembers}
+        onNavigateToSettings={onNavigateToSettings}
         onCreateGraph={handleCreateGraph}
         isOnDevicesPage={false}
         isOnDashboard={true}
@@ -650,6 +653,7 @@ const AdminDashboardPage = ({
           setShowGraphEditor(false);
           setEditingWidget(null);
         }}
+        user={user}
       />
     </div>
   );

@@ -17,6 +17,7 @@ const AdminDevicesPage = ({
   onDeviceClick,
   onNavigateToDashboard,
   onNavigateToMembers,
+  onNavigateToSettings,
   onCreateGraph,
   onLogout,
   notifications = [],
@@ -130,6 +131,7 @@ const AdminDevicesPage = ({
         onAddDevice={handleAddDevice}
         onBackToDevices={onNavigateToDashboard}
         onNavigateToMembers={onNavigateToMembers}
+        onNavigateToSettings={onNavigateToSettings}
         onCreateGraph={onCreateGraph}
         isOnDevicesPage={true}
         isOnDashboard={false}
