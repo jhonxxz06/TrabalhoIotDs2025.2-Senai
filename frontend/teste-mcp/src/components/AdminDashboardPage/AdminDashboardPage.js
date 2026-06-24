@@ -539,8 +539,8 @@ const AdminDashboardPage = ({
           mqttField: widgetConfig.mqttField || null,
           mqttField2: widgetConfig.mqttField2 || null,
           useMqttData: widgetConfig.useMqttData || false,
-          thresholds: widgetConfig.thresholds || null,
-          notifications: widgetConfig.notifications || null,
+          thresholds: widgetConfig.thresholds || undefined,
+          notifications: widgetConfig.notifications || undefined,
           limit: widgetConfig.limit || null
         }
       };

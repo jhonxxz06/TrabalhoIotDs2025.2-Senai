@@ -11,7 +11,7 @@ const notificationsSchema = z.object({
       threshold: z.number().int().positive('Threshold deve ser um inteiro positivo')
     })).optional().default({})
   }).optional()
-}).optional();
+}).optional().nullable();
 
 // Permite quaisquer outras chaves do config (fields, etc.), validando `notifications` quando presente
 const configSchema = z.object({
