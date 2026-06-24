@@ -23,5 +23,6 @@ router.get('/:id/users', authenticate, domainController.getUsers);
 // Configuração de notificações via Telegram (admin)
 router.get('/:id/telegram', authenticate, requireAdmin, domainController.getTelegramConfig);
 router.put('/:id/telegram', authenticate, requireAdmin, validate(updateTelegramSchema), domainController.updateTelegramConfig);
+router.post('/:id/telegram/generate-code', authenticate, requireAdmin, domainController.generateVerificationCode);
 
 module.exports = router;

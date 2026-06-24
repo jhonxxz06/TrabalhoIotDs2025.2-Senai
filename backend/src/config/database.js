@@ -62,6 +62,17 @@ async function createTables(client) {
       ALTER TABLE domains ADD COLUMN IF NOT EXISTS telegram_enabled BOOLEAN DEFAULT false
     `);
 
+    // Migração segura: fluxo de verificação por código para conectar grupo Telegram
+    await client.query(`
+      ALTER TABLE domains ADD COLUMN IF NOT EXISTS telegram_verification_code VARCHAR(10)
+    `);
+    await client.query(`
+      ALTER TABLE domains ADD COLUMN IF NOT EXISTS telegram_verification_expires_at TIMESTAMPTZ
+    `);
+    await client.query(`
+      ALTER TABLE domains ADD COLUMN IF NOT EXISTS telegram_chat_name VARCHAR(255)
+    `);
+
     // Tabela de usuários
     await client.query(`
       CREATE TABLE IF NOT EXISTS users (

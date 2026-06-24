@@ -123,6 +123,7 @@ const widgetRoutes = require('./routes/widget.routes');
 const accessRoutes = require('./routes/access.routes');
 const mqttRoutes = require('./routes/mqtt.routes');
 const domainRoutes = require('./routes/domain.routes');
+const telegramRoutes = require('./routes/telegram.routes');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
@@ -131,6 +132,7 @@ app.use('/api/widgets', widgetRoutes);
 app.use('/api/access', accessRoutes);
 app.use('/api/mqtt', mqttRoutes);
 app.use('/api/domains', domainRoutes);
+app.use('/api/telegram', telegramRoutes);
 
 // Middleware de erro global
 app.use((err, req, res, next) => {
@@ -167,6 +169,26 @@ initDatabase()
         // Carrega contadores de notificação do banco para memória
         const notificationService = require('./services/notification.service');
         await notificationService.init();
+
+        // Registra webhook do Telegram (se todas as variáveis estiverem configuradas)
+        const telegramService = require('./services/telegram.service');
+        const telegramBaseUrl = process.env.BASE_URL || process.env.RENDER_EXTERNAL_URL;
+        const telegramWebhookSecret = process.env.TELEGRAM_WEBHOOK_SECRET;
+
+        if (process.env.TELEGRAM_BOT_TOKEN && telegramBaseUrl && telegramWebhookSecret) {
+          telegramService.setWebhook(telegramBaseUrl, telegramWebhookSecret)
+            .then(ok => {
+              if (ok) console.log('Telegram webhook registrado com sucesso');
+              else console.warn('Falha ao registrar webhook do Telegram');
+            })
+            .catch(err => console.warn('Erro ao registrar webhook do Telegram:', err.message));
+        } else {
+          const missing = [];
+          if (!process.env.TELEGRAM_BOT_TOKEN) missing.push('TELEGRAM_BOT_TOKEN');
+          if (!telegramBaseUrl) missing.push('BASE_URL ou RENDER_EXTERNAL_URL');
+          if (!telegramWebhookSecret) missing.push('TELEGRAM_WEBHOOK_SECRET');
+          console.warn(`Webhook do Telegram não registrado — variáveis ausentes: ${missing.join(', ')}`);
+        }
       }, 1000);
     });
   })

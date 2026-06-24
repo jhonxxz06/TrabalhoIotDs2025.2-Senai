@@ -1,5 +1,7 @@
+const crypto = require('crypto');
 const Domain = require('../models/Domain');
 const User = require('../models/User');
+const telegramService = require('../services/telegram.service');
 
 const domainController = {
   /**
@@ -143,16 +145,145 @@ const domainController = {
         return res.status(403).json({ success: false, message: 'Acesso negado a este domínio' });
       }
 
+      const now = new Date();
+      const codeActive =
+        domain.telegram_verification_code &&
+        domain.telegram_verification_expires_at &&
+        new Date(domain.telegram_verification_expires_at) > now;
+
       return res.status(200).json({
         success: true,
         data: {
           chatId: domain.telegram_chat_id ?? null,
-          enabled: domain.telegram_enabled ?? false
+          chatName: domain.telegram_chat_name ?? null,
+          enabled: domain.telegram_enabled ?? false,
+          verificationCode: codeActive ? domain.telegram_verification_code : null,
+          verificationExpiresAt: codeActive ? domain.telegram_verification_expires_at : null
         }
       });
     } catch (error) {
       console.error('Erro ao buscar configuração do Telegram:', error);
       return res.status(500).json({ success: false, message: 'Erro interno do servidor' });
+    }
+  },
+
+  /**
+   * POST /api/domains/:id/telegram/generate-code
+   * Rota PRIVADA (admin) — gera ou reutiliza código de verificação Telegram (válido 15 min)
+   */
+  async generateVerificationCode(req, res) {
+    try {
+      const { id } = req.params;
+      const domain = await Domain.findById(id);
+
+      if (!domain) {
+        return res.status(404).json({ success: false, message: 'Domínio não encontrado' });
+      }
+
+      const callingUser = await User.findById(req.user.id);
+      if (callingUser?.domain_id !== domain.id) {
+        return res.status(403).json({ success: false, message: 'Acesso negado a este domínio' });
+      }
+
+      // Reutilizar código ainda válido em vez de gerar novo
+      const now = new Date();
+      if (
+        domain.telegram_verification_code &&
+        domain.telegram_verification_expires_at &&
+        new Date(domain.telegram_verification_expires_at) > now
+      ) {
+        return res.status(200).json({
+          success: true,
+          data: {
+            code: domain.telegram_verification_code,
+            expiresAt: domain.telegram_verification_expires_at
+          }
+        });
+      }
+
+      const code = crypto.randomBytes(4).toString('hex').slice(0, 6).toUpperCase();
+      const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+
+      await Domain.saveVerificationCode(domain.id, code, expiresAt);
+
+      return res.status(200).json({
+        success: true,
+        data: { code, expiresAt }
+      });
+    } catch (error) {
+      console.error('Erro ao gerar código de verificação Telegram:', error);
+      return res.status(500).json({ success: false, message: 'Erro interno do servidor' });
+    }
+  },
+
+  /**
+   * POST /api/telegram/webhook
+   * Rota PÚBLICA protegida por secret_token — recebe updates do Telegram Bot API.
+   * Sempre retorna 200 para updates válidos (evita reenvio pelo Telegram).
+   * TODO: confirmar username do bot (@CleanAirBot) antes de colocar em produção
+   */
+  async handleTelegramWebhook(req, res) {
+    // Validar secret enviado pelo Telegram no header
+    const incomingSecret = req.headers['x-telegram-bot-api-secret-token'];
+    if (!incomingSecret || incomingSecret !== process.env.TELEGRAM_WEBHOOK_SECRET) {
+      return res.status(403).json({ success: false, error: 'Forbidden' });
+    }
+
+    // Responder 200 imediatamente — o Telegram reenvia se não receber 200
+    res.status(200).json({ ok: true });
+
+    // Processar update de forma assíncrona após o 200
+    try {
+      const update = req.body;
+      const message = update?.message;
+      if (!message?.text) return;
+
+      const chatId = String(message.chat.id);
+      const chatTitle = message.chat.title || 'Chat privado';
+      const text = message.text.trim();
+
+      if (text.startsWith('/conectar')) {
+        const parts = text.split(/\s+/);
+        const code = parts[1]?.trim().toUpperCase();
+
+        if (!code) {
+          await telegramService.sendMessage(chatId, '❌ Código não informado. Use: /conectar CÓDIGO');
+          return;
+        }
+
+        const domain = await Domain.findByVerificationCode(code);
+
+        if (!domain) {
+          await telegramService.sendMessage(chatId, '❌ Código inválido ou expirado. Gere um novo código no painel do Clean Air.');
+          return;
+        }
+
+        if (domain.telegram_chat_id && domain.telegram_chat_id !== chatId) {
+          await telegramService.sendMessage(chatId, '⚠️ Este domínio já está conectado a outro grupo. Desconecte primeiro.');
+          return;
+        }
+
+        if (domain.telegram_chat_id === chatId) {
+          await telegramService.sendMessage(chatId, `ℹ️ Este grupo já está conectado ao domínio <b>${domain.name}</b>.`);
+          return;
+        }
+
+        await Domain.completeTelegramConnection(domain.id, chatId, chatTitle);
+        await telegramService.sendMessage(chatId, `✅ Conectado! As notificações de excedência do domínio <b>${domain.name}</b> serão enviadas neste grupo.`);
+
+      } else if (text.startsWith('/desconectar')) {
+        const domain = await Domain.disconnectTelegram(chatId);
+
+        if (!domain) {
+          await telegramService.sendMessage(chatId, 'ℹ️ Este grupo não está conectado a nenhum domínio.');
+          return;
+        }
+
+        await telegramService.sendMessage(chatId, `❌ Grupo desconectado do domínio <b>${domain.name}</b>. As notificações não serão mais enviadas aqui.`);
+      }
+      // Qualquer outra mensagem é ignorada silenciosamente
+    } catch (error) {
+      console.error('[Telegram Webhook] Erro ao processar update:', error.message);
     }
   },
 

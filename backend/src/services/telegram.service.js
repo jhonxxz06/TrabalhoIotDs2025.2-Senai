@@ -79,7 +79,70 @@ async function sendMessage(chatId, text) {
   }
 }
 
+/**
+ * Registra o webhook do bot no Telegram.
+ * @param {string} baseUrl  URL pública do backend (sem barra final)
+ * @param {string} secret   Valor do secret_token
+ * @returns {Promise<boolean>}
+ */
+async function setWebhook(baseUrl, secret) {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  if (!token) return false;
+
+  const webhookUrl = `${baseUrl}/api/telegram/webhook`;
+  try {
+    const response = await fetch(`${TELEGRAM_API_BASE}/bot${token}/setWebhook`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        url: webhookUrl,
+        secret_token: secret,
+        allowed_updates: ['message']
+      }),
+      signal: AbortSignal.timeout(10000)
+    });
+    const body = await response.json().catch(() => null);
+    if (!response.ok || !body?.ok) {
+      console.error('[Telegram] Falha ao registrar webhook:', body?.description || `HTTP ${response.status}`);
+      return false;
+    }
+    console.log(`[Telegram] Webhook registrado: ${webhookUrl}`);
+    return true;
+  } catch (error) {
+    console.error('[Telegram] Erro ao registrar webhook:', error.message);
+    return false;
+  }
+}
+
+/**
+ * Remove o webhook registrado (útil para debug/cleanup).
+ * @returns {Promise<boolean>}
+ */
+async function deleteWebhook() {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  if (!token) return false;
+
+  try {
+    const response = await fetch(`${TELEGRAM_API_BASE}/bot${token}/deleteWebhook`, {
+      method: 'POST',
+      signal: AbortSignal.timeout(10000)
+    });
+    const body = await response.json().catch(() => null);
+    if (!response.ok || !body?.ok) {
+      console.error('[Telegram] Falha ao remover webhook:', body?.description || `HTTP ${response.status}`);
+      return false;
+    }
+    console.log('[Telegram] Webhook removido');
+    return true;
+  } catch (error) {
+    console.error('[Telegram] Erro ao remover webhook:', error.message);
+    return false;
+  }
+}
+
 module.exports = {
   sendMessage,
-  formatAlertMessage
+  formatAlertMessage,
+  setWebhook,
+  deleteWebhook
 };

@@ -134,6 +134,72 @@ const Domain = {
   },
 
   /**
+   * Salva (ou substitui) o código de verificação Telegram de um domínio
+   * @param {number} domainId
+   * @param {string} code
+   * @param {Date} expiresAt
+   */
+  async saveVerificationCode(domainId, code, expiresAt) {
+    await run(
+      'UPDATE domains SET telegram_verification_code = $1, telegram_verification_expires_at = $2 WHERE id = $3',
+      [code, expiresAt, domainId]
+    );
+  },
+
+  /**
+   * Busca domínio pelo código de verificação Telegram, se não expirado
+   * @param {string} code
+   * @returns {Promise<Object|null>}
+   */
+  async findByVerificationCode(code) {
+    return await queryOne(
+      `SELECT id, name, telegram_chat_id
+       FROM domains
+       WHERE telegram_verification_code = $1
+         AND telegram_verification_expires_at > NOW()`,
+      [code]
+    );
+  },
+
+  /**
+   * Vincula o chat_id ao domínio e limpa o código de verificação
+   * @param {number} domainId
+   * @param {string} chatId
+   * @param {string} chatName
+   */
+  async completeTelegramConnection(domainId, chatId, chatName) {
+    await run(
+      `UPDATE domains
+       SET telegram_chat_id = $1,
+           telegram_enabled = true,
+           telegram_chat_name = $2,
+           telegram_verification_code = NULL,
+           telegram_verification_expires_at = NULL
+       WHERE id = $3`,
+      [chatId, chatName, domainId]
+    );
+  },
+
+  /**
+   * Remove a vinculação Telegram de um domínio identificado pelo chat_id
+   * (o bot não conhece o domain_id, apenas o chat de onde o comando veio)
+   * @param {string} chatId
+   * @returns {Promise<Object|null>} domínio desvinculado ou null
+   */
+  async disconnectTelegram(chatId) {
+    const result = await run(
+      `UPDATE domains
+       SET telegram_chat_id = NULL,
+           telegram_enabled = false,
+           telegram_chat_name = NULL
+       WHERE telegram_chat_id = $1
+       RETURNING id, name`,
+      [chatId]
+    );
+    return result.rows[0] ?? null;
+  },
+
+  /**
    * Retorna representação pública do domínio
    * @param {Object} domain
    * @returns {Object}
