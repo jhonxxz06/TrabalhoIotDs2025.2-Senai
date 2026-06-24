@@ -109,7 +109,8 @@ const GraphEditorModal = ({
   onClose,
   onSave,
   existingWidget = null,
-  user = null
+  user = null,
+  domainPlan = 'gratuito'
 }) => {
   const [mode, setMode] = useState('simple'); // 'simple' ou 'advanced'
   const [jsonCode, setJsonCode] = useState('');
@@ -379,19 +380,24 @@ const GraphEditorModal = ({
               <div className="form-group">
                 <label>Tipo de Gráfico</label>
                 <div className="chart-type-buttons">
-                  {['line', 'bar', 'pie', 'doughnut', 'table'].map(type => (
-                    <button
-                      key={type}
-                      className={`chart-type-btn ${chartType === type ? 'active' : ''}`}
-                      onClick={() => setChartType(type)}
-                    >
-                      {type === 'line' && ' Linha'}
-                      {type === 'bar' && ' Barras'}
-                      {type === 'pie' && ' Pizza'}
-                      {type === 'doughnut' && ' Rosca'}
-                      {type === 'table' && ' Tabela'}
-                    </button>
-                  ))}
+                  {['line', 'bar', 'pie', 'doughnut', 'table'].map(type => {
+                    const isTableLocked = type === 'table' && domainPlan === 'gratuito';
+                    return (
+                      <button
+                        key={type}
+                        className={`chart-type-btn ${chartType === type ? 'active' : ''} ${isTableLocked ? 'locked' : ''}`}
+                        onClick={() => !isTableLocked && setChartType(type)}
+                        title={isTableLocked ? 'Disponível a partir do plano Comercial' : undefined}
+                        style={isTableLocked ? { opacity: 0.45, cursor: 'not-allowed' } : {}}
+                      >
+                        {type === 'line' && ' Linha'}
+                        {type === 'bar' && ' Barras'}
+                        {type === 'pie' && ' Pizza'}
+                        {type === 'doughnut' && ' Rosca'}
+                        {type === 'table' && (isTableLocked ? ' Tabela 🔒' : ' Tabela')}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -492,25 +498,36 @@ const GraphEditorModal = ({
                 </>
               )}
 
-              {/* Seção de notificações — só para table com thresholds definidos */}
-              {chartType === 'table' && (() => {
-                const fieldsWithThreshold = (mqttField || '')
-                  .split(',')
-                  .map(f => f.trim())
-                  .filter(f => f)
-                  .filter(f => {
-                    const t = thresholds[f];
-                    return t && (
-                      (t.min !== '' && t.min !== undefined && t.min !== null) ||
-                      (t.max !== '' && t.max !== undefined && t.max !== null)
-                    );
-                  });
-
-                if (fieldsWithThreshold.length === 0) return null;
+              {/* Seção de notificações — só para table com thresholds e plano Empresarial */}
+              {chartType === 'table' && domainPlan !== 'empresarial' && (
+                <div className="notif-plan-locked">
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{flexShrink:0}}>
+                    <rect x="3" y="7" width="10" height="8" rx="1.5" fill="#e5e7eb" stroke="#9ca3af" strokeWidth="1.2"/>
+                    <path d="M5.5 7V5a2.5 2.5 0 015 0v2" stroke="#9ca3af" strokeWidth="1.2" strokeLinecap="round"/>
+                  </svg>
+                  Notificações disponíveis no plano <strong>Empresarial</strong>
+                </div>
+              )}
+              {chartType === 'table' && domainPlan === 'empresarial' && (() => {
+                // Use threshold keys directly — mqttField may be null for table widgets
+                const fieldsWithThreshold = Object.entries(thresholds)
+                  .filter(([, limits]) =>
+                    limits && (
+                      (limits.min !== '' && limits.min !== undefined && limits.min !== null) ||
+                      (limits.max !== '' && limits.max !== undefined && limits.max !== null)
+                    )
+                  )
+                  .map(([field]) => field);
 
                 return (
                   <div className="notifications-section">
-                    <h4>🔔 Notificações</h4>
+                    <h4>
+                      <svg width="15" height="15" viewBox="0 0 15 15" fill="none" style={{verticalAlign:'middle',marginRight:5}}>
+                        <path d="M7.5 1a4.5 4.5 0 00-4.5 4.5c0 2.7-1.5 3.5-1.5 3.5h12s-1.5-.8-1.5-3.5A4.5 4.5 0 007.5 1z" fill="#5b9bf8" opacity="0.8"/>
+                        <path d="M6 10.5a1.5 1.5 0 003 0" stroke="#5b9bf8" strokeWidth="1.2" strokeLinecap="round"/>
+                      </svg>
+                      Notificações
+                    </h4>
 
                     <div className="notif-channel-block">
                       <label className="checkbox-label notif-toggle-label">
@@ -522,11 +539,17 @@ const GraphEditorModal = ({
                         Ativar notificações Telegram para este widget
                       </label>
 
-                      {telegramNotifEnabled && (
+                      {telegramNotifEnabled && fieldsWithThreshold.length === 0 && (
+                        <div className="notif-warning">
+                          Configure limites mínimos ou máximos nos campos acima para ativar notificações.
+                        </div>
+                      )}
+
+                      {telegramNotifEnabled && fieldsWithThreshold.length > 0 && (
                         <>
                           {!telegramConfigured && (
                             <div className="notif-warning">
-                              ⚠️ As notificações estão ativadas, mas o Telegram ainda não está configurado para este domínio. Acesse <strong>Configurações de Notificações</strong> na página de dispositivos para conectar o Telegram.
+                              ⚠️ O Telegram ainda não está configurado para este domínio. Acesse <strong>Configurações de Notificações</strong> na página de dispositivos para conectar.
                             </div>
                           )}
 

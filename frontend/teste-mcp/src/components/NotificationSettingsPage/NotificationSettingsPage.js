@@ -10,10 +10,14 @@ const NotificationSettingsPage = ({
   domainName,
   domainUserCount,
   domainUserLimit,
+  domainPlan = 'gratuito',
+  domainDeviceCount,
+  domainDeviceLimit,
   user,
   onUserSaved,
   onLogout,
-  onBackToDevices
+  onBackToDevices,
+  onNavigateToPlans
 }) => {
   const [loading, setLoading] = useState(true);
   const [telegramConfig, setTelegramConfig] = useState(null);
@@ -170,8 +174,12 @@ const NotificationSettingsPage = ({
         domainName={domainName}
         domainUserCount={domainUserCount}
         domainUserLimit={domainUserLimit}
+        domainPlan={domainPlan}
+        domainDeviceCount={domainDeviceCount}
+        domainDeviceLimit={domainDeviceLimit}
         onLogout={onLogout}
         onBackToDevices={onBackToDevices}
+        onNavigateToPlans={onNavigateToPlans}
         isOnDevicesPage={false}
         isOnDashboard={false}
         user={user}
@@ -181,7 +189,33 @@ const NotificationSettingsPage = ({
       <main className="notification-settings-content">
         <h1 className="notification-settings-title">Configurações de Notificações</h1>
 
-        {loading ? (
+        {domainPlan !== 'empresarial' ? (
+          <div className="plan-upgrade-card">
+            <div className="plan-upgrade-icon">
+              <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+                <circle cx="24" cy="24" r="24" fill="#fef3c7"/>
+                <rect x="14" y="22" width="20" height="16" rx="3" fill="#fde68a" stroke="#d97706" strokeWidth="1.8"/>
+                <path d="M17 22v-5a7 7 0 0114 0v5" stroke="#d97706" strokeWidth="1.8" strokeLinecap="round"/>
+                <circle cx="24" cy="30" r="2.5" fill="#d97706"/>
+              </svg>
+            </div>
+            <h2>Notificações via Telegram</h2>
+            <p>
+              O envio de notificações de excedências está disponível apenas no plano{' '}
+              <strong>Empresarial</strong>.
+            </p>
+            <p className="plan-upgrade-current">
+              Plano atual: <span className={`plan-chip plan-chip--${domainPlan}`}>
+                {domainPlan.charAt(0).toUpperCase() + domainPlan.slice(1)}
+              </span>
+            </p>
+            {onNavigateToPlans && (
+              <button className="plan-upgrade-btn" onClick={onNavigateToPlans}>
+                Gerenciar Plano
+              </button>
+            )}
+          </div>
+        ) : loading ? (
           <p className="notification-settings-loading">Carregando...</p>
         ) : (
           <div className="notification-channels-list">

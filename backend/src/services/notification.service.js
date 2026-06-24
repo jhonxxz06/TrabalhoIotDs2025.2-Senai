@@ -116,7 +116,10 @@ async function processField(widget, fieldName, telegramFieldConfig, configFields
 
   const domain = device.domain_id ? await Domain.findById(device.domain_id) : null;
 
-  if (!domain || !domain.telegram_enabled || !domain.telegram_chat_id) {
+  // Notificações Telegram são exclusivas do plano Empresarial
+  if (!domain || domain.plan !== 'empresarial') return;
+
+  if (!domain.telegram_enabled || !domain.telegram_chat_id) {
     lastFailedAt.set(cooldownKey, Date.now());
     return;
   }

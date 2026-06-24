@@ -200,6 +200,36 @@ const Domain = {
   },
 
   /**
+   * Conta quantos dispositivos pertencem a um domínio
+   * @param {number} domainId
+   * @returns {Promise<number>}
+   */
+  async countDevices(domainId) {
+    const result = await queryOne(
+      'SELECT COUNT(*)::int AS count FROM devices WHERE domain_id = $1',
+      [domainId]
+    );
+    return result ? result.count : 0;
+  },
+
+  /**
+   * Atualiza o plano do domínio, ajustando max_users e max_devices conforme o novo plano
+   * @param {number} domainId
+   * @param {string} plan
+   * @returns {Promise<Object|null>}
+   */
+  async updatePlan(domainId, plan) {
+    const { PLAN_LIMITS } = require('../constants/plans');
+    const limits = PLAN_LIMITS[plan];
+    if (!limits) throw new Error(`Plano inválido: ${plan}`);
+    await run(
+      'UPDATE domains SET plan = $1, max_users = $2, max_devices = $3 WHERE id = $4',
+      [plan, limits.maxUsers, limits.maxDevices, domainId]
+    );
+    return await this.findById(domainId);
+  },
+
+  /**
    * Retorna representação pública do domínio
    * @param {Object} domain
    * @returns {Object}
@@ -212,6 +242,8 @@ const Domain = {
       code: domain.code,
       adminId: domain.admin_id,
       maxUsers: domain.max_users,
+      maxDevices: domain.max_devices ?? 3,
+      plan: domain.plan ?? 'gratuito',
       createdAt: domain.created_at
     };
   }

@@ -73,6 +73,14 @@ async function createTables(client) {
       ALTER TABLE domains ADD COLUMN IF NOT EXISTS telegram_chat_name VARCHAR(255)
     `);
 
+    // Migração segura: plano SaaS e limite de dispositivos por domínio
+    await client.query(`
+      ALTER TABLE domains ADD COLUMN IF NOT EXISTS plan VARCHAR(20) DEFAULT 'gratuito' CHECK (plan IN ('gratuito','comercial','empresarial'))
+    `);
+    await client.query(`
+      ALTER TABLE domains ADD COLUMN IF NOT EXISTS max_devices INTEGER DEFAULT 3
+    `);
+
     // Tabela de usuários
     await client.query(`
       CREATE TABLE IF NOT EXISTS users (

@@ -40,6 +40,8 @@ async function buildPublicUser(user) {
     ]);
     publicUser.domainUserCount = count;
     publicUser.domainUserLimit = domain?.max_users ?? null;
+    publicUser.domainPlan = domain?.plan ?? 'gratuito';
+    publicUser.domainMaxDevices = domain?.max_devices ?? 3;
   }
 
   return publicUser;
@@ -119,6 +121,15 @@ const authController = {
         }
 
         domainId = domain.id;
+
+        // Verificar limite de usuários do plano
+        const currentUserCount = await Domain.countUsers(domain.id);
+        if (currentUserCount >= domain.max_users) {
+          return res.status(400).json({
+            success: false,
+            error: `Limite de usuários atingido para este domínio (máx. ${domain.max_users}).`
+          });
+        }
       }
 
       // Cria o usuário
@@ -435,6 +446,15 @@ const authController = {
         return res.status(404).json({
           success: false,
           error: 'Domínio não encontrado. Verifique o código informado.'
+        });
+      }
+
+      // Verificar limite de usuários do plano antes de ingressar
+      const currentUserCount = await Domain.countUsers(domain.id);
+      if (currentUserCount >= domain.max_users) {
+        return res.status(400).json({
+          success: false,
+          error: `Limite de usuários atingido para este domínio (máx. ${domain.max_users}).`
         });
       }
 

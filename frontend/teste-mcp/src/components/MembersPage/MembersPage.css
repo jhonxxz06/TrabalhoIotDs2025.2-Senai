@@ -24,6 +24,21 @@
   color: #1D1B20;
   margin-bottom: 30px;
   text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.members-user-count-badge {
+  font-size: 14px;
+  font-weight: 600;
+  padding: 3px 12px;
+  border-radius: 12px;
+  background: rgba(91, 155, 248, 0.15);
+  color: #2a5ab8;
+  border: 1px solid rgba(91, 155, 248, 0.3);
 }
 
 .members-loading,

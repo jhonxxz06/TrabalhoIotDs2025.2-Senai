@@ -20,6 +20,9 @@ router.get('/:id/devices', authenticate, domainController.getDevices);
 // Lista usuários de um domínio específico (usado no modal de edição de dispositivo)
 router.get('/:id/users', authenticate, domainController.getUsers);
 
+// Gerenciamento de plano SaaS (somente admin do domínio)
+router.put('/:id/plan', authenticate, requireAdmin, domainController.updatePlan);
+
 // Configuração de notificações via Telegram (admin)
 router.get('/:id/telegram', authenticate, requireAdmin, domainController.getTelegramConfig);
 router.put('/:id/telegram', authenticate, requireAdmin, validate(updateTelegramSchema), domainController.updateTelegramConfig);

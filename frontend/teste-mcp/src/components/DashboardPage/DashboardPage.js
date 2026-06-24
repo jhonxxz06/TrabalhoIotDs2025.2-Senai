@@ -295,6 +295,7 @@ const DashboardPage = ({
   domainName,
   domainUserCount,
   domainUserLimit,
+  domainPlan,
   deviceName = 'Nome do dispositivo',
   device,
   widgets = [],
@@ -360,6 +361,7 @@ const DashboardPage = ({
         domainName={domainName}
         domainUserCount={domainUserCount}
         domainUserLimit={domainUserLimit}
+        domainPlan={domainPlan}
         onBackToDevices={onBackToDevices}
         onLogout={onLogout}
         onLogoClick={onBackToDevices}

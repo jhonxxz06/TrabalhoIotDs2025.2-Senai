@@ -651,6 +651,23 @@
    Notifications Section (widget table)
    ======================================== */
 
+.notif-plan-locked {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.notif-plan-locked strong {
+  color: #d97706;
+}
+
 .notifications-section {
   margin-top: 4px;
   border-top: 1px solid rgba(132, 182, 244, 0.3);

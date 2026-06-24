@@ -4,17 +4,43 @@ import logger from '../../utils/logger';
 import logo from '../../assets/logo.png';
 import EditProfileModal from '../EditProfileModal';
 
+const PlanIcon = ({ plan }) => {
+  if (plan === 'comercial') return (
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{flexShrink:0}}>
+      <rect x="2" y="5" width="8" height="6" rx="0.5" fill="currentColor" opacity="0.9"/>
+      <rect x="3.5" y="2" width="5" height="4" rx="0.5" fill="currentColor" opacity="0.6"/>
+    </svg>
+  );
+  if (plan === 'empresarial') return (
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{flexShrink:0}}>
+      <rect x="1" y="5" width="4" height="6" rx="0.5" fill="currentColor" opacity="0.7"/>
+      <rect x="7" y="5" width="4" height="6" rx="0.5" fill="currentColor" opacity="0.7"/>
+      <rect x="3" y="3" width="6" height="8" rx="0.5" fill="currentColor"/>
+    </svg>
+  );
+  return (
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{flexShrink:0}}>
+      <path d="M9 6c0-1.657-1.343-3-3-3S3 4.343 3 6c-.828 0-1.5.672-1.5 1.5S2.172 9 3 9h6c.828 0 1.5-.672 1.5-1.5S9.828 6 9 6z" fill="currentColor"/>
+    </svg>
+  );
+};
+
 const AdminHeader = ({
   username,
   domainName,
   domainUserCount,
   domainUserLimit,
+  domainPlan = 'gratuito',
+  domainDeviceCount = 0,
+  domainDeviceLimit = 3,
+  isDeviceLimitReached = false,
   onLogout,
   onAddDevice,
   onCreateGraph,
   onBackToDevices,
   onNavigateToMembers,
   onNavigateToSettings,
+  onNavigateToPlans,
   isOnDevicesPage = true,
   isOnDashboard = false,
   notifications = [],
@@ -66,8 +92,17 @@ const AdminHeader = ({
           domainName && (
             <span className="header-domain-name">
               {domainName}
+              {domainPlan && (
+                <span className={`header-plan-badge header-plan-badge--${domainPlan}`}>
+                  <PlanIcon plan={domainPlan} />
+                  {domainPlan.charAt(0).toUpperCase() + domainPlan.slice(1)}
+                </span>
+              )}
               {domainUserLimit != null && (
                 <span className="header-user-count">{domainUserCount}/{domainUserLimit}</span>
+              )}
+              {domainDeviceLimit != null && (
+                <span className="header-device-count">{domainDeviceCount}/{domainDeviceLimit} disp.</span>
               )}
             </span>
           )
@@ -97,8 +132,9 @@ const AdminHeader = ({
         {isOnDevicesPage && (
           <button
             className="admin-icon-button"
-            onClick={onAddDevice}
-            title="Adicionar Dispositivo"
+            onClick={isDeviceLimitReached ? undefined : onAddDevice}
+            title={isDeviceLimitReached ? `Limite de dispositivos atingido (máx. ${domainDeviceLimit})` : 'Adicionar Dispositivo'}
+            style={isDeviceLimitReached ? { opacity: 0.4, cursor: 'not-allowed' } : {}}
           >
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
               <rect x="2" y="4" width="20" height="13" rx="2" stroke="white" strokeWidth="2"/>
@@ -224,8 +260,13 @@ const AdminHeader = ({
               <button onClick={() => { setShowUserMenu(false); setShowEditProfile(true); }}>
                 Editar Perfil
               </button>
-              <button onClick={() => { 
-                setShowUserMenu(false); 
+              {onNavigateToPlans && (
+                <button onClick={() => { setShowUserMenu(false); onNavigateToPlans(); }}>
+                  Gerenciar Plano
+                </button>
+              )}
+              <button onClick={() => {
+                setShowUserMenu(false);
                 if (onLogout) {
                   onLogout();
                 } else {

@@ -349,6 +349,9 @@ const AdminDashboardPage = ({
   domainName,
   domainUserCount,
   domainUserLimit,
+  domainPlan = 'gratuito',
+  domainDeviceCount = 0,
+  domainDeviceLimit = 3,
   deviceName = 'Nome do dispositivo',
   device,
   widgets = [],
@@ -357,6 +360,7 @@ const AdminDashboardPage = ({
   onBackToDevices,
   onNavigateToMembers,
   onNavigateToSettings,
+  onNavigateToPlans,
   onAddDevice,
   onLogout,
   onRefreshWidgets,
@@ -567,11 +571,15 @@ const AdminDashboardPage = ({
         domainName={domainName}
         domainUserCount={domainUserCount}
         domainUserLimit={domainUserLimit}
+        domainPlan={domainPlan}
+        domainDeviceCount={domainDeviceCount}
+        domainDeviceLimit={domainDeviceLimit}
         onLogout={onLogout}
         onAddDevice={onAddDevice}
         onBackToDevices={onBackToDevices}
         onNavigateToMembers={onNavigateToMembers}
         onNavigateToSettings={onNavigateToSettings}
+        onNavigateToPlans={onNavigateToPlans}
         onCreateGraph={handleCreateGraph}
         isOnDevicesPage={false}
         isOnDashboard={true}
@@ -654,6 +662,7 @@ const AdminDashboardPage = ({
           setEditingWidget(null);
         }}
         user={user}
+        domainPlan={domainPlan}
       />
     </div>
   );

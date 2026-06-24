@@ -5,11 +5,33 @@ import settingsIcon from '../../assets/settings-icon.png';
 import EditProfileModal from '../EditProfileModal';
 import { useToast } from '../ToastContext';
 
+const PlanIcon = ({ plan }) => {
+  if (plan === 'comercial') return (
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{flexShrink:0}}>
+      <rect x="2" y="5" width="8" height="6" rx="0.5" fill="currentColor" opacity="0.9"/>
+      <rect x="3.5" y="2" width="5" height="4" rx="0.5" fill="currentColor" opacity="0.6"/>
+    </svg>
+  );
+  if (plan === 'empresarial') return (
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{flexShrink:0}}>
+      <rect x="1" y="5" width="4" height="6" rx="0.5" fill="currentColor" opacity="0.7"/>
+      <rect x="7" y="5" width="4" height="6" rx="0.5" fill="currentColor" opacity="0.7"/>
+      <rect x="3" y="3" width="6" height="8" rx="0.5" fill="currentColor"/>
+    </svg>
+  );
+  return (
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{flexShrink:0}}>
+      <path d="M9 6c0-1.657-1.343-3-3-3S3 4.343 3 6c-.828 0-1.5.672-1.5 1.5S2.172 9 3 9h6c.828 0 1.5-.672 1.5-1.5S9.828 6 9 6z" fill="currentColor"/>
+    </svg>
+  );
+};
+
 const Header = ({
   username,
   domainName,
   domainUserCount,
   domainUserLimit,
+  domainPlan,
   onUserClick,
   onSettingsClick,
   onLogoClick,
@@ -109,6 +131,12 @@ const Header = ({
             domainName && (
               <span className="header-domain-name">
                 {domainName}
+                {domainPlan && (
+                  <span className={`header-plan-badge header-plan-badge--${domainPlan}`}>
+                    <PlanIcon plan={domainPlan} />
+                    {domainPlan.charAt(0).toUpperCase() + domainPlan.slice(1)}
+                  </span>
+                )}
                 {domainUserLimit != null && (
                   <span className="header-user-count">{domainUserCount}/{domainUserLimit}</span>
                 )}

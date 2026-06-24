@@ -1,5 +1,6 @@
 const Device = require('../models/Device');
 const User = require('../models/User');
+const Domain = require('../models/Domain');
 const MqttService = require('../services/mqtt.service');
 
 /**
@@ -149,6 +150,21 @@ const create = async (req, res) => {
     // Recupera o domínio do admin criador
     const dbUser = await User.findById(req.user.id);
     const domain_id = dbUser?.domain_id ?? null;
+
+    // Verificar limite de dispositivos do plano
+    if (domain_id) {
+      const [domainRow, deviceCount] = await Promise.all([
+        Domain.findById(domain_id),
+        Domain.countDevices(domain_id)
+      ]);
+      const maxDevices = domainRow?.max_devices ?? 3;
+      if (deviceCount >= maxDevices) {
+        return res.status(400).json({
+          success: false,
+          message: `Limite de dispositivos atingido para este domínio (máx. ${maxDevices}).`
+        });
+      }
+    }
 
     // Garante que os usuários atribuídos pertencem ao mesmo domínio
     if (assignedUsers && assignedUsers.length > 0 && !await usersBelongToDomain(assignedUsers, domain_id)) {
