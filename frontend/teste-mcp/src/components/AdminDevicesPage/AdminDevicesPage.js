@@ -7,6 +7,7 @@ import PlansPage from '../PlansPage/PlansPage';
 import waitingImage from '../../assets/waiting-image.png';
 import { devices as devicesApi, domains as domainsApi } from '../../services/api';
 import logger from '../../utils/logger';
+import { useToast } from '../../components/ToastContext';
 
 const AdminDevicesPage = ({
   username,
@@ -34,6 +35,7 @@ const AdminDevicesPage = ({
   user,
   onUserSaved
 }) => {
+  const toast = useToast();
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deviceToDelete, setDeviceToDelete] = useState(null);
   const [showDeviceForm, setShowDeviceForm] = useState(false);
@@ -115,7 +117,7 @@ const AdminDevicesPage = ({
       }
     } catch (error) {
       logger.error('Erro ao salvar dispositivo:', error.message);
-      alert('Erro ao salvar dispositivo: ' + error.message);
+      toast.error('Erro ao salvar dispositivo: ' + (error.message || 'Erro desconhecido'));
     }
     setShowDeviceForm(false);
     setEditingDevice(null);
@@ -131,7 +133,7 @@ const AdminDevicesPage = ({
         }
       } catch (error) {
         logger.error('Erro ao excluir dispositivo:', error.message);
-        alert('Erro ao excluir dispositivo: ' + error.message);
+        toast.error('Erro ao excluir dispositivo: ' + (error.message || 'Erro desconhecido'));
       }
     }
     setShowDeleteModal(false);

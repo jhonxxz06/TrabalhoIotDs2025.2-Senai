@@ -9,6 +9,7 @@ import excelIcon from '../../assets/excel-icon.png';
 import { widgets as widgetsApi, mqtt as mqttApi } from '../../services/api';
 import { getSocket } from '../../services/socket';
 import logger from '../../utils/logger';
+import { useToast } from '../../components/ToastContext';
 
 // Registrar todos os componentes do Chart.js
 Chart.register(...registerables);
@@ -370,6 +371,7 @@ const AdminDashboardPage = ({
   user,
   onUserSaved
 }) => {
+  const toast = useToast();
   const [showGraphEditor, setShowGraphEditor] = useState(false);
   const [editingWidget, setEditingWidget] = useState(null);
   const [draggingWidget, setDraggingWidget] = useState(null);
@@ -521,7 +523,7 @@ const AdminDashboardPage = ({
       }
     } catch (error) {
       logger.error('Erro ao deletar widget:', error.message);
-      alert('Erro ao deletar widget: ' + (error.message || 'Erro desconhecido'));
+      toast.error('Erro ao deletar widget: ' + (error.message || 'Erro desconhecido'));
     }
   };
 
@@ -558,7 +560,7 @@ const AdminDashboardPage = ({
       }
     } catch (error) {
       logger.error('Erro ao salvar widget:', error.message);
-      alert('Erro ao salvar widget: ' + (error.message || 'Erro desconhecido'));
+      toast.error('Erro ao salvar widget: ' + (error.message || 'Erro desconhecido'));
     }
     setShowGraphEditor(false);
     setEditingWidget(null);
