@@ -283,12 +283,38 @@
     gap: 15px;
   }
 
+  /* Modo mobile: whiteboard vira coluna responsiva */
   .admin-charts-whiteboard {
-    height: 600px;
+    height: auto !important; /* vence o inline style calculado em JS */
+    min-height: 100px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 16px;
+    background-image: none; /* remove padrão de pontos */
   }
 
+  /* Cards saem do posicionamento absoluto */
   .admin-chart-card {
-    width: 260px;
+    position: static;
+    width: 100%;
+    cursor: default;
+  }
+
+  /* Tabela: remove dimensões fixas */
+  .admin-table-card {
+    width: 100% !important;
+    height: auto !important;
+  }
+
+  .admin-table-card .admin-chart-container {
+    height: 300px;
+    max-height: 300px;
+  }
+
+  /* Botões de ação sempre visíveis (sem hover em touch) */
+  .chart-actions {
+    opacity: 1;
   }
 }
 
@@ -303,11 +329,7 @@
   }
 
   .admin-chart-title {
-    font-size: 18px;
-  }
-
-  .admin-chart-card {
-    width: 220px;
+    font-size: 16px;
   }
 }
 

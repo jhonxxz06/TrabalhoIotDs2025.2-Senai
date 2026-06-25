@@ -54,6 +54,33 @@ async function createTables(client) {
       ALTER TABLE domains ADD COLUMN IF NOT EXISTS max_users INTEGER DEFAULT 10
     `);
 
+    // Migração segura: configuração de notificações via Telegram por domínio
+    await client.query(`
+      ALTER TABLE domains ADD COLUMN IF NOT EXISTS telegram_chat_id TEXT
+    `);
+    await client.query(`
+      ALTER TABLE domains ADD COLUMN IF NOT EXISTS telegram_enabled BOOLEAN DEFAULT false
+    `);
+
+    // Migração segura: fluxo de verificação por código para conectar grupo Telegram
+    await client.query(`
+      ALTER TABLE domains ADD COLUMN IF NOT EXISTS telegram_verification_code VARCHAR(10)
+    `);
+    await client.query(`
+      ALTER TABLE domains ADD COLUMN IF NOT EXISTS telegram_verification_expires_at TIMESTAMPTZ
+    `);
+    await client.query(`
+      ALTER TABLE domains ADD COLUMN IF NOT EXISTS telegram_chat_name VARCHAR(255)
+    `);
+
+    // Migração segura: plano SaaS e limite de dispositivos por domínio
+    await client.query(`
+      ALTER TABLE domains ADD COLUMN IF NOT EXISTS plan VARCHAR(20) DEFAULT 'gratuito' CHECK (plan IN ('gratuito','comercial','empresarial'))
+    `);
+    await client.query(`
+      ALTER TABLE domains ADD COLUMN IF NOT EXISTS max_devices INTEGER DEFAULT 3
+    `);
+
     // Tabela de usuários
     await client.query(`
       CREATE TABLE IF NOT EXISTS users (
@@ -145,6 +172,35 @@ async function createTables(client) {
       )
     `);
 
+    // Contadores de excedências por widget + campo (notificações Telegram)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS exceedance_counters (
+        id SERIAL PRIMARY KEY,
+        widget_id INTEGER NOT NULL REFERENCES widgets(id) ON DELETE CASCADE,
+        field_name TEXT NOT NULL,
+        count INTEGER NOT NULL DEFAULT 0,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(widget_id, field_name)
+      )
+    `);
+
+    // Log de notificações enviadas (Telegram e futuros canais)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS notification_log (
+        id SERIAL PRIMARY KEY,
+        domain_id INTEGER REFERENCES domains(id) ON DELETE SET NULL,
+        device_id INTEGER REFERENCES devices(id) ON DELETE SET NULL,
+        widget_id INTEGER REFERENCES widgets(id) ON DELETE SET NULL,
+        field_name TEXT NOT NULL,
+        value_read NUMERIC,
+        threshold_value NUMERIC,
+        threshold_type TEXT,
+        channel TEXT NOT NULL DEFAULT 'telegram',
+        sent_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        message_sent TEXT
+      )
+    `);
+
     // Adiciona FK de admin_id em domains → users (após ambas as tabelas existirem)
     // Feita como ALTER para ser segura em caso de re-execução
     try {
@@ -179,9 +235,9 @@ async function createTables(client) {
       // constraint já existe — ignorar
     }
 
-    console.log('✅ Tabelas criadas/verificadas com sucesso (incluindo domínios)');
+    console.log('Tabelas criadas/verificadas com sucesso (incluindo domínios)');
   } catch (error) {
-    console.error('❌ Erro ao criar tabelas:', error.message);
+    console.error('Erro ao criar tabelas:', error.message);
     throw error;
   }
 }
@@ -197,7 +253,7 @@ async function run(sql, params = []) {
     const result = await pool.query(sql, params);
     return result;
   } catch (error) {
-    console.error('❌ Erro ao executar query:', sql, params, error.message);
+    console.error('Erro ao executar query:', sql, params, error.message);
     throw error;
   }
 }
@@ -208,7 +264,7 @@ async function query(sql, params = []) {
     const result = await pool.query(sql, params);
     return result.rows;
   } catch (error) {
-    console.error('❌ Erro ao executar query:', sql, params, error.message);
+    console.error('Erro ao executar query:', sql, params, error.message);
     throw error;
   }
 }
@@ -219,7 +275,7 @@ async function queryOne(sql, params = []) {
     const results = await query(sql, params);
     return results.length > 0 ? results[0] : null;
   } catch (error) {
-    console.error('❌ Erro ao executar queryOne:', sql, params, error.message);
+    console.error('Erro ao executar queryOne:', sql, params, error.message);
     throw error;
   }
 }

@@ -1,22 +1,30 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './AdminDevicesPage.css';
 import AdminHeader from '../AdminHeader';
 import Footer from '../Footer';
 import DeviceFormModal from '../DeviceFormModal';
+import PlansPage from '../PlansPage/PlansPage';
 import waitingImage from '../../assets/waiting-image.png';
 import { devices as devicesApi, domains as domainsApi } from '../../services/api';
 import logger from '../../utils/logger';
+import { useToast } from '../../components/ToastContext';
 
 const AdminDevicesPage = ({
   username,
   domainName,
   domainUserCount,
   domainUserLimit,
+  domainPlan = 'gratuito',
+  domainDeviceCount = 0,
+  domainDeviceLimit = 3,
   devices = [],
   setDevices,
   onDeviceClick,
   onNavigateToDashboard,
   onNavigateToMembers,
+  onNavigateToSettings,
+  onNavigateToPlans,
+  onPlanSelected,
   onCreateGraph,
   onLogout,
   notifications = [],
@@ -25,14 +33,34 @@ const AdminDevicesPage = ({
   onRefresh,
   allUsers = [],
   user,
-  onUserSaved
+  onUserSaved,
+  onDomainSaved
 }) => {
+  const toast = useToast();
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deviceToDelete, setDeviceToDelete] = useState(null);
   const [showDeviceForm, setShowDeviceForm] = useState(false);
   const [editingDevice, setEditingDevice] = useState(null);
   // Usuários filtrados pelo domínio do dispositivo sendo editado
   const [domainUsers, setDomainUsers] = useState([]);
+  const [showPlanWelcome, setShowPlanWelcome] = useState(false);
+
+  useEffect(() => {
+    if (!user?.domainId) return;
+    const key = `planWelcome_${user.domainId}`;
+    if (!localStorage.getItem(key)) {
+      setShowPlanWelcome(true);
+    }
+  }, [user?.domainId]);
+
+  const closePlanWelcome = () => {
+    if (user?.domainId) {
+      localStorage.setItem(`planWelcome_${user.domainId}`, '1');
+    }
+    setShowPlanWelcome(false);
+  };
+
+  const isDeviceLimitReached = domainDeviceCount >= domainDeviceLimit;
 
   const handleDeleteClick = (e, device) => {
     e.stopPropagation();
@@ -70,6 +98,7 @@ const AdminDevicesPage = ({
   };
 
   const handleAddDevice = () => {
+    if (isDeviceLimitReached) return;
     setEditingDevice(null);
     setShowDeviceForm(true);
   };
@@ -89,7 +118,7 @@ const AdminDevicesPage = ({
       }
     } catch (error) {
       logger.error('Erro ao salvar dispositivo:', error.message);
-      alert('Erro ao salvar dispositivo: ' + error.message);
+      toast.error('Erro ao salvar dispositivo: ' + (error.message || 'Erro desconhecido'));
     }
     setShowDeviceForm(false);
     setEditingDevice(null);
@@ -105,7 +134,7 @@ const AdminDevicesPage = ({
         }
       } catch (error) {
         logger.error('Erro ao excluir dispositivo:', error.message);
-        alert('Erro ao excluir dispositivo: ' + error.message);
+        toast.error('Erro ao excluir dispositivo: ' + (error.message || 'Erro desconhecido'));
       }
     }
     setShowDeleteModal(false);
@@ -126,10 +155,16 @@ const AdminDevicesPage = ({
         domainName={domainName}
         domainUserCount={domainUserCount}
         domainUserLimit={domainUserLimit}
+        domainPlan={domainPlan}
+        domainDeviceCount={domainDeviceCount}
+        domainDeviceLimit={domainDeviceLimit}
+        isDeviceLimitReached={isDeviceLimitReached}
         onLogout={onLogout}
         onAddDevice={handleAddDevice}
         onBackToDevices={onNavigateToDashboard}
         onNavigateToMembers={onNavigateToMembers}
+        onNavigateToSettings={onNavigateToSettings}
+        onNavigateToPlans={onNavigateToPlans}
         onCreateGraph={onCreateGraph}
         isOnDevicesPage={true}
         isOnDashboard={false}
@@ -138,8 +173,9 @@ const AdminDevicesPage = ({
         onRejectUser={onRejectUser}
         user={user}
         onUserSaved={onUserSaved}
+        onDomainSaved={onDomainSaved}
       />
-      
+
       <main className="admin-devices-content">
         {hasDevices ? (
           <div className="admin-devices-grid">
@@ -190,11 +226,17 @@ const AdminDevicesPage = ({
             <h2 className="empty-message">
               Sem Dispositivos criados ao momento...
             </h2>
-            <button className="add-device-btn" onClick={handleAddDevice}>
+            <button
+              className="add-device-btn"
+              onClick={handleAddDevice}
+              disabled={isDeviceLimitReached}
+              title={isDeviceLimitReached ? `Limite de dispositivos atingido (máx. ${domainDeviceLimit})` : undefined}
+              style={isDeviceLimitReached ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+            >
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
                 <path d="M19 13H13V19H11V13H5V11H11V5H13V11H19V13Z" fill="currentColor"/>
               </svg>
-              Adicionar Dispositivo
+              {isDeviceLimitReached ? `Limite atingido (${domainDeviceLimit}/${domainDeviceLimit})` : 'Adicionar Dispositivo'}
             </button>
           </div>
         )}
@@ -215,6 +257,19 @@ const AdminDevicesPage = ({
           setDomainUsers([]);
         }}
       />
+
+      {/* First-time plan welcome modal */}
+      {showPlanWelcome && (
+        <PlansPage
+          currentPlan={domainPlan}
+          isModal={true}
+          onPlanSelected={async (plan) => {
+            if (onPlanSelected) await onPlanSelected(plan);
+            closePlanWelcome();
+          }}
+          onClose={closePlanWelcome}
+        />
+      )}
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && (

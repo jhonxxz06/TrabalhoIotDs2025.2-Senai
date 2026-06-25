@@ -303,6 +303,47 @@
   color: rgba(255, 255, 255, 0.98);
 }
 
+/* Contador de dispositivos do domínio */
+.header-device-count {
+  font-size: 13px;
+  font-weight: 600;
+  margin-left: 6px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.85);
+}
+
+/* Badge do plano SaaS */
+.header-plan-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-left: 8px;
+  padding: 2px 8px 2px 6px;
+  border-radius: 8px;
+  vertical-align: middle;
+}
+
+.header-plan-badge--gratuito {
+  background: rgba(150, 150, 150, 0.5);
+  color: #fff;
+}
+
+.header-plan-badge--comercial {
+  background: rgba(37, 99, 235, 0.8);
+  color: #fff;
+}
+
+.header-plan-badge--empresarial {
+  background: rgba(217, 119, 6, 0.85);
+  color: #fff;
+}
+
 .admin-user-menu-container {
   position: relative;
 }
@@ -383,6 +424,14 @@
    Responsive Design
    ======================================== */
 
+/* Tablet landscape — aliviar o gap */
+@media (max-width: 1024px) {
+  .admin-header-right {
+    gap: 8px;
+  }
+}
+
+/* Tablet portrait / phones grandes */
 @media (max-width: 768px) {
   .admin-header {
     height: 60px;
@@ -395,12 +444,27 @@
   }
 
   .admin-username {
-    font-size: 16px;
     display: none;
   }
 
+  /* Oculta o texto do nome; mantém badge do plano e contadores */
   .header-domain-name {
-    display: none;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0;
+  }
+
+  .header-plan-badge {
+    font-size: 10px;
+    padding: 2px 6px 2px 4px;
+  }
+
+  .header-user-count,
+  .header-device-count {
+    font-size: 11px;
+    margin-left: 0;
+    padding: 2px 6px;
   }
 
   .admin-icon-button {
@@ -412,26 +476,130 @@
     width: 40px;
     height: 40px;
   }
+
+  .admin-header-right {
+    gap: 6px;
+  }
+
+  .admin-header-left .back-button span {
+    display: none;
+  }
+
+  .admin-header-left .back-button {
+    padding: 8px;
+    min-width: unset;
+  }
+
+  .notification-dropdown {
+    min-width: min(320px, calc(100vw - 30px));
+  }
 }
 
+/* Phones grandes — acima de 480px (ex: Galaxy S, Pixel) */
+@media (max-width: 600px) {
+  .admin-icon-button {
+    width: 36px;
+    height: 36px;
+  }
+
+  .admin-user-avatar {
+    width: 36px;
+    height: 36px;
+  }
+
+  .admin-header-right {
+    gap: 5px;
+  }
+}
+
+/* Phones médios-grandes — iPhone 14 Pro Max, outros ≤480px */
 @media (max-width: 480px) {
+  .admin-header {
+    height: 52px;
+    padding: 0 12px;
+  }
+
+  /* Logo oculta — ícones de ação têm prioridade no espaço */
+  .admin-header-center {
+    display: none;
+  }
+
+  .admin-icon-button {
+    width: 34px;
+    height: 34px;
+  }
+
+  .admin-user-avatar {
+    width: 34px;
+    height: 34px;
+  }
+
+  .admin-header-right {
+    gap: 4px;
+  }
+
+  /* Home não-funcional na página de dispositivos */
+  .home-button.on-devices-page {
+    display: none;
+  }
+
+  .notification-dropdown {
+    min-width: unset;
+    width: calc(100vw - 24px);
+    right: -12px;
+  }
+}
+
+/* Phones padrão — iPhone 14, iPhone 14 Pro, Pixel (≤390px) */
+@media (max-width: 390px) {
   .admin-header {
     height: 50px;
     padding: 0 10px;
   }
 
-  .admin-header-logo {
-    width: 50px;
-    height: 50px;
-  }
-
   .admin-icon-button {
-    width: 35px;
-    height: 35px;
+    width: 30px;
+    height: 30px;
   }
 
   .admin-user-avatar {
-    width: 35px;
-    height: 35px;
+    width: 30px;
+    height: 30px;
+  }
+
+  .admin-header-right {
+    gap: 3px;
+  }
+
+  /* Contador de dispositivos é secundário; libera espaço para os ícones */
+  .header-device-count {
+    display: none;
+  }
+}
+
+/* Phones pequenos — iPhone SE, Androids compactos (≤360px) */
+@media (max-width: 360px) {
+  .admin-icon-button {
+    width: 28px;
+    height: 28px;
+  }
+
+  .admin-user-avatar {
+    width: 28px;
+    height: 28px;
+  }
+
+  .admin-header-right {
+    gap: 2px;
+  }
+
+  .header-plan-badge {
+    font-size: 9px;
+    padding: 1px 4px 1px 3px;
+  }
+
+  .header-user-count {
+    font-size: 10px;
+    padding: 1px 4px;
   }
 }

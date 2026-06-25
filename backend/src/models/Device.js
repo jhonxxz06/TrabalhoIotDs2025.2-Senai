@@ -153,6 +153,13 @@ const Device = {
   },
 
   /**
+   * Remove todo o acesso de um usuário a dispositivos (usado ao remover/saída de domínio)
+   */
+  async removeAllUserAccess(userId) {
+    await run('DELETE FROM device_users WHERE user_id = $1', [userId]);
+  },
+
+  /**
    * Converte para formato público (camelCase)
    */
   toPublic(device) {

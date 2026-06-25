@@ -66,8 +66,7 @@ jobs:
       - name: Subir backend e validar health
         run: |
           node src/index.js &
-          sleep 5
-          curl --fail http://localhost:${{ secrets.PORT }}/api/health
+          curl --fail --retry 15 --retry-delay 2 --retry-connrefused http://localhost:${{ secrets.PORT }}/api/health
         env:
           PORT: ${{ secrets.PORT }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}

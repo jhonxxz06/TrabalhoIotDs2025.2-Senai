@@ -144,6 +144,15 @@ const AccessRequest = {
   },
 
   /**
+   * Remove todas as solicitações de um usuário (usado ao remover/saída de domínio,
+   * evita que solicitações antigas (ex: rejeitadas) voltem a afetar o usuário
+   * caso ele ingresse novamente em um domínio)
+   */
+  async deleteByUserId(userId) {
+    await run('DELETE FROM access_requests WHERE user_id = $1', [userId]);
+  },
+
+  /**
    * Atualiza status da solicitação
    */
   async updateStatus(id, status) {

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import logger from '../../utils/logger';
+import { domains as domainsApi } from '../../services/api';
 import './GraphEditorModal.css';
 
 const WIDGET_TEMPLATES = {
@@ -67,10 +68,10 @@ const WIDGET_TEMPLATES = {
       datasets: [{
         data: [30, 25, 25, 20],
         backgroundColor: [
-          'rgba(132, 182, 244, 0.9)',
-          'rgba(168, 212, 239, 0.9)',
-          'rgba(187, 245, 251, 0.9)',
-          'rgba(100, 150, 200, 0.9)'
+          'rgba(255, 99, 132, 0.85)',
+          'rgba(54, 162, 235, 0.85)',
+          'rgba(75, 192, 192, 0.85)',
+          'rgba(255, 159, 64, 0.85)'
         ],
         borderColor: '#ffffff',
         borderWidth: 2
@@ -103,17 +104,19 @@ const WIDGET_TEMPLATES = {
   }
 };
 
-const GraphEditorModal = ({ 
-  isOpen, 
-  onClose, 
+const GraphEditorModal = ({
+  isOpen,
+  onClose,
   onSave,
-  existingWidget = null
+  existingWidget = null,
+  user = null,
+  domainPlan = 'gratuito'
 }) => {
   const [mode, setMode] = useState('simple'); // 'simple' ou 'advanced'
   const [jsonCode, setJsonCode] = useState('');
   const [error, setError] = useState('');
   const [selectedTemplate, setSelectedTemplate] = useState('line');
-  
+
   // Campos do modo simples
   const [title, setTitle] = useState('');
   const [chartType, setChartType] = useState('line');
@@ -121,6 +124,11 @@ const GraphEditorModal = ({
   const [mqttField2, setMqttField2] = useState('');
   const [useMqttData, setUseMqttData] = useState(true);
   const [thresholds, setThresholds] = useState({});
+
+  // Notificações Telegram por widget
+  const [telegramNotifEnabled, setTelegramNotifEnabled] = useState(false);
+  const [notifThresholds, setNotifThresholds] = useState({});
+  const [telegramConfigured, setTelegramConfigured] = useState(false);
 
   useEffect(() => {
     if (existingWidget) {
@@ -132,6 +140,16 @@ const GraphEditorModal = ({
       setUseMqttData(existingWidget.mqttField ? true : false);
       setThresholds(existingWidget.thresholds || {});
       setMode(existingWidget.mqttField ? 'simple' : 'advanced');
+
+      // Carregar config de notificações do widget existente
+      const notifConfig = existingWidget.notifications?.telegram;
+      if (notifConfig) {
+        setTelegramNotifEnabled(notifConfig.enabled || false);
+        setNotifThresholds(notifConfig.fields || {});
+      } else {
+        setTelegramNotifEnabled(false);
+        setNotifThresholds({});
+      }
     } else {
       setJsonCode('');
       setTitle('');
@@ -140,11 +158,23 @@ const GraphEditorModal = ({
       setMqttField2('humidity');
       setUseMqttData(true);
       setThresholds({});
+      setTelegramNotifEnabled(false);
+      setNotifThresholds({});
       setMode('simple');
     }
     setError('');
     setSelectedTemplate('line');
   }, [existingWidget, isOpen]);
+
+  // Verificar se Telegram está configurado no domínio (só para type table)
+  useEffect(() => {
+    if (!isOpen || !user?.domainId) return;
+    domainsApi.getTelegram(user.domainId)
+      .then(response => {
+        setTelegramConfigured(!!(response.data?.chatId && response.data?.enabled));
+      })
+      .catch(() => setTelegramConfigured(false));
+  }, [isOpen, user?.domainId]);
 
   const handleTemplateSelect = (templateKey) => {
     setSelectedTemplate(templateKey);
@@ -191,15 +221,31 @@ const GraphEditorModal = ({
           };
         });
         
+        // Montar config de notificações: apenas campos que têm threshold definido
+        const notifFields = {};
+        Object.entries(processedThresholds).forEach(([fieldName, limits]) => {
+          if (limits.min !== undefined || limits.max !== undefined) {
+            notifFields[fieldName] = {
+              threshold: Number(notifThresholds[fieldName]?.threshold) || 5
+            };
+          }
+        });
+
         const widget = {
           type: 'table',
           title: title || 'Tabela de Excedências',
           mqttField: mqttField || null,
           useMqttData: true,
           thresholds: processedThresholds,
+          notifications: {
+            telegram: {
+              enabled: telegramNotifEnabled,
+              fields: notifFields
+            }
+          },
           limit: 50
         };
-        
+
         logger.log('Salvando widget tabela com', Object.keys(processedThresholds).length, 'thresholds');
         onSave(widget);
         onClose();
@@ -245,12 +291,14 @@ const GraphEditorModal = ({
         });
       }
       
+      const isRadialType = ['pie', 'doughnut'].includes(chartType);
+
       // Criar widget com datasets dinâmicos
       const widget = {
         type: chartType,
         title: title || `Gráfico de ${mqttField || 'Dados'}`,
         mqttField: mqttField || null,
-        mqttField2: mqttField2 || null,
+        mqttField2: isRadialType ? null : (mqttField2 || null),
         useMqttData: useMqttData,
         data: {
           labels: [],
@@ -258,7 +306,7 @@ const GraphEditorModal = ({
         },
         options: {
           plugins: { legend: { display: true } },
-          scales: { y: { beginAtZero: true } }
+          ...(!isRadialType && { scales: { y: { beginAtZero: true } } })
         }
       };
 
@@ -334,19 +382,24 @@ const GraphEditorModal = ({
               <div className="form-group">
                 <label>Tipo de Gráfico</label>
                 <div className="chart-type-buttons">
-                  {['line', 'bar', 'pie', 'doughnut', 'table'].map(type => (
-                    <button
-                      key={type}
-                      className={`chart-type-btn ${chartType === type ? 'active' : ''}`}
-                      onClick={() => setChartType(type)}
-                    >
-                      {type === 'line' && ' Linha'}
-                      {type === 'bar' && ' Barras'}
-                      {type === 'pie' && ' Pizza'}
-                      {type === 'doughnut' && ' Rosca'}
-                      {type === 'table' && ' Tabela'}
-                    </button>
-                  ))}
+                  {['line', 'bar', 'pie', 'doughnut', 'table'].map(type => {
+                    const isTableLocked = type === 'table' && domainPlan === 'gratuito';
+                    return (
+                      <button
+                        key={type}
+                        className={`chart-type-btn ${chartType === type ? 'active' : ''} ${isTableLocked ? 'locked' : ''}`}
+                        onClick={() => !isTableLocked && setChartType(type)}
+                        title={isTableLocked ? 'Disponível a partir do plano Comercial' : undefined}
+                        style={isTableLocked ? { opacity: 0.45, cursor: 'not-allowed' } : {}}
+                      >
+                        {type === 'line' && ' Linha'}
+                        {type === 'bar' && ' Barras'}
+                        {type === 'pie' && ' Pizza'}
+                        {type === 'doughnut' && ' Rosca'}
+                        {type === 'table' && (isTableLocked ? ' Tabela 🔒' : ' Tabela')}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -364,7 +417,7 @@ const GraphEditorModal = ({
               {useMqttData && chartType !== 'table' && (
                 <>
                   <div className="form-group">
-                    <label>Campo do Payload (1º)</label>
+                    <label>Campo do Payload</label>
                     <input
                       type="text"
                       value={mqttField}
@@ -374,16 +427,18 @@ const GraphEditorModal = ({
                     <small>Nome do campo no JSON do ESP32. Ex: se envia {"{"}"temperature": 25{"}"}, use "temperature"</small>
                   </div>
 
-                  <div className="form-group">
-                    <label>Campo do Payload (2º - opcional)</label>
-                    <input
-                      type="text"
-                      value={mqttField2}
-                      onChange={(e) => setMqttField2(e.target.value)}
-                      placeholder="Ex: humidity"
-                    />
-                    <small>Para comparar dois valores no mesmo gráfico</small>
-                  </div>
+                  {!['pie', 'doughnut'].includes(chartType) && (
+                    <div className="form-group">
+                      <label>Campo do Payload (2º - opcional)</label>
+                      <input
+                        type="text"
+                        value={mqttField2}
+                        onChange={(e) => setMqttField2(e.target.value)}
+                        placeholder="Ex: humidity"
+                      />
+                      <small>Para comparar dois valores no mesmo gráfico</small>
+                    </div>
+                  )}
                 </>
               )}
 
@@ -446,6 +501,91 @@ const GraphEditorModal = ({
                   </div>
                 </>
               )}
+
+              {/* Seção de notificações — só para table com thresholds e plano Empresarial */}
+              {chartType === 'table' && domainPlan !== 'empresarial' && (
+                <div className="notif-plan-locked">
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{flexShrink:0}}>
+                    <rect x="3" y="7" width="10" height="8" rx="1.5" fill="#e5e7eb" stroke="#9ca3af" strokeWidth="1.2"/>
+                    <path d="M5.5 7V5a2.5 2.5 0 015 0v2" stroke="#9ca3af" strokeWidth="1.2" strokeLinecap="round"/>
+                  </svg>
+                  Notificações disponíveis no plano <strong>Empresarial</strong>
+                </div>
+              )}
+              {chartType === 'table' && domainPlan === 'empresarial' && (() => {
+                // Use threshold keys directly — mqttField may be null for table widgets
+                const fieldsWithThreshold = Object.entries(thresholds)
+                  .filter(([, limits]) =>
+                    limits && (
+                      (limits.min !== '' && limits.min !== undefined && limits.min !== null) ||
+                      (limits.max !== '' && limits.max !== undefined && limits.max !== null)
+                    )
+                  )
+                  .map(([field]) => field);
+
+                return (
+                  <div className="notifications-section">
+                    <h4>
+                      <svg width="15" height="15" viewBox="0 0 15 15" fill="none" style={{verticalAlign:'middle',marginRight:5}}>
+                        <path d="M7.5 1a4.5 4.5 0 00-4.5 4.5c0 2.7-1.5 3.5-1.5 3.5h12s-1.5-.8-1.5-3.5A4.5 4.5 0 007.5 1z" fill="#5b9bf8" opacity="0.8"/>
+                        <path d="M6 10.5a1.5 1.5 0 003 0" stroke="#5b9bf8" strokeWidth="1.2" strokeLinecap="round"/>
+                      </svg>
+                      Notificações
+                    </h4>
+
+                    <div className="notif-channel-block">
+                      <label className="checkbox-label notif-toggle-label">
+                        <input
+                          type="checkbox"
+                          checked={telegramNotifEnabled}
+                          onChange={(e) => setTelegramNotifEnabled(e.target.checked)}
+                        />
+                        Ativar notificações Telegram para este widget
+                      </label>
+
+                      {telegramNotifEnabled && fieldsWithThreshold.length === 0 && (
+                        <div className="notif-warning">
+                          Configure limites mínimos ou máximos nos campos acima para ativar notificações.
+                        </div>
+                      )}
+
+                      {telegramNotifEnabled && fieldsWithThreshold.length > 0 && (
+                        <>
+                          {!telegramConfigured && (
+                            <div className="notif-warning">
+                              ⚠️ O Telegram ainda não está configurado para este domínio. Acesse <strong>Configurações de Notificações</strong> na página de dispositivos para conectar.
+                            </div>
+                          )}
+
+                          <div className="notif-thresholds">
+                            <p className="notif-thresholds-label">Excedências antes de notificar:</p>
+                            {fieldsWithThreshold.map(fieldName => (
+                              <div key={fieldName} className="notif-threshold-row">
+                                <span className="notif-field-name">{fieldName}</span>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  step="1"
+                                  className="notif-threshold-input"
+                                  value={notifThresholds[fieldName]?.threshold ?? 5}
+                                  onChange={(e) => {
+                                    const val = parseInt(e.target.value, 10);
+                                    setNotifThresholds(prev => ({
+                                      ...prev,
+                                      [fieldName]: { threshold: isNaN(val) || val < 1 ? 1 : val }
+                                    }));
+                                  }}
+                                />
+                                <span className="notif-threshold-unit">vezes</span>
+                              </div>
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
 
               <div className="mqtt-example">
                 <h4> Exemplo de Payload MQTT:</h4>

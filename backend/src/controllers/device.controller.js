@@ -1,5 +1,6 @@
 const Device = require('../models/Device');
 const User = require('../models/User');
+const Domain = require('../models/Domain');
 const MqttService = require('../services/mqtt.service');
 
 /**
@@ -150,6 +151,21 @@ const create = async (req, res) => {
     const dbUser = await User.findById(req.user.id);
     const domain_id = dbUser?.domain_id ?? null;
 
+    // Verificar limite de dispositivos do plano
+    if (domain_id) {
+      const [domainRow, deviceCount] = await Promise.all([
+        Domain.findById(domain_id),
+        Domain.countDevices(domain_id)
+      ]);
+      const maxDevices = domainRow?.max_devices ?? 3;
+      if (deviceCount >= maxDevices) {
+        return res.status(400).json({
+          success: false,
+          message: `Limite de dispositivos atingido para este domínio (máx. ${maxDevices}).`
+        });
+      }
+    }
+
     // Garante que os usuários atribuídos pertencem ao mesmo domínio
     if (assignedUsers && assignedUsers.length > 0 && !await usersBelongToDomain(assignedUsers, domain_id)) {
       return res.status(403).json({
@@ -187,9 +203,9 @@ const create = async (req, res) => {
     if (device.mqtt_broker && device.mqtt_topic) {
       try {
         MqttService.connect(device);
-        console.log(`✅ Device ${device.id} (${device.name}) auto-conectado ao MQTT`);
+        console.log(` Device ${device.id} (${device.name}) auto-conectado ao MQTT`);
       } catch (error) {
-        console.warn(`⚠️ Erro ao auto-conectar MQTT do device ${device.id}:`, error.message);
+        console.warn(` Erro ao auto-conectar MQTT do device ${device.id}:`, error.message);
       }
     }
 
@@ -272,9 +288,9 @@ const update = async (req, res) => {
       try {
         MqttService.disconnect(parseInt(id));
         MqttService.connect(updatedDevice);
-        console.log(`✅ Device ${id} (${updatedDevice.name}) reconectado ao MQTT`);
+        console.log(` Device ${id} (${updatedDevice.name}) reconectado ao MQTT`);
       } catch (error) {
-        console.warn(`⚠️ Erro ao reconectar MQTT do device ${id}:`, error.message);
+        console.warn(` Erro ao reconectar MQTT do device ${id}:`, error.message);
       }
     }
 
@@ -319,9 +335,9 @@ const remove = async (req, res) => {
     // Desconectar MQTT antes de excluir
     try {
       MqttService.disconnect(parseInt(id));
-      console.log(`✅ Device ${id} desconectado do MQTT antes da exclusão`);
+      console.log(` Device ${id} desconectado do MQTT antes da exclusão`);
     } catch (error) {
-      console.warn(`⚠️ Erro ao desconectar MQTT:`, error.message);
+      console.warn(` Erro ao desconectar MQTT:`, error.message);
     }
 
     await Device.delete(id);

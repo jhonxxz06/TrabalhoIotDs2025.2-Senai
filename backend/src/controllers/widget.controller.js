@@ -1,6 +1,7 @@
 const Widget = require('../models/Widget');
 const Device = require('../models/Device');
 const User = require('../models/User');
+const notificationService = require('../services/notification.service');
 
 /**
  * Lista widgets (admin: apenas do seu domínio, user: apenas dos seus dispositivos)
@@ -167,6 +168,8 @@ const create = async (req, res) => {
       });
     }
 
+    notificationService.refreshWidgetCache(deviceId);
+
     res.status(201).json({
       success: true,
       message: 'Widget criado com sucesso',
@@ -233,6 +236,12 @@ const update = async (req, res) => {
       position
     });
 
+    // Reset contadores de notificação quando config muda
+    if (config !== undefined) {
+      notificationService.resetCounters(id);
+    }
+    notificationService.refreshWidgetCache(updatedWidget.device_id);
+
     res.json({
       success: true,
       message: 'Widget atualizado com sucesso',
@@ -273,6 +282,8 @@ const remove = async (req, res) => {
     }
 
     await Widget.delete(id);
+
+    notificationService.refreshWidgetCache(widget.device_id);
 
     res.json({
       success: true,

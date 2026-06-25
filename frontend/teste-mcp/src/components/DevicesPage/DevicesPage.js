@@ -9,6 +9,7 @@ const DevicesPage = ({
   domainName,
   domainUserCount,
   domainUserLimit,
+  domainPlan,
   devices = [],
   onDeviceClick,
   onLogout,
@@ -27,6 +28,7 @@ const DevicesPage = ({
         domainName={domainName}
         domainUserCount={domainUserCount}
         domainUserLimit={domainUserLimit}
+        domainPlan={domainPlan}
         onLogout={onLogout}
         onLogoClick={onLogoClick}
         isOnDevicesPage={true}

@@ -120,6 +120,148 @@ const Domain = {
   },
 
   /**
+   * Atualiza a configuração de notificações via Telegram do domínio
+   * @param {number} id
+   * @param {{chatId: string|null, enabled: boolean}} data
+   * @returns {Promise<Object|null>}
+   */
+  async updateTelegramConfig(id, { chatId, enabled }) {
+    await run(
+      'UPDATE domains SET telegram_chat_id = $1, telegram_enabled = $2 WHERE id = $3',
+      [chatId, enabled, id]
+    );
+    return await this.findById(id);
+  },
+
+  /**
+   * Salva (ou substitui) o código de verificação Telegram de um domínio
+   * @param {number} domainId
+   * @param {string} code
+   * @param {Date} expiresAt
+   */
+  async saveVerificationCode(domainId, code, expiresAt) {
+    await run(
+      'UPDATE domains SET telegram_verification_code = $1, telegram_verification_expires_at = $2 WHERE id = $3',
+      [code, expiresAt, domainId]
+    );
+  },
+
+  /**
+   * Busca domínio pelo código de verificação Telegram, se não expirado
+   * @param {string} code
+   * @returns {Promise<Object|null>}
+   */
+  async findByVerificationCode(code) {
+    return await queryOne(
+      `SELECT id, name, telegram_chat_id
+       FROM domains
+       WHERE telegram_verification_code = $1
+         AND telegram_verification_expires_at > NOW()`,
+      [code]
+    );
+  },
+
+  /**
+   * Vincula o chat_id ao domínio e limpa o código de verificação
+   * @param {number} domainId
+   * @param {string} chatId
+   * @param {string} chatName
+   */
+  async completeTelegramConnection(domainId, chatId, chatName) {
+    await run(
+      `UPDATE domains
+       SET telegram_chat_id = $1,
+           telegram_enabled = true,
+           telegram_chat_name = $2,
+           telegram_verification_code = NULL,
+           telegram_verification_expires_at = NULL
+       WHERE id = $3`,
+      [chatId, chatName, domainId]
+    );
+  },
+
+  /**
+   * Remove a vinculação Telegram de um domínio identificado pelo chat_id
+   * (o bot não conhece o domain_id, apenas o chat de onde o comando veio)
+   * @param {string} chatId
+   * @returns {Promise<Object|null>} domínio desvinculado ou null
+   */
+  async disconnectTelegram(chatId) {
+    const result = await run(
+      `UPDATE domains
+       SET telegram_chat_id = NULL,
+           telegram_enabled = false,
+           telegram_chat_name = NULL
+       WHERE telegram_chat_id = $1
+       RETURNING id, name`,
+      [chatId]
+    );
+    return result.rows[0] ?? null;
+  },
+
+  /**
+   * Conta quantos dispositivos pertencem a um domínio
+   * @param {number} domainId
+   * @returns {Promise<number>}
+   */
+  async countDevices(domainId) {
+    const result = await queryOne(
+      'SELECT COUNT(*)::int AS count FROM devices WHERE domain_id = $1',
+      [domainId]
+    );
+    return result ? result.count : 0;
+  },
+
+  /**
+   * Atualiza o plano do domínio, ajustando max_users e max_devices conforme o novo plano
+   * @param {number} domainId
+   * @param {string} plan
+   * @returns {Promise<Object|null>}
+   */
+  async updatePlan(domainId, plan) {
+    const { PLAN_LIMITS } = require('../constants/plans');
+    const limits = PLAN_LIMITS[plan];
+    if (!limits) throw new Error(`Plano inválido: ${plan}`);
+    await run(
+      'UPDATE domains SET plan = $1, max_users = $2, max_devices = $3 WHERE id = $4',
+      [plan, limits.maxUsers, limits.maxDevices, domainId]
+    );
+    return await this.findById(domainId);
+  },
+
+  /**
+   * Exclui um domínio e todos os dados relacionados em cascata.
+   * Ordem: desvincula usuários → deleta devices (cascata: widgets, mqtt_data,
+   * device_users, exceedance_counters) → deleta o domínio (FK seta users.domain_id = NULL).
+   * @param {number} domainId
+   */
+  async deleteCascade(domainId) {
+    // 1. Rebaixar usuários do domínio antes de perder o vínculo
+    await run(
+      `UPDATE users SET has_access = 0, role = 'user' WHERE domain_id = $1`,
+      [domainId]
+    );
+    // 2. Deletar devices → cascata limpa widgets, mqtt_data, device_users, exceedance_counters
+    await run('DELETE FROM devices WHERE domain_id = $1', [domainId]);
+    // 3. Deletar o domínio → FK ON DELETE SET NULL cuida de users.domain_id
+    await run('DELETE FROM domains WHERE id = $1', [domainId]);
+  },
+
+  /**
+   * Atualiza o nome e o código de um domínio
+   * @param {number} domainId
+   * @param {{name: string, code: string}} data
+   * @returns {Promise<Object|null>}
+   */
+  async update(domainId, { name, code }) {
+    await run(
+      'UPDATE domains SET name = $1, code = $2 WHERE id = $3',
+      [name, code, domainId]
+    );
+    return await this.findById(domainId);
+  },
+
+  /**
    * Retorna representação pública do domínio
    * @param {Object} domain
    * @returns {Object}
@@ -132,6 +274,8 @@ const Domain = {
       code: domain.code,
       adminId: domain.admin_id,
       maxUsers: domain.max_users,
+      maxDevices: domain.max_devices ?? 3,
+      plan: domain.plan ?? 'gratuito',
       createdAt: domain.created_at
     };
   }

@@ -645,4 +645,119 @@
   .mode-toggle button {
     flex: 1;
   }
+
+  /* 4 colunas ficam espremidas em mobile, reduzir para 3 */
+  .chart-type-buttons {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* ========================================
+   Notifications Section (widget table)
+   ======================================== */
+
+.notif-plan-locked {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.notif-plan-locked strong {
+  color: #d97706;
+}
+
+.notifications-section {
+  margin-top: 4px;
+  border-top: 1px solid rgba(132, 182, 244, 0.3);
+  padding-top: 16px;
+}
+
+.notifications-section h4 {
+  font-family: 'Roboto', sans-serif;
+  font-weight: 500;
+  font-size: 14px;
+  color: #1D1B20;
+  margin: 0 0 12px 0;
+}
+
+.notif-channel-block {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.notif-toggle-label {
+  font-size: 14px;
+  color: #1D1B20;
+}
+
+.notif-warning {
+  background: #FFF8E1;
+  border: 1px solid #FFD54F;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-family: 'Roboto', sans-serif;
+  font-size: 13px;
+  color: #5D4037;
+  line-height: 1.5;
+}
+
+.notif-thresholds {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.notif-thresholds-label {
+  font-family: 'Roboto', sans-serif;
+  font-size: 13px;
+  color: #49454F;
+  margin: 0;
+}
+
+.notif-threshold-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #F8FAFB;
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+
+.notif-field-name {
+  font-family: 'Roboto Mono', 'Courier New', monospace;
+  font-size: 13px;
+  color: #1D1B20;
+  min-width: 100px;
+  flex: 1;
+}
+
+.notif-threshold-input {
+  width: 64px;
+  padding: 6px 8px;
+  border: 1px solid #C4C4C4;
+  border-radius: 6px;
+  font-family: 'Roboto', sans-serif;
+  font-size: 14px;
+  text-align: center;
+  color: #1D1B20;
+}
+
+.notif-threshold-input:focus {
+  outline: none;
+  border-color: #84B6F4;
+  box-shadow: 0 0 0 2px rgba(132, 182, 244, 0.2);
+}
+
+.notif-threshold-unit {
+  font-family: 'Roboto', sans-serif;
+  font-size: 13px;
+  color: #49454F;
 }

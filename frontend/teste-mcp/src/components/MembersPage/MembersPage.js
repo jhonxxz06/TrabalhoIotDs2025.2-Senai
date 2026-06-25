@@ -11,11 +11,16 @@ const MembersPage = ({
   domainName,
   domainUserCount,
   domainUserLimit,
+  domainPlan,
+  domainDeviceCount,
+  domainDeviceLimit,
   user,
   onUserSaved,
+  onDomainSaved,
   onLogout,
   onBackToDevices,
-  onRefreshSession
+  onRefreshSession,
+  onNavigateToPlans
 }) => {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -85,16 +90,26 @@ const MembersPage = ({
         domainName={domainName}
         domainUserCount={domainUserCount}
         domainUserLimit={domainUserLimit}
+        domainPlan={domainPlan}
+        domainDeviceCount={domainDeviceCount}
+        domainDeviceLimit={domainDeviceLimit}
         onLogout={onLogout}
         onBackToDevices={onBackToDevices}
+        onNavigateToPlans={onNavigateToPlans}
         isOnDevicesPage={false}
         isOnDashboard={false}
         user={user}
         onUserSaved={onUserSaved}
+        onDomainSaved={onDomainSaved}
       />
 
       <main className="members-content">
-        <h1 className="members-title">Membros do domínio</h1>
+        <h1 className="members-title">
+          Membros do domínio
+          {domainUserLimit != null && (
+            <span className="members-user-count-badge">{domainUserCount}/{domainUserLimit} usuários</span>
+          )}
+        </h1>
 
         {loading ? (
           <p className="members-loading">Carregando membros...</p>

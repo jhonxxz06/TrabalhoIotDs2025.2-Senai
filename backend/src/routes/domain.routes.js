@@ -2,6 +2,9 @@ const express = require('express');
 const router = express.Router();
 const domainController = require('../controllers/domain.controller');
 const { authenticate } = require('../middleware/auth.middleware');
+const { requireAdmin } = require('../middleware/rbac.middleware');
+const { validate } = require('../middleware/validate.middleware');
+const { updateTelegramSchema, updateDomainSchema } = require('../schemas/domain.schema');
 
 // ─── Rota pública ────────────────────────────────────────────────────────────
 // Verifica se um código de domínio existe (usado na tela de cadastro)
@@ -16,5 +19,19 @@ router.get('/:id/devices', authenticate, domainController.getDevices);
 
 // Lista usuários de um domínio específico (usado no modal de edição de dispositivo)
 router.get('/:id/users', authenticate, domainController.getUsers);
+
+// Editar nome e código do domínio (somente admin do domínio)
+router.put('/:id', authenticate, requireAdmin, validate(updateDomainSchema), domainController.updateDomain);
+
+// Excluir domínio e todos os dados em cascata (somente admin do domínio)
+router.delete('/:id', authenticate, requireAdmin, domainController.deleteDomain);
+
+// Gerenciamento de plano SaaS (somente admin do domínio)
+router.put('/:id/plan', authenticate, requireAdmin, domainController.updatePlan);
+
+// Configuração de notificações via Telegram (admin)
+router.get('/:id/telegram', authenticate, requireAdmin, domainController.getTelegramConfig);
+router.put('/:id/telegram', authenticate, requireAdmin, validate(updateTelegramSchema), domainController.updateTelegramConfig);
+router.post('/:id/telegram/generate-code', authenticate, requireAdmin, domainController.generateVerificationCode);
 
 module.exports = router;

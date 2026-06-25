@@ -3,28 +3,58 @@ import './AdminHeader.css';
 import logger from '../../utils/logger';
 import logo from '../../assets/logo.png';
 import EditProfileModal from '../EditProfileModal';
+import EditDomainModal from '../EditDomainModal';
+
+const PlanIcon = ({ plan }) => {
+  if (plan === 'comercial') return (
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{flexShrink:0}}>
+      <rect x="2" y="5" width="8" height="6" rx="0.5" fill="currentColor" opacity="0.9"/>
+      <rect x="3.5" y="2" width="5" height="4" rx="0.5" fill="currentColor" opacity="0.6"/>
+    </svg>
+  );
+  if (plan === 'empresarial') return (
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{flexShrink:0}}>
+      <rect x="1" y="5" width="4" height="6" rx="0.5" fill="currentColor" opacity="0.7"/>
+      <rect x="7" y="5" width="4" height="6" rx="0.5" fill="currentColor" opacity="0.7"/>
+      <rect x="3" y="3" width="6" height="8" rx="0.5" fill="currentColor"/>
+    </svg>
+  );
+  return (
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{flexShrink:0}}>
+      <path d="M9 6c0-1.657-1.343-3-3-3S3 4.343 3 6c-.828 0-1.5.672-1.5 1.5S2.172 9 3 9h6c.828 0 1.5-.672 1.5-1.5S9.828 6 9 6z" fill="currentColor"/>
+    </svg>
+  );
+};
 
 const AdminHeader = ({
   username,
   domainName,
   domainUserCount,
   domainUserLimit,
+  domainPlan = 'gratuito',
+  domainDeviceCount = 0,
+  domainDeviceLimit = 3,
+  isDeviceLimitReached = false,
   onLogout,
   onAddDevice,
   onCreateGraph,
   onBackToDevices,
   onNavigateToMembers,
+  onNavigateToSettings,
+  onNavigateToPlans,
   isOnDevicesPage = true,
   isOnDashboard = false,
   notifications = [],
   onAcceptUser,
   onRejectUser,
   user,
-  onUserSaved
+  onUserSaved,
+  onDomainSaved
 }) => {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showEditProfile, setShowEditProfile] = useState(false);
+  const [showEditDomain, setShowEditDomain] = useState(false);
   const userMenuRef = useRef(null);
   const notificationRef = useRef(null);
 
@@ -65,8 +95,17 @@ const AdminHeader = ({
           domainName && (
             <span className="header-domain-name">
               {domainName}
+              {domainPlan && (
+                <span className={`header-plan-badge header-plan-badge--${domainPlan}`}>
+                  <PlanIcon plan={domainPlan} />
+                  {domainPlan.charAt(0).toUpperCase() + domainPlan.slice(1)}
+                </span>
+              )}
               {domainUserLimit != null && (
                 <span className="header-user-count">{domainUserCount}/{domainUserLimit}</span>
+              )}
+              {domainDeviceLimit != null && (
+                <span className="header-device-count">{domainDeviceCount}/{domainDeviceLimit} disp.</span>
               )}
             </span>
           )
@@ -96,8 +135,9 @@ const AdminHeader = ({
         {isOnDevicesPage && (
           <button
             className="admin-icon-button"
-            onClick={onAddDevice}
-            title="Adicionar Dispositivo"
+            onClick={isDeviceLimitReached ? undefined : onAddDevice}
+            title={isDeviceLimitReached ? `Limite de dispositivos atingido (máx. ${domainDeviceLimit})` : 'Adicionar Dispositivo'}
+            style={isDeviceLimitReached ? { opacity: 0.4, cursor: 'not-allowed' } : {}}
           >
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
               <rect x="2" y="4" width="20" height="13" rx="2" stroke="white" strokeWidth="2"/>
@@ -117,6 +157,19 @@ const AdminHeader = ({
           >
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
               <path d="M16 11C17.66 11 18.99 9.66 18.99 8C18.99 6.34 17.66 5 16 5C14.34 5 13 6.34 13 8C13 9.66 14.34 11 16 11ZM8 11C9.66 11 10.99 9.66 10.99 8C10.99 6.34 9.66 5 8 5C6.34 5 5 6.34 5 8C5 9.66 6.34 11 8 11ZM8 13C5.67 13 1 14.17 1 16.5V19H15V16.5C15 14.17 10.33 13 8 13ZM16 13C15.71 13 15.38 13.02 15.03 13.05C16.19 13.89 17 15.02 17 16.5V19H23V16.5C23 14.17 18.33 13 16 13Z" fill="white"/>
+            </svg>
+          </button>
+        )}
+
+        {/* Ícone de Configurações (engrenagem) - SÓ na página de dispositivos */}
+        {isOnDevicesPage && (
+          <button
+            className="admin-icon-button"
+            onClick={onNavigateToSettings}
+            title="Configurações"
+          >
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+              <path d="M19.14 12.94C19.18 12.64 19.2 12.33 19.2 12C19.2 11.68 19.18 11.36 19.13 11.06L21.16 9.48C21.34 9.34 21.39 9.07 21.28 8.87L19.36 5.55C19.24 5.33 18.99 5.26 18.77 5.33L16.38 6.29C15.88 5.91 15.35 5.59 14.76 5.35L14.4 2.81C14.36 2.57 14.16 2.4 13.92 2.4H10.08C9.84 2.4 9.65 2.57 9.61 2.81L9.25 5.35C8.66 5.59 8.12 5.92 7.63 6.29L5.24 5.33C5.02 5.25 4.77 5.33 4.65 5.55L2.74 8.87C2.62 9.08 2.66 9.34 2.86 9.48L4.89 11.06C4.84 11.36 4.8 11.69 4.8 12C4.8 12.31 4.82 12.64 4.87 12.94L2.84 14.52C2.66 14.66 2.61 14.93 2.72 15.13L4.64 18.45C4.76 18.67 5.01 18.74 5.23 18.67L7.62 17.71C8.12 18.09 8.65 18.41 9.24 18.65L9.6 21.19C9.65 21.43 9.84 21.6 10.08 21.6H13.92C14.16 21.6 14.36 21.43 14.39 21.19L14.75 18.65C15.34 18.41 15.88 18.09 16.37 17.71L18.76 18.67C18.98 18.75 19.23 18.67 19.35 18.45L21.27 15.13C21.39 14.91 21.34 14.66 21.15 14.52L19.14 12.94ZM12 15.6C10.02 15.6 8.4 13.98 8.4 12C8.4 10.02 10.02 8.4 12 8.4C13.98 8.4 15.6 10.02 15.6 12C15.6 13.98 13.98 15.6 12 15.6Z" fill="white"/>
             </svg>
           </button>
         )}
@@ -210,8 +263,16 @@ const AdminHeader = ({
               <button onClick={() => { setShowUserMenu(false); setShowEditProfile(true); }}>
                 Editar Perfil
               </button>
-              <button onClick={() => { 
-                setShowUserMenu(false); 
+              <button onClick={() => { setShowUserMenu(false); setShowEditDomain(true); }}>
+                Editar Domínio
+              </button>
+              {onNavigateToPlans && (
+                <button onClick={() => { setShowUserMenu(false); onNavigateToPlans(); }}>
+                  Gerenciar Plano
+                </button>
+              )}
+              <button onClick={() => {
+                setShowUserMenu(false);
                 if (onLogout) {
                   onLogout();
                 } else {
@@ -230,6 +291,14 @@ const AdminHeader = ({
             isAdmin={true}
             onSaved={onUserSaved}
             onLogout={onLogout}
+          />
+
+          <EditDomainModal
+            isOpen={showEditDomain}
+            onClose={() => setShowEditDomain(false)}
+            domainId={user?.domainId}
+            onSaved={onDomainSaved}
+            onDeleted={onLogout}
           />
         </div>
       </div>

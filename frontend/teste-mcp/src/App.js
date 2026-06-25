@@ -8,6 +8,8 @@ import DashboardPage from './components/DashboardPage';
 import AdminDevicesPage from './components/AdminDevicesPage';
 import AdminDashboardPage from './components/AdminDashboardPage';
 import MembersPage from './components/MembersPage';
+import NotificationSettingsPage from './components/NotificationSettingsPage';
+import PlansPage from './components/PlansPage/PlansPage';
 import { ToastProvider, useToast } from './components/ToastContext';
 import api from './services/api';
 import { getSocket, closeSocket } from './services/socket';
@@ -22,7 +24,9 @@ const PAGES = {
   DASHBOARD: 'dashboard',
   ADMIN_DEVICES: 'admin_devices',
   ADMIN_DASHBOARD: 'admin_dashboard',
-  ADMIN_MEMBERS: 'admin_members'
+  ADMIN_MEMBERS: 'admin_members',
+  ADMIN_SETTINGS: 'admin_settings',
+  ADMIN_PLANS: 'admin_plans'
 };
 
 function App() {
@@ -47,6 +51,11 @@ function AppContent() {
   // Estatísticas de usuários do domínio (ex.: 3/12)
   const [domainUserCount, setDomainUserCount] = useState(null);
   const [domainUserLimit, setDomainUserLimit] = useState(null);
+
+  // Plano SaaS e estatísticas de dispositivos do domínio
+  const [domainPlan, setDomainPlan] = useState('gratuito');
+  const [domainDeviceCount, setDomainDeviceCount] = useState(0);
+  const [domainDeviceLimit, setDomainDeviceLimit] = useState(3);
 
   // Dispositivos carregados da API
   const [devices, setDevices] = useState([]);
@@ -77,6 +86,8 @@ function AppContent() {
     setIsAdmin(userData.role === 'admin');
     setDomainUserCount(userData.domainUserCount ?? null);
     setDomainUserLimit(userData.domainUserLimit ?? null);
+    setDomainPlan(userData.domainPlan ?? 'gratuito');
+    setDomainDeviceLimit(userData.domainMaxDevices ?? 3);
 
     if (userData.domainId === null && userData.role !== 'admin') {
       return PAGES.NO_DOMAIN;
@@ -178,6 +189,21 @@ function AppContent() {
     }
   }, [isAdmin]);
 
+  // Carrega a contagem de dispositivos do domínio (para exibir no header)
+  const loadDomainDeviceCount = useCallback(async () => {
+    try {
+      const response = await api.domains.getAll();
+      const domainData = response.data?.[0];
+      if (domainData) {
+        setDomainDeviceCount(domainData.deviceCount ?? 0);
+        setDomainPlan(domainData.plan ?? 'gratuito');
+        setDomainDeviceLimit(domainData.maxDevices ?? 3);
+      }
+    } catch (err) {
+      console.error('Erro ao carregar info do domínio:', err);
+    }
+  }, []);
+
   useEffect(() => {
     if (user && (hasAccess || isAdmin)) {
       loadDevices();
@@ -185,11 +211,12 @@ function AppContent() {
     if (user && isAdmin) {
       loadNotifications();
       loadUsers();
+      loadDomainDeviceCount();
     }
     if (user && !isAdmin) {
       loadPublicDevices();
     }
-  }, [user, hasAccess, isAdmin, loadDevices, loadNotifications, loadUsers, loadPublicDevices]);
+  }, [user, hasAccess, isAdmin, loadDevices, loadNotifications, loadUsers, loadPublicDevices, loadDomainDeviceCount]);
 
 
 
@@ -310,6 +337,9 @@ function AppContent() {
     setIsAdmin(false);
     setDomainUserCount(null);
     setDomainUserLimit(null);
+    setDomainPlan('gratuito');
+    setDomainDeviceCount(0);
+    setDomainDeviceLimit(3);
     setSelectedDevice(null);
     setDevices([]);
     setWidgets([]);
@@ -321,6 +351,11 @@ function AppContent() {
   // Navegação para a página de membros do domínio (admin)
   const handleNavigateToMembers = () => {
     setCurrentPage(PAGES.ADMIN_MEMBERS);
+  };
+
+  // Navegação para a página de configurações de notificações (admin)
+  const handleNavigateToSettings = () => {
+    setCurrentPage(PAGES.ADMIN_SETTINGS);
   };
 
   // Usuário órfão solicita acesso a um domínio existente
@@ -342,6 +377,11 @@ function AppContent() {
       username: updatedUser.username || prev.username,
       email:    updatedUser.email    || prev.email
     }));
+  };
+
+  // Handler chamado após editar domínio com sucesso
+  const handleDomainSaved = (updatedDomain) => {
+    if (updatedDomain?.name) setDomainName(updatedDomain.name);
   };
 
   // Handlers para notificações de acesso
@@ -516,6 +556,7 @@ function AppContent() {
     try {
       const response = await api.devices.create(deviceData);
       setDevices([...devices, response.device]);
+      loadDomainDeviceCount();
       return response.device;
     } catch (err) {
       console.error('Erro ao criar dispositivo:', err);
@@ -544,6 +585,7 @@ function AppContent() {
     try {
       await api.devices.delete(device.id);
       setDevices(devices.filter(d => d.id !== device.id));
+      loadDomainDeviceCount();
       toast.success('Dispositivo excluído com sucesso!');
       
       if (selectedDevice?.id === device.id) {
@@ -655,6 +697,7 @@ function AppContent() {
             domainName={domainName}
             domainUserCount={domainUserCount}
             domainUserLimit={domainUserLimit}
+            domainPlan={domainPlan}
             devices={devices}
             onDeviceClick={handleDeviceClick}
             onLogout={handleLogout}
@@ -673,6 +716,7 @@ function AppContent() {
             domainName={domainName}
             domainUserCount={domainUserCount}
             domainUserLimit={domainUserLimit}
+            domainPlan={domainPlan}
             deviceName={selectedDevice?.name}
             device={selectedDevice}
             widgets={widgets}
@@ -691,6 +735,9 @@ function AppContent() {
             domainName={domainName}
             domainUserCount={domainUserCount}
             domainUserLimit={domainUserLimit}
+            domainPlan={domainPlan}
+            domainDeviceCount={domainDeviceCount}
+            domainDeviceLimit={domainDeviceLimit}
             devices={devices}
             setDevices={setDevices}
             onDeviceClick={handleDeviceClick}
@@ -699,6 +746,13 @@ function AppContent() {
             onDeleteDevice={handleDeleteDevice}
             onNavigateToDashboard={() => setCurrentPage(PAGES.ADMIN_DASHBOARD)}
             onNavigateToMembers={handleNavigateToMembers}
+            onNavigateToSettings={handleNavigateToSettings}
+            onNavigateToPlans={() => setCurrentPage(PAGES.ADMIN_PLANS)}
+            onPlanSelected={async (plan) => {
+              await api.domains.updatePlan(user.domainId, plan);
+              await refreshSession();
+              await loadDomainDeviceCount();
+            }}
             onCreateGraph={() => {
               setSelectedDevice(devices[0] || null);
               setCurrentPage(PAGES.ADMIN_DASHBOARD);
@@ -711,6 +765,7 @@ function AppContent() {
             allUsers={allUsers}
             user={user}
             onUserSaved={handleUserSaved}
+            onDomainSaved={handleDomainSaved}
           />
         );
 
@@ -721,6 +776,9 @@ function AppContent() {
             domainName={domainName}
             domainUserCount={domainUserCount}
             domainUserLimit={domainUserLimit}
+            domainPlan={domainPlan}
+            domainDeviceCount={domainDeviceCount}
+            domainDeviceLimit={domainDeviceLimit}
             deviceName={selectedDevice?.name}
             device={selectedDevice}
             widgets={widgets}
@@ -728,6 +786,8 @@ function AppContent() {
             onDownloadExcel={handleDownloadExcel}
             onBackToDevices={handleBackToDevices}
             onNavigateToMembers={handleNavigateToMembers}
+            onNavigateToSettings={handleNavigateToSettings}
+            onNavigateToPlans={() => setCurrentPage(PAGES.ADMIN_PLANS)}
             onLogout={handleLogout}
             onRefreshWidgets={loadWidgets}
             notifications={notifications}
@@ -735,6 +795,26 @@ function AppContent() {
             onRejectUser={handleRejectUser}
             user={user}
             onUserSaved={handleUserSaved}
+            onDomainSaved={handleDomainSaved}
+          />
+        );
+
+      case PAGES.ADMIN_SETTINGS:
+        return (
+          <NotificationSettingsPage
+            username={user?.username}
+            domainName={domainName}
+            domainUserCount={domainUserCount}
+            domainUserLimit={domainUserLimit}
+            domainPlan={domainPlan}
+            domainDeviceCount={domainDeviceCount}
+            domainDeviceLimit={domainDeviceLimit}
+            user={user}
+            onUserSaved={handleUserSaved}
+            onDomainSaved={handleDomainSaved}
+            onLogout={handleLogout}
+            onBackToDevices={() => setCurrentPage(PAGES.ADMIN_DEVICES)}
+            onNavigateToPlans={() => setCurrentPage(PAGES.ADMIN_PLANS)}
           />
         );
 
@@ -745,11 +825,43 @@ function AppContent() {
             domainName={domainName}
             domainUserCount={domainUserCount}
             domainUserLimit={domainUserLimit}
+            domainPlan={domainPlan}
+            domainDeviceCount={domainDeviceCount}
+            domainDeviceLimit={domainDeviceLimit}
             user={user}
             onUserSaved={handleUserSaved}
+            onDomainSaved={handleDomainSaved}
             onLogout={handleLogout}
             onBackToDevices={() => setCurrentPage(PAGES.ADMIN_DEVICES)}
             onRefreshSession={refreshSession}
+            onNavigateToPlans={() => setCurrentPage(PAGES.ADMIN_PLANS)}
+          />
+        );
+
+      case PAGES.ADMIN_PLANS:
+        return (
+          <PlansPage
+            domainId={user?.domainId}
+            currentPlan={domainPlan}
+            onPlanSelected={async (plan) => {
+              await api.domains.updatePlan(user.domainId, plan);
+              await refreshSession();
+              await loadDomainDeviceCount();
+              setCurrentPage(PAGES.ADMIN_DEVICES);
+              toast.success('Plano atualizado com sucesso!');
+            }}
+            onClose={() => setCurrentPage(PAGES.ADMIN_DEVICES)}
+            username={user?.username}
+            domainName={domainName}
+            domainUserCount={domainUserCount}
+            domainUserLimit={domainUserLimit}
+            domainDeviceCount={domainDeviceCount}
+            domainDeviceLimit={domainDeviceLimit}
+            onLogout={handleLogout}
+            user={user}
+            onUserSaved={handleUserSaved}
+            onDomainSaved={handleDomainSaved}
+            onNavigateToPlans={() => setCurrentPage(PAGES.ADMIN_PLANS)}
           />
         );
 
