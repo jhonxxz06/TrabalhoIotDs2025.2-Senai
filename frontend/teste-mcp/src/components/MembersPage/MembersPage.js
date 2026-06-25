@@ -16,6 +16,7 @@ const MembersPage = ({
   domainDeviceLimit,
   user,
   onUserSaved,
+  onDomainSaved,
   onLogout,
   onBackToDevices,
   onRefreshSession,
@@ -99,6 +100,7 @@ const MembersPage = ({
         isOnDashboard={false}
         user={user}
         onUserSaved={onUserSaved}
+        onDomainSaved={onDomainSaved}
       />
 
       <main className="members-content">

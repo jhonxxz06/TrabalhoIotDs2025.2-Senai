@@ -383,7 +383,8 @@ const AdminDashboardPage = ({
   onAcceptUser,
   onRejectUser,
   user,
-  onUserSaved
+  onUserSaved,
+  onDomainSaved
 }) => {
   const toast = useToast();
   const [showGraphEditor, setShowGraphEditor] = useState(false);
@@ -604,6 +605,7 @@ const AdminDashboardPage = ({
         onRejectUser={onRejectUser}
         user={user}
         onUserSaved={onUserSaved}
+        onDomainSaved={onDomainSaved}
       />
 
       <main className="admin-dashboard-content">

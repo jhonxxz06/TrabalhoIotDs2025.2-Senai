@@ -119,6 +119,7 @@ function PlansPage({
   onLogout,
   user,
   onUserSaved,
+  onDomainSaved,
   onNavigateToPlans
 }) {
   const [loading, setLoading] = useState(false);
@@ -233,6 +234,7 @@ function PlansPage({
         isOnDashboard={false}
         user={user}
         onUserSaved={onUserSaved}
+        onDomainSaved={onDomainSaved}
       />
 
       <main className="plans-page-content">

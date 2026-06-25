@@ -3,6 +3,7 @@ import './AdminHeader.css';
 import logger from '../../utils/logger';
 import logo from '../../assets/logo.png';
 import EditProfileModal from '../EditProfileModal';
+import EditDomainModal from '../EditDomainModal';
 
 const PlanIcon = ({ plan }) => {
   if (plan === 'comercial') return (
@@ -47,11 +48,13 @@ const AdminHeader = ({
   onAcceptUser,
   onRejectUser,
   user,
-  onUserSaved
+  onUserSaved,
+  onDomainSaved
 }) => {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showEditProfile, setShowEditProfile] = useState(false);
+  const [showEditDomain, setShowEditDomain] = useState(false);
   const userMenuRef = useRef(null);
   const notificationRef = useRef(null);
 
@@ -260,6 +263,9 @@ const AdminHeader = ({
               <button onClick={() => { setShowUserMenu(false); setShowEditProfile(true); }}>
                 Editar Perfil
               </button>
+              <button onClick={() => { setShowUserMenu(false); setShowEditDomain(true); }}>
+                Editar Domínio
+              </button>
               {onNavigateToPlans && (
                 <button onClick={() => { setShowUserMenu(false); onNavigateToPlans(); }}>
                   Gerenciar Plano
@@ -285,6 +291,13 @@ const AdminHeader = ({
             isAdmin={true}
             onSaved={onUserSaved}
             onLogout={onLogout}
+          />
+
+          <EditDomainModal
+            isOpen={showEditDomain}
+            onClose={() => setShowEditDomain(false)}
+            domainId={user?.domainId}
+            onSaved={onDomainSaved}
           />
         </div>
       </div>

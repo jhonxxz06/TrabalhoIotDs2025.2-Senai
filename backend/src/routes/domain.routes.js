@@ -4,7 +4,7 @@ const domainController = require('../controllers/domain.controller');
 const { authenticate } = require('../middleware/auth.middleware');
 const { requireAdmin } = require('../middleware/rbac.middleware');
 const { validate } = require('../middleware/validate.middleware');
-const { updateTelegramSchema } = require('../schemas/domain.schema');
+const { updateTelegramSchema, updateDomainSchema } = require('../schemas/domain.schema');
 
 // ─── Rota pública ────────────────────────────────────────────────────────────
 // Verifica se um código de domínio existe (usado na tela de cadastro)
@@ -19,6 +19,9 @@ router.get('/:id/devices', authenticate, domainController.getDevices);
 
 // Lista usuários de um domínio específico (usado no modal de edição de dispositivo)
 router.get('/:id/users', authenticate, domainController.getUsers);
+
+// Editar nome e código do domínio (somente admin do domínio)
+router.put('/:id', authenticate, requireAdmin, validate(updateDomainSchema), domainController.updateDomain);
 
 // Gerenciamento de plano SaaS (somente admin do domínio)
 router.put('/:id/plan', authenticate, requireAdmin, domainController.updatePlan);

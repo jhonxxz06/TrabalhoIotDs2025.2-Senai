@@ -230,6 +230,20 @@ const Domain = {
   },
 
   /**
+   * Atualiza o nome e o código de um domínio
+   * @param {number} domainId
+   * @param {{name: string, code: string}} data
+   * @returns {Promise<Object|null>}
+   */
+  async update(domainId, { name, code }) {
+    await run(
+      'UPDATE domains SET name = $1, code = $2 WHERE id = $3',
+      [name, code, domainId]
+    );
+    return await this.findById(domainId);
+  },
+
+  /**
    * Retorna representação pública do domínio
    * @param {Object} domain
    * @returns {Object}

@@ -302,6 +302,15 @@ export const domains = {
       body: JSON.stringify({ plan })
     });
     return handleResponse(response);
+  },
+
+  async update(domainId, data) {
+    const response = await fetch(`${API_URL}/domains/${domainId}`, {
+      method: 'PUT',
+      headers: headers(),
+      body: JSON.stringify(data)
+    });
+    return handleResponse(response);
   }
 };
 

@@ -379,6 +379,11 @@ function AppContent() {
     }));
   };
 
+  // Handler chamado após editar domínio com sucesso
+  const handleDomainSaved = (updatedDomain) => {
+    if (updatedDomain?.name) setDomainName(updatedDomain.name);
+  };
+
   // Handlers para notificações de acesso
   const handleAcceptUser = async (notification) => {
     try {
@@ -760,6 +765,7 @@ function AppContent() {
             allUsers={allUsers}
             user={user}
             onUserSaved={handleUserSaved}
+            onDomainSaved={handleDomainSaved}
           />
         );
 
@@ -789,6 +795,7 @@ function AppContent() {
             onRejectUser={handleRejectUser}
             user={user}
             onUserSaved={handleUserSaved}
+            onDomainSaved={handleDomainSaved}
           />
         );
 
@@ -804,6 +811,7 @@ function AppContent() {
             domainDeviceLimit={domainDeviceLimit}
             user={user}
             onUserSaved={handleUserSaved}
+            onDomainSaved={handleDomainSaved}
             onLogout={handleLogout}
             onBackToDevices={() => setCurrentPage(PAGES.ADMIN_DEVICES)}
             onNavigateToPlans={() => setCurrentPage(PAGES.ADMIN_PLANS)}
@@ -822,6 +830,7 @@ function AppContent() {
             domainDeviceLimit={domainDeviceLimit}
             user={user}
             onUserSaved={handleUserSaved}
+            onDomainSaved={handleDomainSaved}
             onLogout={handleLogout}
             onBackToDevices={() => setCurrentPage(PAGES.ADMIN_DEVICES)}
             onRefreshSession={refreshSession}
@@ -851,6 +860,7 @@ function AppContent() {
             onLogout={handleLogout}
             user={user}
             onUserSaved={handleUserSaved}
+            onDomainSaved={handleDomainSaved}
             onNavigateToPlans={() => setCurrentPage(PAGES.ADMIN_PLANS)}
           />
         );

@@ -33,7 +33,8 @@ const AdminDevicesPage = ({
   onRefresh,
   allUsers = [],
   user,
-  onUserSaved
+  onUserSaved,
+  onDomainSaved
 }) => {
   const toast = useToast();
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -172,8 +173,9 @@ const AdminDevicesPage = ({
         onRejectUser={onRejectUser}
         user={user}
         onUserSaved={onUserSaved}
+        onDomainSaved={onDomainSaved}
       />
-      
+
       <main className="admin-devices-content">
         {hasDevices ? (
           <div className="admin-devices-grid">

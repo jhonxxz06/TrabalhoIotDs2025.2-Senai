@@ -1,0 +1,16 @@
+.edm-loading {
+  color: #84B6F4;
+  font-size: 0.9rem;
+  margin-bottom: 12px;
+}
+
+.edm-code-notice {
+  background: rgba(132, 182, 244, 0.08);
+  border: 1px solid rgba(132, 182, 244, 0.25);
+  border-radius: 8px;
+  color: #84B6F4;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  padding: 10px 14px;
+  margin-top: 4px;
+}

@@ -15,6 +15,7 @@ const NotificationSettingsPage = ({
   domainDeviceLimit,
   user,
   onUserSaved,
+  onDomainSaved,
   onLogout,
   onBackToDevices,
   onNavigateToPlans
@@ -184,6 +185,7 @@ const NotificationSettingsPage = ({
         isOnDashboard={false}
         user={user}
         onUserSaved={onUserSaved}
+        onDomainSaved={onDomainSaved}
       />
 
       <main className="notification-settings-content">

@@ -292,6 +292,50 @@ const domainController = {
   },
 
   /**
+   * PUT /api/domains/:id
+   * Rota PRIVADA (admin) — atualiza o nome e o código do domínio.
+   * Alterar o código não remove membros existentes (vínculo é por domain_id).
+   */
+  async updateDomain(req, res) {
+    try {
+      const { id } = req.params;
+      const { name, code } = req.body;
+
+      const domain = await Domain.findById(id);
+      if (!domain) {
+        return res.status(404).json({ success: false, error: 'Domínio não encontrado' });
+      }
+
+      const callingUser = await User.findById(req.user.id);
+      if (callingUser?.domain_id !== domain.id) {
+        return res.status(403).json({ success: false, error: 'Acesso negado a este domínio' });
+      }
+
+      // Se o código mudou, verificar unicidade
+      if (code.trim().toLowerCase() !== domain.code.toLowerCase()) {
+        const existing = await Domain.findByCode(code.trim());
+        if (existing) {
+          return res.status(409).json({ success: false, error: 'Código de domínio já está em uso' });
+        }
+      }
+
+      const updated = await Domain.update(domain.id, {
+        name: name.trim(),
+        code: code.trim()
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: 'Domínio atualizado com sucesso',
+        data: Domain.toPublic(updated)
+      });
+    } catch (error) {
+      console.error('Erro ao atualizar domínio:', error);
+      return res.status(500).json({ success: false, error: 'Erro interno do servidor' });
+    }
+  },
+
+  /**
    * PUT /api/domains/:id/plan
    * Rota PRIVADA (admin) — atualiza o plano SaaS do domínio
    */
