@@ -311,6 +311,14 @@ export const domains = {
       body: JSON.stringify(data)
     });
     return handleResponse(response);
+  },
+
+  async delete(domainId) {
+    const response = await fetch(`${API_URL}/domains/${domainId}`, {
+      method: 'DELETE',
+      headers: headers()
+    });
+    return handleResponse(response);
   }
 };
 

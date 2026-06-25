@@ -23,6 +23,9 @@ router.get('/:id/users', authenticate, domainController.getUsers);
 // Editar nome e código do domínio (somente admin do domínio)
 router.put('/:id', authenticate, requireAdmin, validate(updateDomainSchema), domainController.updateDomain);
 
+// Excluir domínio e todos os dados em cascata (somente admin do domínio)
+router.delete('/:id', authenticate, requireAdmin, domainController.deleteDomain);
+
 // Gerenciamento de plano SaaS (somente admin do domínio)
 router.put('/:id/plan', authenticate, requireAdmin, domainController.updatePlan);
 

@@ -298,6 +298,7 @@ const AdminHeader = ({
             onClose={() => setShowEditDomain(false)}
             domainId={user?.domainId}
             onSaved={onDomainSaved}
+            onDeleted={onLogout}
           />
         </div>
       </div>

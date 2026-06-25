@@ -230,6 +230,24 @@ const Domain = {
   },
 
   /**
+   * Exclui um domínio e todos os dados relacionados em cascata.
+   * Ordem: desvincula usuários → deleta devices (cascata: widgets, mqtt_data,
+   * device_users, exceedance_counters) → deleta o domínio (FK seta users.domain_id = NULL).
+   * @param {number} domainId
+   */
+  async deleteCascade(domainId) {
+    // 1. Rebaixar usuários do domínio antes de perder o vínculo
+    await run(
+      `UPDATE users SET has_access = 0, role = 'user' WHERE domain_id = $1`,
+      [domainId]
+    );
+    // 2. Deletar devices → cascata limpa widgets, mqtt_data, device_users, exceedance_counters
+    await run('DELETE FROM devices WHERE domain_id = $1', [domainId]);
+    // 3. Deletar o domínio → FK ON DELETE SET NULL cuida de users.domain_id
+    await run('DELETE FROM domains WHERE id = $1', [domainId]);
+  },
+
+  /**
    * Atualiza o nome e o código de um domínio
    * @param {number} domainId
    * @param {{name: string, code: string}} data

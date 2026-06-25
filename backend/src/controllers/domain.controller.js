@@ -292,6 +292,37 @@ const domainController = {
   },
 
   /**
+   * DELETE /api/domains/:id
+   * Rota PRIVADA (admin) — exclui o domínio e todos os dados associados em cascata.
+   * Somente o admin do próprio domínio pode executar esta ação.
+   */
+  async deleteDomain(req, res) {
+    try {
+      const { id } = req.params;
+
+      const domain = await Domain.findById(id);
+      if (!domain) {
+        return res.status(404).json({ success: false, error: 'Domínio não encontrado' });
+      }
+
+      const callingUser = await User.findById(req.user.id);
+      if (callingUser?.domain_id !== domain.id) {
+        return res.status(403).json({ success: false, error: 'Acesso negado a este domínio' });
+      }
+
+      await Domain.deleteCascade(domain.id);
+
+      return res.status(200).json({
+        success: true,
+        message: 'Domínio e todos os dados associados foram excluídos com sucesso'
+      });
+    } catch (error) {
+      console.error('Erro ao excluir domínio:', error);
+      return res.status(500).json({ success: false, error: 'Erro interno do servidor' });
+    }
+  },
+
+  /**
    * PUT /api/domains/:id
    * Rota PRIVADA (admin) — atualiza o nome e o código do domínio.
    * Alterar o código não remove membros existentes (vínculo é por domain_id).
