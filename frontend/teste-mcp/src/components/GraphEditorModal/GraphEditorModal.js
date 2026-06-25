@@ -68,10 +68,10 @@ const WIDGET_TEMPLATES = {
       datasets: [{
         data: [30, 25, 25, 20],
         backgroundColor: [
-          'rgba(132, 182, 244, 0.9)',
-          'rgba(168, 212, 239, 0.9)',
-          'rgba(187, 245, 251, 0.9)',
-          'rgba(100, 150, 200, 0.9)'
+          'rgba(255, 99, 132, 0.85)',
+          'rgba(54, 162, 235, 0.85)',
+          'rgba(75, 192, 192, 0.85)',
+          'rgba(255, 159, 64, 0.85)'
         ],
         borderColor: '#ffffff',
         borderWidth: 2
@@ -291,12 +291,14 @@ const GraphEditorModal = ({
         });
       }
       
+      const isRadialType = ['pie', 'doughnut'].includes(chartType);
+
       // Criar widget com datasets dinâmicos
       const widget = {
         type: chartType,
         title: title || `Gráfico de ${mqttField || 'Dados'}`,
         mqttField: mqttField || null,
-        mqttField2: mqttField2 || null,
+        mqttField2: isRadialType ? null : (mqttField2 || null),
         useMqttData: useMqttData,
         data: {
           labels: [],
@@ -304,7 +306,7 @@ const GraphEditorModal = ({
         },
         options: {
           plugins: { legend: { display: true } },
-          scales: { y: { beginAtZero: true } }
+          ...(!isRadialType && { scales: { y: { beginAtZero: true } } })
         }
       };
 
@@ -415,7 +417,7 @@ const GraphEditorModal = ({
               {useMqttData && chartType !== 'table' && (
                 <>
                   <div className="form-group">
-                    <label>Campo do Payload (1º)</label>
+                    <label>Campo do Payload</label>
                     <input
                       type="text"
                       value={mqttField}
@@ -425,16 +427,18 @@ const GraphEditorModal = ({
                     <small>Nome do campo no JSON do ESP32. Ex: se envia {"{"}"temperature": 25{"}"}, use "temperature"</small>
                   </div>
 
-                  <div className="form-group">
-                    <label>Campo do Payload (2º - opcional)</label>
-                    <input
-                      type="text"
-                      value={mqttField2}
-                      onChange={(e) => setMqttField2(e.target.value)}
-                      placeholder="Ex: humidity"
-                    />
-                    <small>Para comparar dois valores no mesmo gráfico</small>
-                  </div>
+                  {!['pie', 'doughnut'].includes(chartType) && (
+                    <div className="form-group">
+                      <label>Campo do Payload (2º - opcional)</label>
+                      <input
+                        type="text"
+                        value={mqttField2}
+                        onChange={(e) => setMqttField2(e.target.value)}
+                        placeholder="Ex: humidity"
+                      />
+                      <small>Para comparar dois valores no mesmo gráfico</small>
+                    </div>
+                  )}
                 </>
               )}
 

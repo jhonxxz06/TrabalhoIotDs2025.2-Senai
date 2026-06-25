@@ -14,6 +14,17 @@ import { useToast } from '../../components/ToastContext';
 // Registrar todos os componentes do Chart.js
 Chart.register(...registerables);
 
+const PIE_PALETTE = [
+  'rgba(255, 99, 132, 0.85)',
+  'rgba(54, 162, 235, 0.85)',
+  'rgba(75, 192, 192, 0.85)',
+  'rgba(255, 159, 64, 0.85)',
+  'rgba(153, 102, 255, 0.85)',
+  'rgba(255, 205, 86, 0.85)',
+  'rgba(83, 168, 103, 0.85)',
+  'rgba(201, 203, 207, 0.85)',
+];
+
 // Componente para renderizar widgets dinâmicos com dados MQTT
 const DynamicWidgetCard = ({ widget, deviceId, position, dragging, onMouseDown, onEdit, onDelete, onDownload }) => {
   const chartRef = useRef(null);
@@ -88,28 +99,44 @@ const DynamicWidgetCard = ({ widget, deviceId, position, dragging, onMouseDown, 
 
     try {
       const config = typeof widget.config === 'string' ? JSON.parse(widget.config) : widget.config;
+      const isRadial = ['pie', 'doughnut'].includes(config.type || 'line');
 
-      // Se temos dados MQTT, usá-los no gráfico
       let chartData = config.data || { labels: [], datasets: [] };
 
-      if (mqttData && mqttData.length > 0 && config.mqttField) {
-        // Usar apenas Hora do backend para os labels (mais limpo)
-        const labels = mqttData.map(d => {
-          if (d.Hora) {
-            return d.Hora;
-          }
-          return 'N/A';
-        }).reverse();
-
+      if (isRadial && mqttData && mqttData.length > 0 && config.mqttField && config.mqttField.trim() !== '') {
+        // Aggregar por frequência de valor: quantas vezes cada valor apareceu
+        const counts = {};
+        mqttData.forEach(d => {
+          try {
+            const payload = typeof d.payload === 'string' ? JSON.parse(d.payload) : d.payload;
+            const raw = payload[config.mqttField];
+            if (raw !== undefined && raw !== null) {
+              const key = typeof raw === 'number' ? String(Math.round(raw)) : String(raw);
+              counts[key] = (counts[key] || 0) + 1;
+            }
+          } catch (e) {}
+        });
+        const labels = Object.keys(counts).sort((a, b) => parseFloat(a) - parseFloat(b));
+        const values = labels.map(l => counts[l]);
+        chartData = {
+          labels,
+          datasets: [{
+            data: values,
+            backgroundColor: labels.map((_, i) => PIE_PALETTE[i % PIE_PALETTE.length]),
+            borderColor: '#ffffff',
+            borderWidth: 2
+          }]
+        };
+      } else if (!isRadial && mqttData && mqttData.length > 0 && config.mqttField) {
+        // Série temporal para gráficos de linha/barras
+        const labels = mqttData.map(d => d.Hora || 'N/A').reverse();
         const datasets = [];
 
-        // Dataset principal (mqttField) - somente se preenchido
         if (config.mqttField && config.mqttField.trim() !== '') {
           const values = mqttData.map(d => {
             const payload = typeof d.payload === 'string' ? JSON.parse(d.payload) : d.payload;
             return payload[config.mqttField] || 0;
           }).reverse();
-
           const savedDs0 = config.data?.datasets?.[0] || {};
           datasets.push({
             label: config.mqttField,
@@ -128,13 +155,11 @@ const DynamicWidgetCard = ({ widget, deviceId, position, dragging, onMouseDown, 
           });
         }
 
-        // Dataset secundário (mqttField2) - SOMENTE se preenchido
         if (config.mqttField2 && config.mqttField2.trim() !== '') {
           const values2 = mqttData.map(d => {
             const payload = typeof d.payload === 'string' ? JSON.parse(d.payload) : d.payload;
             return payload[config.mqttField2] || 0;
           }).reverse();
-
           const savedDs1 = config.data?.datasets?.[1] || {};
           datasets.push({
             label: config.mqttField2,
@@ -154,21 +179,14 @@ const DynamicWidgetCard = ({ widget, deviceId, position, dragging, onMouseDown, 
         }
 
         chartData = { labels, datasets };
-      } else if (mqttData && mqttData.length > 0) {
-        // Tentar detectar campos automaticamente SOMENTE se não houver mqttField configurado
+      } else if (!isRadial && mqttData && mqttData.length > 0) {
+        // Auto-detecção de campo para linha/barras
         const lastPayload = typeof mqttData[0].payload === 'string'
           ? JSON.parse(mqttData[0].payload)
           : mqttData[0].payload;
         const fields = Object.keys(lastPayload).filter(k => typeof lastPayload[k] === 'number');
         if (fields.length > 0) {
-          // Usar Data e Hora do backend diretamente para os labels
-          const labels = mqttData.map(d => {
-            if (d.Hora) {
-              return d.Hora;
-            }
-            return 'N/A';
-          }).reverse();
-          // Usar apenas o primeiro campo quando auto-detectar
+          const labels = mqttData.map(d => d.Hora || 'N/A').reverse();
           const datasets = [fields[0]].map((field, idx) => {
             const savedDs = config.data?.datasets?.[idx] || {};
             return {
@@ -194,58 +212,54 @@ const DynamicWidgetCard = ({ widget, deviceId, position, dragging, onMouseDown, 
         }
       }
 
+      const configOptions = config.options || {};
+      const chartOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: { duration: 300 },
+        ...(!isRadial && {
+          interaction: { mode: 'nearest', intersect: false, axis: 'x' }
+        }),
+        plugins: {
+          tooltip: {
+            enabled: true,
+            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+            padding: 12,
+            titleFont: { size: 14 },
+            bodyFont: { size: 13 },
+            displayColors: true,
+            borderColor: 'rgba(255, 255, 255, 0.3)',
+            borderWidth: 1
+          },
+          legend: {
+            position: isRadial ? 'bottom' : 'top',
+            labels: { padding: 15, font: { size: 12 } }
+          },
+          ...(configOptions.plugins || {})
+        },
+        ...(!isRadial && {
+          scales: {
+            x: { grid: { display: true, color: 'rgba(0, 0, 0, 0.05)' }, ticks: { padding: 8 } },
+            y: { grid: { display: true, color: 'rgba(0, 0, 0, 0.05)' }, ticks: { padding: 8 } }
+          }
+        }),
+        ...Object.fromEntries(Object.entries(configOptions).filter(([k]) => k !== 'plugins' && k !== 'scales'))
+      };
+
+      if (isRadial) {
+        chartOptions.plugins.tooltip.callbacks = {
+          label: (ctx) => {
+            const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+            const pct = total > 0 ? ((ctx.parsed / total) * 100).toFixed(1) : '0.0';
+            return ` ${ctx.label}: ${ctx.parsed} ocorrências (${pct}%)`;
+          }
+        };
+      }
+
       chartInstance.current = new Chart(chartRef.current, {
         type: config.type || 'line',
         data: chartData,
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          animation: { duration: 300 },
-          interaction: {
-            mode: 'nearest',
-            intersect: false,
-            axis: 'x'
-          },
-          plugins: {
-            tooltip: {
-              enabled: true,
-              backgroundColor: 'rgba(0, 0, 0, 0.8)',
-              padding: 12,
-              titleFont: { size: 14 },
-              bodyFont: { size: 13 },
-              displayColors: true,
-              borderColor: 'rgba(255, 255, 255, 0.3)',
-              borderWidth: 1
-            },
-            legend: {
-              labels: {
-                padding: 15,
-                font: { size: 12 }
-              }
-            }
-          },
-          scales: {
-            x: {
-              grid: {
-                display: true,
-                color: 'rgba(0, 0, 0, 0.05)'
-              },
-              ticks: {
-                padding: 8
-              }
-            },
-            y: {
-              grid: {
-                display: true,
-                color: 'rgba(0, 0, 0, 0.05)'
-              },
-              ticks: {
-                padding: 8
-              }
-            }
-          },
-          ...(config.options || {})
-        }
+        options: chartOptions
       });
     } catch (err) {
       logger.error('Erro ao criar gráfico:', err.message);
