@@ -477,6 +477,7 @@
    Responsive Design
    ======================================== */
 
+/* Tablet portrait / phones grandes */
 @media (max-width: 768px) {
   .app-header {
     height: 60px;
@@ -489,17 +490,32 @@
   }
 
   .username {
-    font-size: 16px;
     display: none;
   }
 
+  /* Oculta o texto do nome; mantém badge do plano e contador de usuários */
   .header-domain-name {
-    display: none;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0;
+  }
+
+  .header-plan-badge {
+    font-size: 10px;
+    margin-left: 0;
+    padding: 2px 6px 2px 4px;
+  }
+
+  .header-user-count {
+    font-size: 11px;
+    margin-left: 0;
+    padding: 2px 6px;
   }
 
   .settings-button {
-    width: 45px;
-    height: 45px;
+    width: 42px;
+    height: 42px;
   }
 
   .user-avatar {
@@ -512,25 +528,58 @@
   }
 }
 
+/* Phones médios-grandes */
 @media (max-width: 480px) {
+  .app-header {
+    height: 52px;
+    padding: 0 12px;
+  }
+
+  .header-logo {
+    width: 52px;
+    height: 52px;
+  }
+
+  .settings-button {
+    width: 36px;
+    height: 36px;
+  }
+
+  .user-avatar {
+    width: 34px;
+    height: 34px;
+  }
+
+  .app-footer {
+    height: 52px;
+  }
+}
+
+/* Phones padrão — iPhone 14, Pixel (≤390px) */
+@media (max-width: 390px) {
   .app-header {
     height: 50px;
     padding: 0 10px;
   }
 
-  .header-logo {
-    width: 50px;
-    height: 50px;
-  }
-
   .settings-button {
-    width: 38px;
-    height: 38px;
+    width: 32px;
+    height: 32px;
   }
 
   .user-avatar {
-    width: 35px;
-    height: 35px;
+    width: 30px;
+    height: 30px;
+  }
+
+  .header-plan-badge {
+    font-size: 9px;
+    padding: 1px 5px 1px 3px;
+  }
+
+  .header-user-count {
+    font-size: 10px;
+    padding: 1px 5px;
   }
 
   .app-footer {

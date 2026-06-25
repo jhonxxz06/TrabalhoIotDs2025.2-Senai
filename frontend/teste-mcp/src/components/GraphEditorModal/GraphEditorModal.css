@@ -645,6 +645,11 @@
   .mode-toggle button {
     flex: 1;
   }
+
+  /* 4 colunas ficam espremidas em mobile, reduzir para 3 */
+  .chart-type-buttons {
+    grid-template-columns: repeat(3, 1fr);
+  }
 }
 
 /* ========================================
