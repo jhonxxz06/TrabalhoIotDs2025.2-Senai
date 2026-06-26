@@ -9,10 +9,10 @@ const Domain = {
    * @param {number} maxUsers - Limite de usuários do domínio
    * @returns {Promise<Object>} Domínio criado
    */
-  async create(name, code, adminId, maxUsers = 10) {
+  async create(name, code, adminId) {
     await run(
-      `INSERT INTO domains (name, code, admin_id, max_users) VALUES ($1, $2, $3, $4)`,
-      [name, code, adminId, maxUsers]
+      `INSERT INTO domains (name, code, admin_id) VALUES ($1, $2, $3)`,
+      [name, code, adminId]
     );
     return await this.findByCode(code);
   },
@@ -23,7 +23,20 @@ const Domain = {
    * @returns {Promise<Object|null>}
    */
   async findByCode(code) {
-    return await queryOne('SELECT * FROM domains WHERE code = $1', [code]);
+    return await queryOne(
+      `SELECT d.*,
+         p.max_users, p.max_devices,
+         tc.chat_id              AS telegram_chat_id,
+         tc.chat_name            AS telegram_chat_name,
+         tc.enabled              AS telegram_enabled,
+         tc.verification_code    AS telegram_verification_code,
+         tc.verification_expires_at AS telegram_verification_expires_at
+       FROM domains d
+       LEFT JOIN plans p ON p.name = d.plan
+       LEFT JOIN domain_telegram_configs tc ON tc.domain_id = d.id
+       WHERE d.code = $1`,
+      [code]
+    );
   },
 
   /**
@@ -32,7 +45,20 @@ const Domain = {
    * @returns {Promise<Object|null>}
    */
   async findById(id) {
-    return await queryOne('SELECT * FROM domains WHERE id = $1', [id]);
+    return await queryOne(
+      `SELECT d.*,
+         p.max_users, p.max_devices,
+         tc.chat_id              AS telegram_chat_id,
+         tc.chat_name            AS telegram_chat_name,
+         tc.enabled              AS telegram_enabled,
+         tc.verification_code    AS telegram_verification_code,
+         tc.verification_expires_at AS telegram_verification_expires_at
+       FROM domains d
+       LEFT JOIN plans p ON p.name = d.plan
+       LEFT JOIN domain_telegram_configs tc ON tc.domain_id = d.id
+       WHERE d.id = $1`,
+      [id]
+    );
   },
 
   /**
@@ -40,7 +66,19 @@ const Domain = {
    * @returns {Promise<Array>}
    */
   async findAll() {
-    return await query('SELECT * FROM domains ORDER BY created_at DESC');
+    return await query(
+      `SELECT d.*,
+         p.max_users, p.max_devices,
+         tc.chat_id              AS telegram_chat_id,
+         tc.chat_name            AS telegram_chat_name,
+         tc.enabled              AS telegram_enabled,
+         tc.verification_code    AS telegram_verification_code,
+         tc.verification_expires_at AS telegram_verification_expires_at
+       FROM domains d
+       LEFT JOIN plans p ON p.name = d.plan
+       LEFT JOIN domain_telegram_configs tc ON tc.domain_id = d.id
+       ORDER BY d.created_at DESC`
+    );
   },
 
   /**
@@ -126,10 +164,17 @@ const Domain = {
    * @returns {Promise<Object|null>}
    */
   async updateTelegramConfig(id, { chatId, enabled }) {
-    await run(
-      'UPDATE domains SET telegram_chat_id = $1, telegram_enabled = $2 WHERE id = $3',
-      [chatId, enabled, id]
-    );
+    if (chatId) {
+      await run(
+        `INSERT INTO domain_telegram_configs (domain_id, chat_id, enabled)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (domain_id) DO UPDATE
+           SET chat_id = EXCLUDED.chat_id, enabled = EXCLUDED.enabled`,
+        [id, chatId, enabled]
+      );
+    } else {
+      await run('DELETE FROM domain_telegram_configs WHERE domain_id = $1', [id]);
+    }
     return await this.findById(id);
   },
 
@@ -141,8 +186,12 @@ const Domain = {
    */
   async saveVerificationCode(domainId, code, expiresAt) {
     await run(
-      'UPDATE domains SET telegram_verification_code = $1, telegram_verification_expires_at = $2 WHERE id = $3',
-      [code, expiresAt, domainId]
+      `INSERT INTO domain_telegram_configs
+         (domain_id, chat_id, enabled, verification_code, verification_expires_at)
+       VALUES ($1, NULL, false, $2, $3)
+       ON CONFLICT (domain_id) DO UPDATE
+         SET verification_code = $2, verification_expires_at = $3`,
+      [domainId, code, expiresAt]
     );
   },
 
@@ -153,10 +202,11 @@ const Domain = {
    */
   async findByVerificationCode(code) {
     return await queryOne(
-      `SELECT id, name, telegram_chat_id
-       FROM domains
-       WHERE telegram_verification_code = $1
-         AND telegram_verification_expires_at > NOW()`,
+      `SELECT d.id, d.name, tc.chat_id AS telegram_chat_id
+       FROM domains d
+       JOIN domain_telegram_configs tc ON tc.domain_id = d.id
+       WHERE tc.verification_code = $1
+         AND tc.verification_expires_at > NOW()`,
       [code]
     );
   },
@@ -169,14 +219,16 @@ const Domain = {
    */
   async completeTelegramConnection(domainId, chatId, chatName) {
     await run(
-      `UPDATE domains
-       SET telegram_chat_id = $1,
-           telegram_enabled = true,
-           telegram_chat_name = $2,
-           telegram_verification_code = NULL,
-           telegram_verification_expires_at = NULL
-       WHERE id = $3`,
-      [chatId, chatName, domainId]
+      `INSERT INTO domain_telegram_configs
+         (domain_id, chat_id, chat_name, enabled, verification_code, verification_expires_at)
+       VALUES ($1, $2, $3, true, NULL, NULL)
+       ON CONFLICT (domain_id) DO UPDATE
+         SET chat_id = EXCLUDED.chat_id,
+             chat_name = EXCLUDED.chat_name,
+             enabled = true,
+             verification_code = NULL,
+             verification_expires_at = NULL`,
+      [domainId, chatId, chatName]
     );
   },
 
@@ -188,12 +240,10 @@ const Domain = {
    */
   async disconnectTelegram(chatId) {
     const result = await run(
-      `UPDATE domains
-       SET telegram_chat_id = NULL,
-           telegram_enabled = false,
-           telegram_chat_name = NULL
-       WHERE telegram_chat_id = $1
-       RETURNING id, name`,
+      `WITH deleted AS (
+         DELETE FROM domain_telegram_configs WHERE chat_id = $1 RETURNING domain_id
+       )
+       SELECT d.id, d.name FROM domains d JOIN deleted ON d.id = deleted.domain_id`,
       [chatId]
     );
     return result.rows[0] ?? null;
@@ -219,13 +269,9 @@ const Domain = {
    * @returns {Promise<Object|null>}
    */
   async updatePlan(domainId, plan) {
-    const { PLAN_LIMITS } = require('../constants/plans');
-    const limits = PLAN_LIMITS[plan];
-    if (!limits) throw new Error(`Plano inválido: ${plan}`);
-    await run(
-      'UPDATE domains SET plan = $1, max_users = $2, max_devices = $3 WHERE id = $4',
-      [plan, limits.maxUsers, limits.maxDevices, domainId]
-    );
+    const exists = await queryOne('SELECT name FROM plans WHERE name = $1', [plan]);
+    if (!exists) throw new Error(`Plano inválido: ${plan}`);
+    await run('UPDATE domains SET plan = $1 WHERE id = $2', [plan, domainId]);
     return await this.findById(domainId);
   },
 
@@ -236,14 +282,14 @@ const Domain = {
    * @param {number} domainId
    */
   async deleteCascade(domainId) {
-    // 1. Rebaixar usuários do domínio antes de perder o vínculo
+    // 1. Desvincular usuários: zera domain_id, rebaixa role e revoga acesso
     await run(
-      `UPDATE users SET has_access = 0, role = 'user' WHERE domain_id = $1`,
+      `UPDATE users SET domain_id = NULL, has_access = false, role = 'user' WHERE domain_id = $1`,
       [domainId]
     );
     // 2. Deletar devices → cascata limpa widgets, mqtt_data, device_users, exceedance_counters
     await run('DELETE FROM devices WHERE domain_id = $1', [domainId]);
-    // 3. Deletar o domínio → FK ON DELETE SET NULL cuida de users.domain_id
+    // 3. Deletar o domínio
     await run('DELETE FROM domains WHERE id = $1', [domainId]);
   },
 
@@ -273,9 +319,9 @@ const Domain = {
       name: domain.name,
       code: domain.code,
       adminId: domain.admin_id,
-      maxUsers: domain.max_users,
-      maxDevices: domain.max_devices ?? 3,
       plan: domain.plan ?? 'gratuito',
+      maxUsers: domain.max_users ?? 2,
+      maxDevices: domain.max_devices ?? 3,
       createdAt: domain.created_at
     };
   }

@@ -226,7 +226,14 @@ const MqttService = {
    * Salva dados MQTT no banco
    */
   async saveData(deviceId, topic, payload) {
-    const payloadStr = typeof payload === 'string' ? payload : JSON.stringify(payload);
+    // Normaliza o payload para objeto e gera string com chaves ordenadas para comparação estável
+    const payloadObj = typeof payload === 'string' ? JSON.parse(payload) : payload;
+    const sortedStr = (obj) => {
+      const s = {};
+      Object.keys(obj).sort().forEach(k => { s[k] = obj[k]; });
+      return JSON.stringify(s);
+    };
+    const payloadStr = sortedStr(payloadObj);
 
     // Use a transaction with an advisory lock per device to prevent race inserts
     const client = await pool.connect();
@@ -243,7 +250,7 @@ const MqttService = {
 
       if (lastRes.rows && lastRes.rows.length > 0) {
         const last = lastRes.rows[0];
-        const lastPayloadStr = typeof last.payload === 'string' ? last.payload : JSON.stringify(last.payload);
+        const lastPayloadStr = sortedStr(typeof last.payload === 'string' ? JSON.parse(last.payload) : last.payload);
         const lastTime = last.received_at ? new Date(last.received_at).getTime() : 0;
         const now = Date.now();
         const delta = Math.abs(now - lastTime);
@@ -257,7 +264,7 @@ const MqttService = {
       // Insert new record
       await client.query(
         'INSERT INTO mqtt_data (device_id, topic, payload) VALUES ($1, $2, $3)',
-        [deviceId, topic, payloadStr]
+        [deviceId, topic, payloadObj]
       );
 
       await client.query('COMMIT');
@@ -391,11 +398,11 @@ const MqttService = {
 
     Object.entries(thresholds).forEach(([field, limits]) => {
       if (limits.min !== undefined && limits.min !== null && limits.min !== '') {
-        conditions.push(`((payload::jsonb)->>'${field}')::float < $${paramCount++}`);
+        conditions.push(`(payload->>'${field}')::float < $${paramCount++}`);
         params.push(parseFloat(limits.min));
       }
       if (limits.max !== undefined && limits.max !== null && limits.max !== '') {
-        conditions.push(`((payload::jsonb)->>'${field}')::float > $${paramCount++}`);
+        conditions.push(`(payload->>'${field}')::float > $${paramCount++}`);
         params.push(parseFloat(limits.max));
       }
     });
@@ -451,7 +458,7 @@ const MqttService = {
 
       // Adicionar informação de qual threshold foi excedido
       return results.map(row => {
-        const payload = typeof row.payload === 'string' ? JSON.parse(row.payload) : row.payload;
+        const payload = row.payload;
         const alerts = [];
 
         Object.entries(thresholds).forEach(([field, limits]) => {

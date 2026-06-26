@@ -162,12 +162,7 @@ const getData = async (req, res) => {
     // Parse do payload JSON se possível
     // Data e Hora já vêm formatados da query SQL no timezone de Brasília
     const parsedData = data.map(item => {
-      let parsedPayload;
-      try {
-        parsedPayload = typeof item.payload === 'string' ? JSON.parse(item.payload) : item.payload;
-      } catch {
-        parsedPayload = item.payload;
-      }
+      const parsedPayload = item.payload;
 
       return {
         id: item.id,

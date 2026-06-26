@@ -37,7 +37,7 @@ const User = {
    * @returns {Promise<Object>} Usuário criado
    */
   async create(userData) {
-    const { username, email, password, role = 'user', has_access = 0, domain_id = null } = userData;
+    const { username, email, password, role = 'user', has_access = false, domain_id = null } = userData;
     
     await run(`
       INSERT INTO users (username, email, password, role, has_access, domain_id)
@@ -80,7 +80,7 @@ const User = {
    * @returns {Promise<Object|null>}
    */
   async updateAccess(id, hasAccess) {
-    await run('UPDATE users SET has_access = $1 WHERE id = $2', [hasAccess ? 1 : 0, id]);
+    await run('UPDATE users SET has_access = $1 WHERE id = $2', [hasAccess, id]);
     return await this.findById(id);
   },
 
@@ -112,7 +112,7 @@ const User = {
     }
     if (data.has_access !== undefined) {
       fields.push(`has_access = $${fields.length + 1}`);
-      values.push(data.has_access ? 1 : 0);
+      values.push(Boolean(data.has_access));
     }
     if (data.domain_id !== undefined) {
       fields.push(`domain_id = $${fields.length + 1}`);

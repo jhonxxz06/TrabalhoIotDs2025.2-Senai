@@ -52,13 +52,11 @@ const Widget = {
    */
   async create(data) {
     const { name, type, deviceId, config = {}, position = {} } = data;
-    const configJson = JSON.stringify(config);
-    const positionJson = JSON.stringify(position);
 
     await run(`
       INSERT INTO widgets (name, type, device_id, config, position)
       VALUES ($1, $2, $3, $4, $5)
-    `, [name, type, deviceId, configJson, positionJson]);
+    `, [name, type, deviceId, config, position]);
 
     return await queryOne(
       'SELECT * FROM widgets WHERE device_id = $1 AND name = $2 ORDER BY id DESC LIMIT 1',
@@ -87,11 +85,11 @@ const Widget = {
     }
     if (data.config !== undefined) {
       fields.push(`config = $${fields.length + 1}`);
-      values.push(JSON.stringify(data.config));
+      values.push(data.config);
     }
     if (data.position !== undefined) {
       fields.push(`position = $${fields.length + 1}`);
-      values.push(JSON.stringify(data.position));
+      values.push(data.position);
     }
 
     if (fields.length === 0) return await this.findById(id);
@@ -120,8 +118,8 @@ const Widget = {
       name: widget.name,
       type: widget.type,
       deviceId: widget.device_id,
-      config: typeof widget.config === 'string' ? JSON.parse(widget.config) : widget.config,
-      position: typeof widget.position === 'string' ? JSON.parse(widget.position) : widget.position,
+      config: widget.config ?? {},
+      position: widget.position ?? {},
       createdAt: widget.created_at
     };
   }

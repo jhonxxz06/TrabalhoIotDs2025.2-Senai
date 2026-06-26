@@ -77,7 +77,7 @@ const authController = {
 
       let domainId = null;
       let userRole = 'user';
-      let userHasAccess = 0;
+      let userHasAccess = false;
 
       if (isManager) {
         // ── Fluxo Gerente ──────────────────────────────────────────────────
@@ -101,7 +101,7 @@ const authController = {
         const newDomain = await Domain.create(domainName.trim(), domainCode.trim(), null);
         domainId = newDomain.id;
         userRole = 'admin';
-        userHasAccess = 1; // Gerente já tem acesso automático
+        userHasAccess = true; // Gerente já tem acesso automático
 
       } else {
         // ── Fluxo Usuário Comum ────────────────────────────────────────────
@@ -205,21 +205,21 @@ const authController = {
 
       // Validação de domínio (obrigatória para usuários vinculados a um domínio)
       if (user.domain_id !== null) {
-        if (!domainCode) {
-          return res.status(400).json({ success: false, error: 'Código do domínio é obrigatório' });
-        }
+        const userDomain = await Domain.findById(user.domain_id);
 
-        const domain = await Domain.findByCode(domainCode.trim());
-        if (!domain) {
-          return res.status(401).json({ success: false, error: 'Código de domínio inválido' });
-        }
-
-        // Verifica se o usuário pertence ao domínio informado
-        if (user.domain_id !== domain.id) {
-          return res.status(401).json({
-            success: false,
-            error: 'Você não pertence a este domínio'
-          });
+        if (!userDomain) {
+          // Domínio foi deletado — saneia o usuário e permite login como órfão
+          await User.update(user.id, { domain_id: null, role: 'user', has_access: false });
+          user.domain_id = null;
+          user.role = 'user';
+          user.has_access = false;
+        } else {
+          if (!domainCode) {
+            return res.status(400).json({ success: false, error: 'Código do domínio é obrigatório' });
+          }
+          if (domainCode.trim().toLowerCase() !== userDomain.code.toLowerCase()) {
+            return res.status(401).json({ success: false, error: 'Código de domínio inválido' });
+          }
         }
       }
 
@@ -360,7 +360,7 @@ const authController = {
       const domainId = user.domain_id;
 
       if (user.role !== 'admin') {
-        await User.update(userId, { domain_id: null, role: 'user', has_access: 0 });
+        await User.update(userId, { domain_id: null, role: 'user', has_access: false });
         await Device.removeAllUserAccess(userId);
         await AccessRequest.deleteByUserId(userId);
         return res.status(200).json({ success: true, message: 'Você saiu do domínio com sucesso' });
@@ -375,7 +375,7 @@ const authController = {
         if (domain && domain.admin_id === userId) {
           await Domain.setAdmin(domainId, otherAdmins[0].id);
         }
-        await User.update(userId, { domain_id: null, role: 'user', has_access: 0 });
+        await User.update(userId, { domain_id: null, role: 'user', has_access: false });
         await Device.removeAllUserAccess(userId);
         await AccessRequest.deleteByUserId(userId);
         return res.status(200).json({ success: true, message: 'Você saiu do domínio com sucesso' });
@@ -406,9 +406,9 @@ const authController = {
         return res.status(400).json({ success: false, error: 'Usuário selecionado para transferência inválido' });
       }
 
-      await User.update(target.id, { role: 'admin', has_access: 1 });
+      await User.update(target.id, { role: 'admin', has_access: true });
       await Domain.setAdmin(domainId, target.id);
-      await User.update(userId, { domain_id: null, role: 'user', has_access: 0 });
+      await User.update(userId, { domain_id: null, role: 'user', has_access: false });
       await Device.removeAllUserAccess(userId);
       await AccessRequest.deleteByUserId(userId);
 
@@ -458,7 +458,7 @@ const authController = {
         });
       }
 
-      await User.update(userId, { domain_id: domain.id, role: 'user', has_access: 0 });
+      await User.update(userId, { domain_id: domain.id, role: 'user', has_access: false });
 
       if (requestedDevices && requestedDevices.length > 0) {
         await createDeviceAccessRequests(userId, requestedDevices, domain.id, 'Solicitação de acesso a domínio');
@@ -508,14 +508,15 @@ const authController = {
       }
 
       const newDomain = await Domain.create(domainName.trim(), domainCode.trim(), null);
-      await User.update(userId, { domain_id: newDomain.id, role: 'admin', has_access: 1 });
+      await User.update(userId, { domain_id: newDomain.id, role: 'admin', has_access: true });
       await Domain.setAdmin(newDomain.id, userId);
 
       const updatedUser = await User.findById(userId);
+      const newToken = generateToken({ id: updatedUser.id, email: updatedUser.email, role: updatedUser.role });
       return res.status(200).json({
         success: true,
         message: 'Domínio criado com sucesso',
-        data: { user: await buildPublicUser(updatedUser) }
+        data: { token: newToken, user: await buildPublicUser(updatedUser) }
       });
     } catch (error) {
       console.error('Erro ao criar domínio:', error);

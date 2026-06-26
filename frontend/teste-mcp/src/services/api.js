@@ -122,7 +122,11 @@ export const auth = {
       headers: headers(),
       body: JSON.stringify({ domainName, domainCode })
     });
-    return handleResponse(response);
+    const data = await handleResponse(response);
+    if (data.data?.token) {
+      localStorage.setItem('token', data.data.token);
+    }
+    return data;
   },
 
   logout() {

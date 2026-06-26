@@ -31,12 +31,7 @@ async function getWidgetsForDevice(deviceId) {
 
   const rows = await Widget.findByDeviceId(deviceId);
   const widgets = rows.map(row => {
-    let config = {};
-    try {
-      config = typeof row.config === 'string' ? JSON.parse(row.config) : (row.config || {});
-    } catch (error) {
-      console.error(`[Notification] Config inválido no widget ${row.id}:`, error.message);
-    }
+    const config = row.config || {};
     return { id: row.id, device_id: row.device_id, name: row.name, config };
   });
 
