@@ -339,7 +339,7 @@ const DashboardPage = ({
       const position = widgetPositions[widget.id] || { x: 50 + (index * 370), y: 30 };
       const config = typeof widget.config === 'string' ? JSON.parse(widget.config) : widget.config;
 
-      const widgetHeight = config?.type === 'table' ? 450 : 280;
+      const widgetHeight = config?.type === 'table' ? 450 : 300;
       const bottom = position.y + widgetHeight + 50;
 
       if (bottom > maxBottom) {
@@ -411,7 +411,7 @@ const DashboardPage = ({
                     left: `${position.x}px`,
                     top: `${position.y}px`,
                     width: isTable ? '720px' : '350px',
-                    height: isTable ? '450px' : '280px'
+                    height: isTable ? '450px' : '300px'
                   }}
                 >
                   {isTable ? (
