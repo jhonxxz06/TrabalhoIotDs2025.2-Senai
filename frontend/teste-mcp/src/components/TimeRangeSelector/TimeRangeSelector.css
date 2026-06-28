@@ -1,0 +1,174 @@
+.trs-wrapper {
+  position: relative;
+  display: inline-block;
+  font-family: 'Roboto', sans-serif;
+}
+
+/* Botão principal */
+.trs-trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(168, 212, 239, 0.61);
+  border: none;
+  border-radius: 8px;
+  padding: 9px 14px;
+  cursor: pointer;
+  color: #000000;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 1px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+  white-space: nowrap;
+}
+
+.trs-trigger:hover {
+  background: rgba(168, 212, 239, 0.85);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+.trs-label {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+
+/* Indicador "ao vivo" */
+.trs-live-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22c55e;
+  animation: trs-pulse 2s infinite;
+  flex-shrink: 0;
+}
+
+.trs-live-dot-sm {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #22c55e;
+  flex-shrink: 0;
+}
+
+@keyframes trs-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* Dropdown */
+.trs-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 1000;
+  background: #ffffff;
+  border-radius: 10px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+  min-width: 210px;
+  overflow: hidden;
+  animation: trs-fadeIn 0.15s ease;
+}
+
+@keyframes trs-fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Opção */
+.trs-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 11px 16px;
+  cursor: pointer;
+  color: #000000;
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: 0.5px;
+  text-align: left;
+  transition: background 0.15s ease;
+}
+
+.trs-option:hover {
+  background: rgba(168, 212, 239, 0.35);
+}
+
+.trs-option.active {
+  background: rgba(132, 182, 244, 0.45);
+  font-weight: 500;
+}
+
+/* Painel personalizado */
+.trs-custom-panel {
+  padding: 10px 16px 14px;
+  border-top: 1px solid rgba(132, 182, 244, 0.25);
+  background: rgba(168, 212, 239, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.trs-date-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.trs-date-row label {
+  font-size: 12px;
+  font-weight: 500;
+  color: #444;
+  width: 28px;
+  flex-shrink: 0;
+}
+
+.trs-date-row input[type="date"] {
+  flex: 1;
+  border: 1px solid rgba(132, 182, 244, 0.67);
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 13px;
+  font-family: 'Roboto', sans-serif;
+  color: #000;
+  background: #fff;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.trs-date-row input[type="date"]:focus {
+  border-color: #84B6F4;
+  box-shadow: 0 0 0 2px rgba(132, 182, 244, 0.25);
+}
+
+.trs-error {
+  font-size: 12px;
+  color: #e53e3e;
+  margin: 0;
+}
+
+.trs-apply {
+  align-self: flex-end;
+  background: rgba(132, 182, 244, 0.67);
+  border: none;
+  border-radius: 6px;
+  padding: 7px 18px;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: 'Roboto', sans-serif;
+  letter-spacing: 0.5px;
+  color: #000;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.trs-apply:hover {
+  background: rgba(132, 182, 244, 0.9);
+}

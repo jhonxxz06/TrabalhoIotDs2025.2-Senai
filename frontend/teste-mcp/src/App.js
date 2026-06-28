@@ -63,6 +63,9 @@ function AppContent() {
   // Widgets para dashboard
   const [widgets, setWidgets] = useState([]);
 
+  // Filtro de período do dashboard (compartilhado entre gráficos e CSV)
+  const [timeRange, setTimeRange] = useState({ type: 'live', from: null, to: null });
+
   // Notificações de acesso (admin)
   const [notifications, setNotifications] = useState([]);
 
@@ -297,6 +300,7 @@ function AppContent() {
 
   const handleDeviceClick = (device) => {
     setSelectedDevice(device);
+    setTimeRange({ type: 'live', from: null, to: null });
     if (isAdmin) {
       setCurrentPage(PAGES.ADMIN_DASHBOARD);
     } else {
@@ -425,23 +429,28 @@ function AppContent() {
 
   const handleDownloadExcel = async (chartType) => {
     if (!selectedDevice) return;
-    
+
     try {
-      const response = await api.mqtt.getWeekData(selectedDevice.id);
-      console.log('Dados para Excel:', response.data);
-      console.log('Primeiro registro completo:', JSON.stringify(response.data[0], null, 2));
-      console.log('Data do primeiro registro:', response.data[0]?.Data);
-      console.log('Hora do primeiro registro:', response.data[0]?.Hora);
-      console.log('Timestamp do primeiro registro:', response.data[0]?.timestamp);
-      
-      // Converter para CSV
+      let response;
+      if (timeRange.type === 'today') {
+        response = await api.mqtt.getTodayData(selectedDevice.id);
+      } else if (timeRange.type === '7days') {
+        response = await api.mqtt.getWeekData(selectedDevice.id);
+      } else if (timeRange.type === 'custom' && timeRange.from && timeRange.to) {
+        const from = new Date(timeRange.from + 'T00:00:00-03:00').toISOString();
+        const to   = new Date(timeRange.to   + 'T23:59:59-03:00').toISOString();
+        response = await api.mqtt.getDataByRange(selectedDevice.id, from, to);
+      } else {
+        // modo live: exporta últimos 7 dias
+        response = await api.mqtt.getWeekData(selectedDevice.id);
+      }
+
       if (response.data && response.data.length > 0) {
         const csvContent = convertToCSV(response.data);
-        console.log('CSV gerado (primeiras 500 chars):', csvContent.substring(0, 500));
         downloadCSV(csvContent, `${selectedDevice.name}_${chartType}.csv`);
         toast.success('Dados baixados com sucesso!');
       } else {
-        toast.warning('Nenhum dado disponível para download');
+        toast.warning('Nenhum dado no período selecionado');
       }
     } catch (err) {
       console.error('Erro ao baixar dados:', err);
@@ -725,6 +734,8 @@ function AppContent() {
             onLogout={handleLogout}
             user={user}
             onUserSaved={handleUserSaved}
+            timeRange={timeRange}
+            onTimeRangeChange={setTimeRange}
           />
         );
 
@@ -796,6 +807,8 @@ function AppContent() {
             user={user}
             onUserSaved={handleUserSaved}
             onDomainSaved={handleDomainSaved}
+            timeRange={timeRange}
+            onTimeRangeChange={setTimeRange}
           />
         );
 

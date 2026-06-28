@@ -4,10 +4,12 @@ import api from '../../services/api';
 import logger from '../../utils/logger';
 import './TableWidget.css';
 
-const TableWidget = ({ deviceId, config }) => {
+const TableWidget = ({ deviceId, config, timeRange }) => {
   const [exceedances, setExceedances] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  const isLive = !timeRange || timeRange.type === 'live';
 
   useEffect(() => {
     fetchExceedances();
@@ -17,6 +19,8 @@ const TableWidget = ({ deviceId, config }) => {
       const socket = getSocket();
 
       const socketHandler = (data) => {
+        // Modos históricos: tabela congelada — ignorar atualizações do WebSocket
+        if (!isLive) return;
         try {
           if (data && data.deviceId && data.deviceId.toString() === deviceId.toString()) {
             fetchExceedances();
@@ -29,21 +33,21 @@ const TableWidget = ({ deviceId, config }) => {
       socket.emit('subscribe:device', deviceId);
       socket.on('mqtt:data', socketHandler);
 
-      // Polling como fallback (a cada 30 segundos)
-      const interval = setInterval(fetchExceedances, 30000);
+      // Polling apenas no modo live
+      const interval = isLive ? setInterval(fetchExceedances, 30000) : null;
 
       return () => {
-        clearInterval(interval);
+        if (interval) clearInterval(interval);
         socket.off('mqtt:data', socketHandler);
         try { socket.emit('unsubscribe:device', deviceId); } catch (e) { }
       };
     } catch (e) {
       logger.warn('Socket não disponível, mantendo polling como fallback');
-      const interval = setInterval(fetchExceedances, 30000);
-      return () => clearInterval(interval);
+      const interval = isLive ? setInterval(fetchExceedances, 30000) : null;
+      return () => { if (interval) clearInterval(interval); };
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [deviceId, config]);
+  }, [deviceId, config, timeRange]);
 
   const fetchExceedances = async () => {
     try {
@@ -82,6 +86,23 @@ const TableWidget = ({ deviceId, config }) => {
       // Construir query params com thresholds do config
       const params = new URLSearchParams();
       params.append('limit', parsedConfig.limit || 50);
+
+      // Adicionar filtro de período
+      if (timeRange && timeRange.type !== 'live') {
+        if (timeRange.type === 'today') {
+          const now = new Date();
+          const midnightBrasilia = new Date(
+            Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 3, 0, 0)
+          );
+          if (midnightBrasilia > now) midnightBrasilia.setUTCDate(midnightBrasilia.getUTCDate() - 1);
+          params.append('from', midnightBrasilia.toISOString());
+        } else if (timeRange.type === '7days') {
+          params.append('from', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString());
+        } else if (timeRange.type === 'custom' && timeRange.from && timeRange.to) {
+          params.append('from', new Date(timeRange.from + 'T00:00:00-03:00').toISOString());
+          params.append('to',   new Date(timeRange.to   + 'T23:59:59-03:00').toISOString());
+        }
+      }
 
       let hasThresholds = false;
       Object.entries(thresholds).forEach(([field, limits]) => {

@@ -118,7 +118,7 @@ const getStatus = async (req, res) => {
 const getData = async (req, res) => {
   try {
     const { id } = req.params;
-    const { limit = 100, period } = req.query;
+    const { limit = 100, period, from, to } = req.query;
 
     const device = await Device.findById(id);
     if (!device) {
@@ -146,7 +146,11 @@ const getData = async (req, res) => {
     }
 
     let data;
-    if (period === 'day') {
+    if (from && to) {
+      data = await MqttService.getDataRange(id, from, to, 10000);
+    } else if (period === 'today') {
+      data = await MqttService.getTodayData(id);
+    } else if (period === 'day') {
       data = await MqttService.getDayData(id);
     } else if (period === 'week') {
       data = await MqttService.getWeekData(id);
@@ -350,9 +354,9 @@ const getRejected = async (req, res) => {
 const getExceedances = async (req, res) => {
   try {
     const { id } = req.params;
-    const { limit = 100, since } = req.query;
+    const { limit = 100, since, from, to } = req.query;
 
-    console.log('[Controller] getExceedances chamado:', { id, limit, since, query: req.query });
+    console.log('[Controller] getExceedances chamado:', { id, limit, since, from, to, query: req.query });
 
     const device = await Device.findById(id);
     if (!device) {
@@ -401,7 +405,8 @@ const getExceedances = async (req, res) => {
 
     const options = {
       limit: parseInt(limit),
-      since: since || null
+      since: from || since || null,
+      until: to || null
     };
 
     const data = await MqttService.getExceedances(parseInt(id), thresholds, options);

@@ -365,6 +365,35 @@ const MqttService = {
   },
 
   /**
+   * Busca dados do dia atual (meia-noite de Brasília até agora)
+   */
+  async getTodayData(deviceId) {
+    const now = new Date();
+    // UTC+0: meia-noite de Brasília (UTC-3) equivale a 03:00 UTC
+    const midnightBrasilia = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 3, 0, 0)
+    );
+    // Se ainda não passamos das 03:00 UTC (antes da meia-noite BRT), recuamos um dia
+    if (midnightBrasilia > now) midnightBrasilia.setUTCDate(midnightBrasilia.getUTCDate() - 1);
+    return await this.getData(deviceId, { since: midnightBrasilia.toISOString(), limit: 10000 });
+  },
+
+  /**
+   * Busca dados em um intervalo arbitrário de datas
+   */
+  async getDataRange(deviceId, from, to, limit = 10000) {
+    return await query(`
+      SELECT id, device_id, topic, payload, received_at,
+        to_char(received_at AT TIME ZONE 'America/Sao_Paulo', 'DD/MM/YYYY') as "Data",
+        to_char(received_at AT TIME ZONE 'America/Sao_Paulo', 'HH24:MI:SS') as "Hora"
+      FROM mqtt_data
+      WHERE device_id = $1 AND received_at >= $2 AND received_at <= $3
+      ORDER BY received_at DESC
+      LIMIT $4
+    `, [deviceId, from, to, limit]);
+  },
+
+  /**
    * Limpa dados antigos (mais de 7 dias)
    */
   async cleanOldData() {
@@ -381,7 +410,7 @@ const MqttService = {
    * @returns {array} Registros com excedências
    */
   async getExceedances(deviceId, thresholds = {}, options = {}) {
-    const { limit = 100, since = null } = options;
+    const { limit = 100, since = null, until = null } = options;
 
     console.log('[MQTT] getExceedances chamado:', { deviceId, thresholds, options });
 
@@ -428,10 +457,14 @@ const MqttService = {
         AND (${conditions.join(' OR ')})
     `;
 
-    // Adicionar filtro de data se especificado
+    // Adicionar filtros de data se especificados
     if (since) {
       sql += ` AND received_at >= $${paramCount++}`;
       params.push(since);
+    }
+    if (until) {
+      sql += ` AND received_at <= $${paramCount++}`;
+      params.push(until);
     }
 
     sql += ` ORDER BY received_at DESC LIMIT $${paramCount}`;

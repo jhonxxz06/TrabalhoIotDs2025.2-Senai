@@ -5,6 +5,7 @@ import './DashboardPage.css';
 import Header from '../Header';
 import Footer from '../Footer';
 import TableWidget from '../TableWidget';
+import TimeRangeSelector from '../TimeRangeSelector/TimeRangeSelector';
 import excelIcon from '../../assets/excel-icon.png';
 import { mqtt as mqttApi } from '../../services/api';
 import logger from '../../utils/logger';
@@ -26,33 +27,43 @@ const PIE_PALETTE = [
 // Usaremos o socket centralizado via services/socket.js
 
 // Componente para renderizar widgets dinâmicos com dados MQTT
-const DynamicWidget = ({ widget, deviceId, onDownload }) => {
+const DynamicWidget = ({ widget, deviceId, onDownload, timeRange }) => {
   const chartRef = useRef(null);
   const chartInstance = useRef(null);
   const [mqttData, setMqttData] = useState([]);
 
-  // Buscar dados MQTT iniciais
+  const isLive = !timeRange || timeRange.type === 'live';
+
+  // Buscar dados MQTT iniciais (modo live: limit 20; histórico: por período)
   const fetchInitialData = useCallback(async () => {
     if (!deviceId) return;
-
     try {
-      const response = await mqttApi.getData(deviceId, { limit: 20 });
-      if (response.success && response.data && response.data.length > 0) {
-        setMqttData(response.data);
+      if (isLive) {
+        const response = await mqttApi.getData(deviceId, { limit: 20 });
+        if (response.success && response.data?.length > 0) setMqttData(response.data);
+      } else if (timeRange.type === 'today') {
+        const response = await mqttApi.getTodayData(deviceId);
+        if (response.success) setMqttData(response.data || []);
+      } else if (timeRange.type === '7days') {
+        const response = await mqttApi.getWeekData(deviceId);
+        if (response.success) setMqttData(response.data || []);
+      } else if (timeRange.type === 'custom' && timeRange.from && timeRange.to) {
+        const from = new Date(timeRange.from + 'T00:00:00-03:00').toISOString();
+        const to   = new Date(timeRange.to   + 'T23:59:59-03:00').toISOString();
+        const response = await mqttApi.getDataByRange(deviceId, from, to);
+        if (response.success) setMqttData(response.data || []);
       }
     } catch (err) {
       // Aguardando dados MQTT
     }
-  }, [deviceId]);
+  }, [deviceId, timeRange, isLive]);
 
   // WebSocket - Conectar e escutar dados em tempo real
   useEffect(() => {
     if (!deviceId) return;
 
-    // Buscar dados iniciais
     fetchInitialData();
 
-    // Conectar ao WebSocket (socket central)
     const socket = getSocket();
     try {
       if (!socket.connected) socket.connect();
@@ -61,13 +72,12 @@ const DynamicWidget = ({ widget, deviceId, onDownload }) => {
       logger.warn('Erro ao iniciar socket:', e.message);
     }
 
-    // Listener para dados MQTT em tempo real
     const handleMqttData = (data) => {
+      // Modos históricos: gráfico congelado — ignorar mensagens do WebSocket
+      if (!isLive) return;
 
       if (data.deviceId === deviceId) {
-        // Adicionar novo dado ao início do array
         setMqttData((prevData) => {
-          // Formatar Data e Hora no fuso de Brasília
           const date = new Date(data.timestamp);
           const Data = date.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
           const Hora = date.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo' });
@@ -83,7 +93,6 @@ const DynamicWidget = ({ widget, deviceId, onDownload }) => {
             Hora
           }, ...prevData];
 
-          // Manter apenas os últimos 20 registros
           return newData.slice(0, 20);
         });
       }
@@ -91,12 +100,11 @@ const DynamicWidget = ({ widget, deviceId, onDownload }) => {
 
     socket.on('mqtt:data', handleMqttData);
 
-    // Cleanup
     return () => {
       try { socket.emit('unsubscribe:device', deviceId); } catch (e) { }
       socket.off('mqtt:data', handleMqttData);
     };
-  }, [deviceId, fetchInitialData]);
+  }, [deviceId, fetchInitialData, isLive]);
 
   // Criar/atualizar gráfico
   useEffect(() => {
@@ -204,6 +212,16 @@ const DynamicWidget = ({ widget, deviceId, onDownload }) => {
         }
       }
 
+      // Scroll horizontal: nos modos históricos não-radiais, o canvas expande
+      const needsScroll = !isLive && !isRadial;
+      if (needsScroll && chartRef.current) {
+        const dataPoints = mqttData.length;
+        const scrollWidth = Math.max(600, dataPoints * 12);
+        chartRef.current.parentElement.style.width = `${scrollWidth}px`;
+      } else if (chartRef.current) {
+        chartRef.current.parentElement.style.width = '100%';
+      }
+
       const configOptions = config.options || {};
       const chartOptions = {
         responsive: true,
@@ -265,10 +283,12 @@ const DynamicWidget = ({ widget, deviceId, onDownload }) => {
   }, [widget, mqttData]);
 
   const config = typeof widget.config === 'string' ? JSON.parse(widget.config) : widget.config;
+  const isRadialWidget = config && ['pie', 'doughnut'].includes(config.type);
+  const needsScrollWrapper = !isLive && !isRadialWidget && config?.type !== 'table';
 
   // Se for tabela, renderizar apenas TableWidget (sem wrapper)
   if (config && config.type === 'table') {
-    return <TableWidget deviceId={deviceId} config={config} />;
+    return <TableWidget deviceId={deviceId} config={config} timeRange={timeRange} />;
   }
 
   return (
@@ -285,8 +305,11 @@ const DynamicWidget = ({ widget, deviceId, onDownload }) => {
           <img src={excelIcon} alt="Excel" className="excel-icon-small" />
         </button>
       </div>
-      <div className="chart-wrapper">
-        <canvas ref={chartRef}></canvas>
+      <div className={needsScrollWrapper ? 'chart-scroll-outer' : 'chart-wrapper'}>
+        <div className={needsScrollWrapper ? 'chart-scroll-inner' : undefined}
+             style={needsScrollWrapper ? { height: '100%' } : undefined}>
+          <canvas ref={chartRef}></canvas>
+        </div>
       </div>
     </>
   );
@@ -305,7 +328,9 @@ const DashboardPage = ({
   onBackToDevices,
   onLogout,
   user,
-  onUserSaved
+  onUserSaved,
+  timeRange,
+  onTimeRangeChange
 }) => {
   const [widgetPositions, setWidgetPositions] = useState({});
   const [whiteboardHeight, setWhiteboardHeight] = useState(600);
@@ -380,8 +405,13 @@ const DashboardPage = ({
           </h1>
         </div>
 
-        {/* Device Title */}
-        <h2 className="device-title">#{deviceName}</h2>
+        {/* Device Title + seletor de período */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '16px', flexWrap: 'wrap' }}>
+          <h2 className="device-title" style={{ margin: 0 }}>#{deviceName}</h2>
+          {onTimeRangeChange && (
+            <TimeRangeSelector value={timeRange} onChange={onTimeRangeChange} />
+          )}
+        </div>
 
         {/* Charts Whiteboard */}
         <div className="charts-whiteboard" style={{ height: `${whiteboardHeight}px`, minHeight: '600px', position: 'relative' }}>
@@ -415,12 +445,13 @@ const DashboardPage = ({
                   }}
                 >
                   {isTable ? (
-                    <TableWidget deviceId={device?.id} config={config} />
+                    <TableWidget deviceId={device?.id} config={config} timeRange={timeRange} />
                   ) : (
                     <DynamicWidget
                       widget={widget}
                       deviceId={device?.id}
                       onDownload={handleDownload}
+                      timeRange={timeRange}
                     />
                   )}
                 </div>

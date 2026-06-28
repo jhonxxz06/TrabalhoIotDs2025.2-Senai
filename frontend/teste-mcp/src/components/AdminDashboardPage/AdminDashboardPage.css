@@ -249,6 +249,22 @@
   width: 100%;
   height: 200px;
   position: relative;
+  overflow-x: auto;
+}
+
+/* Scroll horizontal para modos históricos */
+.chart-scroll-outer {
+  width: 100%;
+  height: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.chart-scroll-inner {
+  display: inline-block;
+  min-width: 100%;
+  height: 100%;
+  position: relative;
 }
 
 .pie-container {

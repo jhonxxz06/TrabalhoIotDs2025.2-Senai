@@ -494,6 +494,18 @@ export const mqtt = {
     return this.getData(deviceId, { period: 'week' });
   },
 
+  async getTodayData(deviceId) {
+    return this.getData(deviceId, { period: 'today' });
+  },
+
+  async getDataByRange(deviceId, from, to) {
+    const params = new URLSearchParams({ from, to, limit: 10000 });
+    const response = await fetch(`${API_URL}/mqtt/${deviceId}/data?${params}`, {
+      headers: headers()
+    });
+    return handleResponse(response);
+  },
+
   async getExceedances(deviceId, queryString = '') {
     const url = `${API_URL}/mqtt/${deviceId}/exceedances${queryString ? '?' + queryString : ''}`;
     const response = await fetch(url, {
