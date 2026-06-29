@@ -144,7 +144,7 @@ const DynamicWidgetCard = ({ widget, deviceId, position, dragging, onMouseDown, 
         };
       } else if (!isRadial && mqttData && mqttData.length > 0 && config.mqttField) {
         // Série temporal para gráficos de linha/barras
-        const labels = mqttData.map(d => d.Hora || 'N/A').reverse();
+        const labels = mqttData.map(d => isLive ? (d.Hora || 'N/A') : `${d.Data ? d.Data + ' ' : ''}${d.Hora || 'N/A'}`).reverse();
         const datasets = [];
 
         if (config.mqttField && config.mqttField.trim() !== '') {
@@ -201,7 +201,7 @@ const DynamicWidgetCard = ({ widget, deviceId, position, dragging, onMouseDown, 
           : mqttData[0].payload;
         const fields = Object.keys(lastPayload).filter(k => typeof lastPayload[k] === 'number');
         if (fields.length > 0) {
-          const labels = mqttData.map(d => d.Hora || 'N/A').reverse();
+          const labels = mqttData.map(d => isLive ? (d.Hora || 'N/A') : `${d.Data ? d.Data + ' ' : ''}${d.Hora || 'N/A'}`).reverse();
           const datasets = [fields[0]].map((field, idx) => {
             const savedDs = config.data?.datasets?.[idx] || {};
             return {
@@ -264,7 +264,10 @@ const DynamicWidgetCard = ({ widget, deviceId, position, dragging, onMouseDown, 
         },
         ...(!isRadial && {
           scales: {
-            x: { grid: { display: true, color: 'rgba(0, 0, 0, 0.05)' }, ticks: { padding: 8 } },
+            x: {
+              grid: { display: true, color: 'rgba(0, 0, 0, 0.05)' },
+              ticks: { padding: 8, maxRotation: isLive ? 0 : 45, minRotation: isLive ? 0 : 45, font: { size: 10 } }
+            },
             y: { grid: { display: true, color: 'rgba(0, 0, 0, 0.05)' }, ticks: { padding: 8 } }
           }
         }),
@@ -383,7 +386,7 @@ const DynamicWidgetCard = ({ widget, deviceId, position, dragging, onMouseDown, 
           const isRadialWidget = ['pie', 'doughnut'].includes(cfg?.type);
           const needsScrollWidget = !isLive && !isRadialWidget;
           return needsScrollWidget ? (
-            <div className="chart-scroll-outer">
+            <div className="chart-scroll-outer" onMouseDown={e => e.stopPropagation()}>
               <div className="chart-scroll-inner">
                 <canvas ref={chartRef}></canvas>
               </div>
@@ -649,13 +652,15 @@ const AdminDashboardPage = ({
       />
 
       <main className="admin-dashboard-content">
-        {/* Device Title + seletor de período */}
-        <div className="admin-device-title-section" style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
-          <h1 className="admin-device-title" style={{ margin: 0 }}>#{deviceName}</h1>
-          {onTimeRangeChange && (
+        {/* Device Title */}
+        <h1 className="admin-device-title">#{deviceName}</h1>
+
+        {/* Seletor de período — canto direito, acima do whiteboard */}
+        {onTimeRangeChange && (
+          <div style={{ display: 'flex', justifyContent: 'flex-end', paddingRight: '8px', marginBottom: '-18px', position: 'relative', zIndex: 500 }}>
             <TimeRangeSelector value={timeRange} onChange={onTimeRangeChange} />
-          )}
-        </div>
+          </div>
+        )}
 
         {/* Charts Whiteboard - Miro Style */}
         <div

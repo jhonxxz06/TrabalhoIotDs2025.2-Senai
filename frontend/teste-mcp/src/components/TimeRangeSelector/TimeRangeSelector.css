@@ -64,7 +64,8 @@
 .trs-dropdown {
   position: absolute;
   top: calc(100% + 6px);
-  left: 0;
+  right: 0;
+  left: auto;
   z-index: 1000;
   background: #ffffff;
   border-radius: 10px;

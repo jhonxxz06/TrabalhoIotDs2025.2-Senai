@@ -146,7 +146,7 @@ const DynamicWidget = ({ widget, deviceId, onDownload, timeRange }) => {
         };
       } else if (!isRadial && mqttData && mqttData.length > 0 && config.mqttField) {
         // Série temporal para gráficos de linha/barras
-        const labels = mqttData.map(d => d.Hora || 'N/A').reverse();
+        const labels = mqttData.map(d => isLive ? (d.Hora || 'N/A') : `${d.Data ? d.Data + ' ' : ''}${d.Hora || 'N/A'}`).reverse();
         const datasets = [];
 
         if (config.mqttField && config.mqttField.trim() !== '') {
@@ -193,7 +193,7 @@ const DynamicWidget = ({ widget, deviceId, onDownload, timeRange }) => {
           : mqttData[0].payload;
         const fields = Object.keys(lastPayload).filter(k => typeof lastPayload[k] === 'number');
         if (fields.length > 0) {
-          const labels = mqttData.map(d => d.Hora || 'N/A').reverse();
+          const labels = mqttData.map(d => isLive ? (d.Hora || 'N/A') : `${d.Data ? d.Data + ' ' : ''}${d.Hora || 'N/A'}`).reverse();
           const datasets = [fields[0]].map(field => ({
             label: field,
             data: mqttData.map(d => {
@@ -249,7 +249,10 @@ const DynamicWidget = ({ widget, deviceId, onDownload, timeRange }) => {
         },
         ...(!isRadial && {
           scales: {
-            x: { grid: { display: true, color: 'rgba(0, 0, 0, 0.05)' }, ticks: { padding: 8 } },
+            x: {
+              grid: { display: true, color: 'rgba(0, 0, 0, 0.05)' },
+              ticks: { padding: 8, maxRotation: isLive ? 0 : 45, minRotation: isLive ? 0 : 45, font: { size: 10 } }
+            },
             y: { grid: { display: true, color: 'rgba(0, 0, 0, 0.05)' }, ticks: { padding: 8 } }
           }
         }),
@@ -306,10 +309,13 @@ const DynamicWidget = ({ widget, deviceId, onDownload, timeRange }) => {
         </button>
       </div>
       <div className={needsScrollWrapper ? 'chart-scroll-outer' : 'chart-wrapper'}>
-        <div className={needsScrollWrapper ? 'chart-scroll-inner' : undefined}
-             style={needsScrollWrapper ? { height: '100%' } : undefined}>
+        {needsScrollWrapper ? (
+          <div className="chart-scroll-inner">
+            <canvas ref={chartRef}></canvas>
+          </div>
+        ) : (
           <canvas ref={chartRef}></canvas>
-        </div>
+        )}
       </div>
     </>
   );
@@ -405,13 +411,15 @@ const DashboardPage = ({
           </h1>
         </div>
 
-        {/* Device Title + seletor de período */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '16px', flexWrap: 'wrap' }}>
-          <h2 className="device-title" style={{ margin: 0 }}>#{deviceName}</h2>
-          {onTimeRangeChange && (
+        {/* Device Title */}
+        <h2 className="device-title">#{deviceName}</h2>
+
+        {/* Seletor de período — canto direito, acima do whiteboard */}
+        {onTimeRangeChange && (
+          <div style={{ display: 'flex', justifyContent: 'flex-end', paddingRight: '8px', marginBottom: '-18px', position: 'relative', zIndex: 500 }}>
             <TimeRangeSelector value={timeRange} onChange={onTimeRangeChange} />
-          )}
-        </div>
+          </div>
+        )}
 
         {/* Charts Whiteboard */}
         <div className="charts-whiteboard" style={{ height: `${whiteboardHeight}px`, minHeight: '600px', position: 'relative' }}>
