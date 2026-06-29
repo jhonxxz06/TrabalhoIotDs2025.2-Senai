@@ -246,6 +246,7 @@ const DynamicWidget = ({ widget, deviceId, onDownload, timeRange }) => {
           },
           legend: {
             position: isRadial ? 'bottom' : 'top',
+            align: needsScroll ? 'start' : 'center',
             labels: { padding: 15, font: { size: 12 } }
           },
           ...(configOptions.plugins || {})
@@ -286,7 +287,7 @@ const DynamicWidget = ({ widget, deviceId, onDownload, timeRange }) => {
         chartInstance.current.destroy();
       }
     };
-  }, [widget, mqttData, isLive]);
+  }, [widget, mqttData, isLive, timeRange?.type]);
 
   const config = typeof widget.config === 'string' ? JSON.parse(widget.config) : widget.config;
   const isRadialWidget = config && ['pie', 'doughnut'].includes(config.type);

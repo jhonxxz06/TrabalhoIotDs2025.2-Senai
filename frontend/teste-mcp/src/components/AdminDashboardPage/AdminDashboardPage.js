@@ -261,6 +261,7 @@ const DynamicWidgetCard = ({ widget, deviceId, position, dragging, onMouseDown, 
           },
           legend: {
             position: isRadial ? 'bottom' : 'top',
+            align: needsScroll ? 'start' : 'center',
             labels: { padding: 15, font: { size: 12 } }
           },
           ...(configOptions.plugins || {})
@@ -301,7 +302,7 @@ const DynamicWidgetCard = ({ widget, deviceId, position, dragging, onMouseDown, 
         chartInstance.current.destroy();
       }
     };
-  }, [widget, mqttData, isLive]);
+  }, [widget, mqttData, isLive, timeRange?.type]);
 
   const config = typeof widget.config === 'string' ? JSON.parse(widget.config) : widget.config;
 
