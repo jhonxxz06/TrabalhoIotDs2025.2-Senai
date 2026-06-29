@@ -126,7 +126,7 @@ const DynamicWidgetCard = ({ widget, deviceId, position, dragging, onMouseDown, 
             const payload = typeof d.payload === 'string' ? JSON.parse(d.payload) : d.payload;
             const raw = payload[config.mqttField];
             if (raw !== undefined && raw !== null) {
-              const key = typeof raw === 'number' ? String(Math.round(raw)) : String(raw);
+              const key = String(raw);
               counts[key] = (counts[key] || 0) + 1;
             }
           } catch (e) {}
