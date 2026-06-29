@@ -146,7 +146,8 @@ const DynamicWidget = ({ widget, deviceId, onDownload, timeRange }) => {
         };
       } else if (!isRadial && mqttData && mqttData.length > 0 && config.mqttField) {
         // Série temporal para gráficos de linha/barras
-        const labels = mqttData.map(d => isLive ? (d.Hora || 'N/A') : `${d.Data ? d.Data + ' ' : ''}${d.Hora || 'N/A'}`).reverse();
+        const showTimeOnly = isLive || timeRange?.type === 'today';
+        const labels = mqttData.map(d => showTimeOnly ? (d.Hora || 'N/A') : `${d.Data ? d.Data + ' ' : ''}${d.Hora || 'N/A'}`).reverse();
         const datasets = [];
 
         if (config.mqttField && config.mqttField.trim() !== '') {
@@ -193,7 +194,8 @@ const DynamicWidget = ({ widget, deviceId, onDownload, timeRange }) => {
           : mqttData[0].payload;
         const fields = Object.keys(lastPayload).filter(k => typeof lastPayload[k] === 'number');
         if (fields.length > 0) {
-          const labels = mqttData.map(d => isLive ? (d.Hora || 'N/A') : `${d.Data ? d.Data + ' ' : ''}${d.Hora || 'N/A'}`).reverse();
+          const showTimeOnly = isLive || timeRange?.type === 'today';
+          const labels = mqttData.map(d => showTimeOnly ? (d.Hora || 'N/A') : `${d.Data ? d.Data + ' ' : ''}${d.Hora || 'N/A'}`).reverse();
           const datasets = [fields[0]].map(field => ({
             label: field,
             data: mqttData.map(d => {
@@ -213,9 +215,10 @@ const DynamicWidget = ({ widget, deviceId, onDownload, timeRange }) => {
       }
 
       // Scroll horizontal: nos modos históricos não-radiais, o canvas expande
-      const needsScroll = !isLive && !isRadial;
+      const isToday = timeRange?.type === 'today';
+      const dataPoints = mqttData ? mqttData.length : 0;
+      const needsScroll = !isLive && !isRadial && (!isToday || dataPoints > 20);
       if (needsScroll && chartRef.current) {
-        const dataPoints = mqttData.length;
         const scrollWidth = Math.max(600, dataPoints * 20);
         chartRef.current.parentElement.style.width = `${scrollWidth}px`;
       } else if (chartRef.current) {
@@ -287,7 +290,9 @@ const DynamicWidget = ({ widget, deviceId, onDownload, timeRange }) => {
 
   const config = typeof widget.config === 'string' ? JSON.parse(widget.config) : widget.config;
   const isRadialWidget = config && ['pie', 'doughnut'].includes(config.type);
-  const needsScrollWrapper = !isLive && !isRadialWidget && config?.type !== 'table';
+  const isToday = timeRange?.type === 'today';
+  const dataPoints = mqttData ? mqttData.length : 0;
+  const needsScrollWrapper = !isLive && !isRadialWidget && config?.type !== 'table' && (!isToday || dataPoints > 20);
 
   // Se for tabela, renderizar apenas TableWidget (sem wrapper)
   if (config && config.type === 'table') {

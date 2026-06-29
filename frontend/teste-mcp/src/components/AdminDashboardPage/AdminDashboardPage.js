@@ -144,7 +144,8 @@ const DynamicWidgetCard = ({ widget, deviceId, position, dragging, onMouseDown, 
         };
       } else if (!isRadial && mqttData && mqttData.length > 0 && config.mqttField) {
         // Série temporal para gráficos de linha/barras
-        const labels = mqttData.map(d => isLive ? (d.Hora || 'N/A') : `${d.Data ? d.Data + ' ' : ''}${d.Hora || 'N/A'}`).reverse();
+        const showTimeOnly = isLive || timeRange?.type === 'today';
+        const labels = mqttData.map(d => showTimeOnly ? (d.Hora || 'N/A') : `${d.Data ? d.Data + ' ' : ''}${d.Hora || 'N/A'}`).reverse();
         const datasets = [];
 
         if (config.mqttField && config.mqttField.trim() !== '') {
@@ -201,7 +202,8 @@ const DynamicWidgetCard = ({ widget, deviceId, position, dragging, onMouseDown, 
           : mqttData[0].payload;
         const fields = Object.keys(lastPayload).filter(k => typeof lastPayload[k] === 'number');
         if (fields.length > 0) {
-          const labels = mqttData.map(d => isLive ? (d.Hora || 'N/A') : `${d.Data ? d.Data + ' ' : ''}${d.Hora || 'N/A'}`).reverse();
+          const showTimeOnly = isLive || timeRange?.type === 'today';
+          const labels = mqttData.map(d => showTimeOnly ? (d.Hora || 'N/A') : `${d.Data ? d.Data + ' ' : ''}${d.Hora || 'N/A'}`).reverse();
           const datasets = [fields[0]].map((field, idx) => {
             const savedDs = config.data?.datasets?.[idx] || {};
             return {
@@ -228,9 +230,10 @@ const DynamicWidgetCard = ({ widget, deviceId, position, dragging, onMouseDown, 
       }
 
       // Scroll horizontal nos modos históricos não-radiais
-      const needsScroll = !isLive && !isRadial;
+      const isToday = timeRange?.type === 'today';
+      const dataPoints = mqttData ? mqttData.length : 0;
+      const needsScroll = !isLive && !isRadial && (!isToday || dataPoints > 20);
       if (needsScroll && chartRef.current) {
-        const dataPoints = mqttData ? mqttData.length : 0;
         const scrollWidth = Math.max(600, dataPoints * 12);
         chartRef.current.parentElement.style.width = `${scrollWidth}px`;
       } else if (chartRef.current) {
@@ -384,7 +387,9 @@ const DynamicWidgetCard = ({ widget, deviceId, position, dragging, onMouseDown, 
         {(() => {
           const cfg = typeof widget.config === 'string' ? JSON.parse(widget.config) : widget.config;
           const isRadialWidget = ['pie', 'doughnut'].includes(cfg?.type);
-          const needsScrollWidget = !isLive && !isRadialWidget;
+          const isToday = timeRange?.type === 'today';
+          const dataPoints = mqttData ? mqttData.length : 0;
+          const needsScrollWidget = !isLive && !isRadialWidget && (!isToday || dataPoints > 20);
           return needsScrollWidget ? (
             <div className="chart-scroll-outer" onMouseDown={e => e.stopPropagation()}>
               <div className="chart-scroll-inner">
