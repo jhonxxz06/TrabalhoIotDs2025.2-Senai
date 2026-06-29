@@ -110,7 +110,7 @@ function TimeRangeSelector({ value, onChange }) {
                 {opt.label}
               </button>
 
-              {opt.type === 'custom' && value?.type === 'custom' || (opt.type === 'custom' && open) ? (
+              {(opt.type === 'custom' && value?.type === 'custom') || (opt.type === 'custom' && open) ? (
                 <div className="trs-custom-panel">
                   <div className="trs-date-row">
                     <label>De</label>

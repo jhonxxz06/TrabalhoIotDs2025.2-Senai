@@ -283,7 +283,7 @@ const DynamicWidget = ({ widget, deviceId, onDownload, timeRange }) => {
         chartInstance.current.destroy();
       }
     };
-  }, [widget, mqttData]);
+  }, [widget, mqttData, isLive]);
 
   const config = typeof widget.config === 'string' ? JSON.parse(widget.config) : widget.config;
   const isRadialWidget = config && ['pie', 'doughnut'].includes(config.type);

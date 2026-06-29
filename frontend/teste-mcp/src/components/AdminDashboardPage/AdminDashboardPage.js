@@ -298,7 +298,7 @@ const DynamicWidgetCard = ({ widget, deviceId, position, dragging, onMouseDown, 
         chartInstance.current.destroy();
       }
     };
-  }, [widget, mqttData]);
+  }, [widget, mqttData, isLive]);
 
   const config = typeof widget.config === 'string' ? JSON.parse(widget.config) : widget.config;
 
