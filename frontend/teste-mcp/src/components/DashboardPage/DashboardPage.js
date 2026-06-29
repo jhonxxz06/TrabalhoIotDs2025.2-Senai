@@ -414,15 +414,14 @@ const DashboardPage = ({
         {/* Device Title */}
         <h2 className="device-title">#{deviceName}</h2>
 
-        {/* Seletor de período — canto direito, acima do whiteboard */}
-        {onTimeRangeChange && (
-          <div style={{ display: 'flex', justifyContent: 'flex-end', paddingRight: '8px', marginBottom: '-18px', position: 'relative', zIndex: 500 }}>
-            <TimeRangeSelector value={timeRange} onChange={onTimeRangeChange} />
-          </div>
-        )}
-
         {/* Charts Whiteboard */}
         <div className="charts-whiteboard" style={{ height: `${whiteboardHeight}px`, minHeight: '600px', position: 'relative' }}>
+          {/* Seletor de período — canto superior direito do whiteboard */}
+          {onTimeRangeChange && (
+            <div style={{ position: 'absolute', top: '-46px', right: '10px', zIndex: 1000 }}>
+              <TimeRangeSelector value={timeRange} onChange={onTimeRangeChange} />
+            </div>
+          )}
           {widgets.length === 0 ? (
             <div className="empty-charts">
               <div className="empty-charts-content">

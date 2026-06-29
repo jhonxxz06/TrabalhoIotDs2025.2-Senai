@@ -78,13 +78,11 @@
 .charts-whiteboard {
   position: relative;
   width: 100%;
-  max-width: 1400px;
+  max-width: 1200px;
   min-height: 600px;
   overflow: visible;
   padding-bottom: 50px;
   margin: 0 auto;
-  margin-left: calc(50% + 50px);
-  transform: translateX(-50%);
 }
 
 /* Charts Grid (fallback) */

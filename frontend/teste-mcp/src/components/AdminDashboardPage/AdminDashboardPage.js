@@ -478,8 +478,6 @@ const AdminDashboardPage = ({
       widgetWidth: isTable ? 720 : 350,
       widgetHeight: isTable ? 450 : 280
     });
-
-    widget.style.zIndex = 1000;
   };
 
   const handleMouseMove = (e) => {
@@ -655,19 +653,18 @@ const AdminDashboardPage = ({
         {/* Device Title */}
         <h1 className="admin-device-title">#{deviceName}</h1>
 
-        {/* Seletor de período — canto direito, acima do whiteboard */}
-        {onTimeRangeChange && (
-          <div style={{ display: 'flex', justifyContent: 'flex-end', paddingRight: '8px', marginBottom: '-18px', position: 'relative', zIndex: 500 }}>
-            <TimeRangeSelector value={timeRange} onChange={onTimeRangeChange} />
-          </div>
-        )}
-
         {/* Charts Whiteboard - Miro Style */}
         <div
           className="admin-charts-whiteboard"
           ref={whiteboardRef}
           style={{ height: `${whiteboardHeight}px` }}
         >
+          {/* Seletor de período — canto superior direito do whiteboard */}
+          {onTimeRangeChange && (
+            <div style={{ position: 'absolute', top: '-46px', right: '10px', zIndex: 1000 }}>
+              <TimeRangeSelector value={timeRange} onChange={onTimeRangeChange} />
+            </div>
+          )}
           {widgets.length === 0 ? (
             <div className="empty-whiteboard">
               <div className="empty-whiteboard-content">
