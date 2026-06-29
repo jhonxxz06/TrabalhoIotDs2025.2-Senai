@@ -49,7 +49,7 @@ const DynamicWidget = ({ widget, deviceId, onDownload, timeRange }) => {
         if (response.success) setMqttData(response.data || []);
       } else if (timeRange.type === 'custom' && timeRange.from && timeRange.to) {
         const from = new Date(timeRange.from + 'T00:00:00-03:00').toISOString();
-        const to   = new Date(timeRange.to   + 'T23:59:59-03:00').toISOString();
+        const to = new Date(timeRange.to + 'T23:59:59-03:00').toISOString();
         const response = await mqttApi.getDataByRange(deviceId, from, to);
         if (response.success) setMqttData(response.data || []);
       }
@@ -131,7 +131,7 @@ const DynamicWidget = ({ widget, deviceId, onDownload, timeRange }) => {
               const key = String(raw);
               counts[key] = (counts[key] || 0) + 1;
             }
-          } catch (e) {}
+          } catch (e) { }
         });
         const labels = Object.keys(counts).sort((a, b) => parseFloat(a) - parseFloat(b));
         const values = labels.map(l => counts[l]);
@@ -216,7 +216,7 @@ const DynamicWidget = ({ widget, deviceId, onDownload, timeRange }) => {
       const needsScroll = !isLive && !isRadial;
       if (needsScroll && chartRef.current) {
         const dataPoints = mqttData.length;
-        const scrollWidth = Math.max(600, dataPoints * 12);
+        const scrollWidth = Math.max(600, dataPoints * 20);
         chartRef.current.parentElement.style.width = `${scrollWidth}px`;
       } else if (chartRef.current) {
         chartRef.current.parentElement.style.width = '100%';
@@ -308,10 +308,12 @@ const DynamicWidget = ({ widget, deviceId, onDownload, timeRange }) => {
           <img src={excelIcon} alt="Excel" className="excel-icon-small" />
         </button>
       </div>
-      <div className={needsScrollWrapper ? 'chart-scroll-outer' : 'chart-wrapper'}>
+      <div className="admin-chart-container">
         {needsScrollWrapper ? (
-          <div className="chart-scroll-inner">
-            <canvas ref={chartRef}></canvas>
+          <div className="chart-scroll-outer">
+            <div className="chart-scroll-inner">
+              <canvas ref={chartRef}></canvas>
+            </div>
           </div>
         ) : (
           <canvas ref={chartRef}></canvas>

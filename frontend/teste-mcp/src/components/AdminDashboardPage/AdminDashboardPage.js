@@ -49,7 +49,7 @@ const DynamicWidgetCard = ({ widget, deviceId, position, dragging, onMouseDown, 
         if (response.success) setMqttData(response.data || []);
       } else if (timeRange.type === 'custom' && timeRange.from && timeRange.to) {
         const from = new Date(timeRange.from + 'T00:00:00-03:00').toISOString();
-        const to   = new Date(timeRange.to   + 'T23:59:59-03:00').toISOString();
+        const to = new Date(timeRange.to + 'T23:59:59-03:00').toISOString();
         const response = await mqttApi.getDataByRange(deviceId, from, to);
         if (response.success) setMqttData(response.data || []);
       }
@@ -129,7 +129,7 @@ const DynamicWidgetCard = ({ widget, deviceId, position, dragging, onMouseDown, 
               const key = String(raw);
               counts[key] = (counts[key] || 0) + 1;
             }
-          } catch (e) {}
+          } catch (e) { }
         });
         const labels = Object.keys(counts).sort((a, b) => parseFloat(a) - parseFloat(b));
         const values = labels.map(l => counts[l]);
@@ -156,16 +156,16 @@ const DynamicWidgetCard = ({ widget, deviceId, position, dragging, onMouseDown, 
           datasets.push({
             label: config.mqttField,
             data: values,
-            borderColor:           savedDs0.borderColor           || 'rgba(255, 99, 132, 1)',
-            backgroundColor:       savedDs0.backgroundColor       || 'rgba(255, 99, 132, 0.2)',
-            fill:                  savedDs0.fill !== undefined     ? savedDs0.fill : true,
-            tension:               savedDs0.tension               ?? 0.4,
-            borderWidth:           savedDs0.borderWidth           || 3,
-            pointRadius:           savedDs0.pointRadius           ?? 4,
-            pointHoverRadius:      savedDs0.pointHoverRadius      ?? 8,
-            pointBackgroundColor:  savedDs0.pointBackgroundColor  || savedDs0.borderColor || 'rgba(255, 99, 132, 1)',
-            pointBorderColor:      savedDs0.pointBorderColor      || savedDs0.borderColor || 'rgba(255, 99, 132, 1)',
-            pointBorderWidth:      savedDs0.pointBorderWidth      ?? 0,
+            borderColor: savedDs0.borderColor || 'rgba(255, 99, 132, 1)',
+            backgroundColor: savedDs0.backgroundColor || 'rgba(255, 99, 132, 0.2)',
+            fill: savedDs0.fill !== undefined ? savedDs0.fill : true,
+            tension: savedDs0.tension ?? 0.4,
+            borderWidth: savedDs0.borderWidth || 3,
+            pointRadius: savedDs0.pointRadius ?? 4,
+            pointHoverRadius: savedDs0.pointHoverRadius ?? 8,
+            pointBackgroundColor: savedDs0.pointBackgroundColor || savedDs0.borderColor || 'rgba(255, 99, 132, 1)',
+            pointBorderColor: savedDs0.pointBorderColor || savedDs0.borderColor || 'rgba(255, 99, 132, 1)',
+            pointBorderWidth: savedDs0.pointBorderWidth ?? 0,
             pointHoverBorderWidth: savedDs0.pointHoverBorderWidth ?? 0,
           });
         }
@@ -179,16 +179,16 @@ const DynamicWidgetCard = ({ widget, deviceId, position, dragging, onMouseDown, 
           datasets.push({
             label: config.mqttField2,
             data: values2,
-            borderColor:           savedDs1.borderColor           || 'rgba(54, 162, 235, 1)',
-            backgroundColor:       savedDs1.backgroundColor       || 'rgba(54, 162, 235, 0.2)',
-            fill:                  savedDs1.fill !== undefined     ? savedDs1.fill : true,
-            tension:               savedDs1.tension               ?? 0.4,
-            borderWidth:           savedDs1.borderWidth           || 3,
-            pointRadius:           savedDs1.pointRadius           ?? 4,
-            pointHoverRadius:      savedDs1.pointHoverRadius      ?? 8,
-            pointBackgroundColor:  savedDs1.pointBackgroundColor  || savedDs1.borderColor || 'rgba(54, 162, 235, 1)',
-            pointBorderColor:      savedDs1.pointBorderColor      || savedDs1.borderColor || 'rgba(54, 162, 235, 1)',
-            pointBorderWidth:      savedDs1.pointBorderWidth      ?? 0,
+            borderColor: savedDs1.borderColor || 'rgba(54, 162, 235, 1)',
+            backgroundColor: savedDs1.backgroundColor || 'rgba(54, 162, 235, 0.2)',
+            fill: savedDs1.fill !== undefined ? savedDs1.fill : true,
+            tension: savedDs1.tension ?? 0.4,
+            borderWidth: savedDs1.borderWidth || 3,
+            pointRadius: savedDs1.pointRadius ?? 4,
+            pointHoverRadius: savedDs1.pointHoverRadius ?? 8,
+            pointBackgroundColor: savedDs1.pointBackgroundColor || savedDs1.borderColor || 'rgba(54, 162, 235, 1)',
+            pointBorderColor: savedDs1.pointBorderColor || savedDs1.borderColor || 'rgba(54, 162, 235, 1)',
+            pointBorderWidth: savedDs1.pointBorderWidth ?? 0,
             pointHoverBorderWidth: savedDs1.pointHoverBorderWidth ?? 0,
           });
         }
@@ -210,16 +210,16 @@ const DynamicWidgetCard = ({ widget, deviceId, position, dragging, onMouseDown, 
                 const payload = typeof d.payload === 'string' ? JSON.parse(d.payload) : d.payload;
                 return payload[field] || 0;
               }).reverse(),
-              borderColor:           savedDs.borderColor           || 'rgba(255, 99, 132, 1)',
-              backgroundColor:       savedDs.backgroundColor       || 'rgba(255, 99, 132, 0.2)',
-              fill:                  savedDs.fill !== undefined     ? savedDs.fill : true,
-              tension:               savedDs.tension               ?? 0.4,
-              borderWidth:           savedDs.borderWidth           || 3,
-              pointRadius:           savedDs.pointRadius           ?? 4,
-              pointHoverRadius:      savedDs.pointHoverRadius      ?? 8,
-              pointBackgroundColor:  savedDs.pointBackgroundColor  || savedDs.borderColor || 'rgba(255, 99, 132, 1)',
-              pointBorderColor:      savedDs.pointBorderColor      || savedDs.borderColor || 'rgba(255, 99, 132, 1)',
-              pointBorderWidth:      savedDs.pointBorderWidth      ?? 0,
+              borderColor: savedDs.borderColor || 'rgba(255, 99, 132, 1)',
+              backgroundColor: savedDs.backgroundColor || 'rgba(255, 99, 132, 0.2)',
+              fill: savedDs.fill !== undefined ? savedDs.fill : true,
+              tension: savedDs.tension ?? 0.4,
+              borderWidth: savedDs.borderWidth || 3,
+              pointRadius: savedDs.pointRadius ?? 4,
+              pointHoverRadius: savedDs.pointHoverRadius ?? 8,
+              pointBackgroundColor: savedDs.pointBackgroundColor || savedDs.borderColor || 'rgba(255, 99, 132, 1)',
+              pointBorderColor: savedDs.pointBorderColor || savedDs.borderColor || 'rgba(255, 99, 132, 1)',
+              pointBorderWidth: savedDs.pointBorderWidth ?? 0,
               pointHoverBorderWidth: savedDs.pointHoverBorderWidth ?? 0,
             };
           });
