@@ -90,6 +90,7 @@ const MqttService = {
       clean: true,
       reconnectPeriod: 5000,
       keepalive: 60,
+      resubscribe: false,
     };
 
     // Adiciona auth se configurado
