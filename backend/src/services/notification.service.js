@@ -163,8 +163,7 @@ async function check(device, payload) {
         if (!telegramConfig?.enabled) continue;
 
         const telegramFields = telegramConfig.fields || {};
-        const configFieldsMap = {};
-        (widget.config.fields || []).forEach(f => { configFieldsMap[f.name] = f; });
+        const configFieldsMap = widget.config.thresholds || {};
 
         for (const fieldName of Object.keys(telegramFields)) {
           await processField(widget, fieldName, telegramFields[fieldName], configFieldsMap, device, payload);

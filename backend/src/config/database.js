@@ -239,6 +239,10 @@ async function createTables(client) {
         verification_expires_at TIMESTAMPTZ
       )
     `);
+    // Migrações seguras: garante colunas de verificação mesmo em bancos criados antes delas existirem
+    await client.query(`ALTER TABLE domain_telegram_configs ADD COLUMN IF NOT EXISTS chat_name VARCHAR(255)`);
+    await client.query(`ALTER TABLE domain_telegram_configs ADD COLUMN IF NOT EXISTS verification_code VARCHAR(10)`);
+    await client.query(`ALTER TABLE domain_telegram_configs ADD COLUMN IF NOT EXISTS verification_expires_at TIMESTAMPTZ`);
 
     console.log('Tabelas criadas/verificadas com sucesso (incluindo domínios)');
   } catch (error) {
