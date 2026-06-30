@@ -138,7 +138,7 @@ const RegisterPage = ({ onBackToLogin, onRegisterSuccess }) => {
           <div className="text-field">
             <div className="text-field-container">
               <div className="text-field-content">
-                <label className="text-field-label">Username</label>
+                <label className="text-field-label">Nome de usuário</label>
                 <input
                   type="text"
                   name="username"
