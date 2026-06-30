@@ -41,25 +41,10 @@ const rejectedPayloads = new Map();
 const recentMessages = new Map();
 const DEDUP_WINDOW_MS = 15000; // 15 segundos
 
-function normalizePayload(rawPayload) {
-  // Compara apenas os campos de valor, ignorando campos que mudam por mensagem
-  // (ex: timestamp, millis, uptime) para detectar duplicatas mesmo com payload levemente diferente
-  try {
-    const parsed = JSON.parse(rawPayload);
-    // Filtrar apenas campos numéricos (dados de sensor) e ordenar chaves
-    const numericFields = {};
-    Object.keys(parsed).sort().forEach(k => {
-      const v = parsed[k];
-      if (typeof v === 'number') numericFields[k] = v;
-    });
-    return JSON.stringify(numericFields);
-  } catch (e) {
-    return rawPayload;
-  }
-}
-
 function isDuplicateMessage(deviceId, payload) {
-  const key = `${deviceId}:${normalizePayload(payload)}`;
+  // Usa o payload bruto como chave: só descarta mensagens com string idêntica.
+  // Não normaliza campos para não suprimir leituras legítimas com mesmo valor.
+  const key = `${deviceId}:${payload}`;
   const now = Date.now();
   const lastSeen = recentMessages.get(key);
   if (lastSeen !== undefined && (now - lastSeen) < DEDUP_WINDOW_MS) {
