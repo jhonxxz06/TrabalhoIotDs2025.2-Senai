@@ -427,8 +427,20 @@ function AppContent() {
     }
   };
 
-  const handleDownloadExcel = async (chartType) => {
+  const handleDownloadExcel = async (widget) => {
     if (!selectedDevice) return;
+
+    // Extrair campos configurados neste widget específico
+    const config = widget?.config
+      ? (typeof widget.config === 'string' ? JSON.parse(widget.config) : widget.config)
+      : null;
+    const widgetFields = [];
+    if (config?.mqttField && config.mqttField.trim()) widgetFields.push(config.mqttField.trim());
+    if (config?.mqttField2 && config.mqttField2.trim()) widgetFields.push(config.mqttField2.trim());
+    const fieldsFilter = widgetFields.length > 0 ? widgetFields : null;
+
+    const widgetName = widget?.name || config?.title || 'dados';
+    const chartType = config?.type || widget?.type || 'dados';
 
     try {
       let response;
@@ -446,8 +458,8 @@ function AppContent() {
       }
 
       if (response.data && response.data.length > 0) {
-        const csvContent = convertToCSV(response.data);
-        downloadCSV(csvContent, `${selectedDevice.name}_${chartType}.csv`);
+        const csvContent = convertToCSV(response.data, fieldsFilter);
+        downloadCSV(csvContent, `${selectedDevice.name}_${widgetName}_${chartType}.csv`);
         toast.success('Dados baixados com sucesso!');
       } else {
         toast.warning('Nenhum dado no período selecionado');
@@ -459,51 +471,42 @@ function AppContent() {
   };
 
   // Helper para converter dados para CSV
-  const convertToCSV = (data) => {
+  // fieldsFilter: array de chaves do payload a incluir; null = incluir todas
+  const convertToCSV = (data, fieldsFilter = null) => {
     if (!data.length) return '';
-    
-    console.log('Convertendo dados:', data.length, 'registros');
-    console.log('Estrutura do primeiro registro:', data[0]);
-    
-    // Expandir o campo 'payload' (JSON) para colunas separadas
-    const allDataKeys = new Set();
-    const excludedKeys = ['Data', 'Hora', 'Timestamp', 'data', 'hora', 'timestamp']; // Excluir campos de data/hora que já estão nas colunas principais
-    
-    data.forEach(row => {
-      const payloadField = row.payload || row.data;
-      if (payloadField) {
-        try {
-          let parsed = payloadField;
-          // Se for string, parsear
-          if (typeof payloadField === 'string') {
-            parsed = JSON.parse(payloadField);
-          }
-          // Adicionar todas as chaves exceto as de data/hora
-          Object.keys(parsed).forEach(key => {
-            if (!excludedKeys.includes(key)) {
-              allDataKeys.add(key);
-            }
-          });
-        } catch (e) {
-          console.error('Erro ao parsear payload:', e, payloadField);
-        }
-      }
-    });
-    
-    console.log('Campos encontrados no payload:', Array.from(allDataKeys));
-    
+
     // Usar ponto-e-vírgula como separador (padrão brasileiro)
     const separator = ';';
-    
+
+    let payloadKeys;
+    if (fieldsFilter && fieldsFilter.length > 0) {
+      // Usar apenas os campos configurados no widget
+      payloadKeys = fieldsFilter;
+    } else {
+      // Detectar automaticamente todos os campos presentes nos payloads
+      const allDataKeys = new Set();
+      const excludedKeys = ['Data', 'Hora', 'Timestamp', 'data', 'hora', 'timestamp'];
+      data.forEach(row => {
+        const payloadField = row.payload || row.data;
+        if (payloadField) {
+          try {
+            const parsed = typeof payloadField === 'string' ? JSON.parse(payloadField) : payloadField;
+            Object.keys(parsed).forEach(key => {
+              if (!excludedKeys.includes(key)) allDataKeys.add(key);
+            });
+          } catch (e) { }
+        }
+      });
+      payloadKeys = Array.from(allDataKeys);
+    }
+
     // Cabeçalhos: Data, Hora, Timestamp + campos do payload MQTT
-    const headers = ['Data', 'Hora', 'Timestamp', ...Array.from(allDataKeys)];
-    
+    const headers = ['Data', 'Hora', 'Timestamp', ...payloadKeys];
+
     const rows = data.map(row => {
-      // Usar Data e Hora que já vêm formatados do backend
       const dataFormatada = row.Data || '';
       const horaFormatada = row.Hora || '';
-      
-      // Formatar timestamp como data/hora completa em formato brasileiro
+
       const timestamp = row.timestamp || row.receivedAt || '';
       let timestampFormatado = '';
       if (timestamp) {
@@ -512,40 +515,28 @@ function AppContent() {
           timestampFormatado = `${dataFormatada} ${horaFormatada}`;
         }
       }
-      
-      // Parsear o campo 'payload' ou 'data'
+
       let parsedData = {};
       const payloadField = row.payload || row.data;
       if (payloadField) {
         try {
-          // Se já for objeto, usar direto
-          if (typeof payloadField === 'object') {
-            parsedData = payloadField;
-          } else if (typeof payloadField === 'string') {
-            parsedData = JSON.parse(payloadField);
-          }
-        } catch (e) {
-          parsedData = {};
-        }
+          parsedData = typeof payloadField === 'object' ? payloadField : JSON.parse(payloadField);
+        } catch (e) { }
       }
-      
-      // Criar linha com cada campo em sua coluna
+
       const values = [
         dataFormatada,
         horaFormatada,
         timestampFormatado,
-        ...Array.from(allDataKeys).map(key => {
+        ...payloadKeys.map(key => {
           const value = parsedData[key];
           return value !== undefined && value !== null ? value : '';
         })
       ];
-      
+
       return values.join(separator);
     });
-    
-    console.log('CSV Headers:', headers);
-    console.log('Primeira linha de dados:', rows[0]);
-    
+
     return [headers.join(separator), ...rows].join('\n');
   };
 

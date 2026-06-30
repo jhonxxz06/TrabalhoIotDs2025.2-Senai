@@ -308,7 +308,7 @@ const DynamicWidget = ({ widget, deviceId, onDownload, timeRange }) => {
         </h3>
         <button
           className="chart-download-btn"
-          onClick={() => onDownload && onDownload(widget.type)}
+          onClick={() => onDownload && onDownload(widget)}
           title="Download Excel"
         >
           <img src={excelIcon} alt="Excel" className="excel-icon-small" />
@@ -389,9 +389,9 @@ const DashboardPage = ({
     setWhiteboardHeight(maxBottom);
   }, [widgets, widgetPositions]);
 
-  const handleDownload = (chartType) => {
+  const handleDownload = (widget) => {
     if (onDownloadExcel) {
-      onDownloadExcel(chartType);
+      onDownloadExcel(widget);
     }
   };
 

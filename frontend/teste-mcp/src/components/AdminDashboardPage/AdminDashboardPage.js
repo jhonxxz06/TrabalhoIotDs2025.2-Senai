@@ -558,9 +558,9 @@ const AdminDashboardPage = ({
     setWhiteboardHeight(maxBottom);
   }, [widgets, widgetPositions]);
 
-  const handleDownload = (chartType) => {
+  const handleDownload = (widget) => {
     if (onDownloadExcel) {
-      onDownloadExcel(chartType);
+      onDownloadExcel(widget);
     }
   };
 
@@ -701,7 +701,7 @@ const AdminDashboardPage = ({
                   onMouseDown={(e) => handleMouseDown(e, widget.id)}
                   onEdit={() => handleEditWidget(widget)}
                   onDelete={() => handleDeleteWidget(widget.id)}
-                  onDownload={() => handleDownload(widget.type)}
+                  onDownload={() => handleDownload(widget)}
                   timeRange={timeRange}
                 />
               ))}
