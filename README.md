@@ -20,10 +20,7 @@ Clean Air é uma plataforma de monitoramento ambiental em tempo real baseada em 
 |---|---|
 | **ESP32** | Microcontrolador principal com Wi-Fi integrado; publica leituras no broker MQTT |
 | **Arduino** | Alternativa compatível; pode ser combinado com shield ESP8266/ESP32 |
-| Sensor de qualidade do ar (MQ-135 / SGP30) | Mede gases (CO₂, NH₃, VOCs) |
-| Sensor de temperatura e umidade (DHT11 / DHT22) | Leitura ambiental |
-| Sensor de material particulado (PMS5003) | Partículas PM2.5 / PM10 |
-| Sensor de CO (MQ-7) | Monóxido de carbono |
+| **Sensores** | Qualquer sensor que produza leituras numéricas é compatível (ex: temperatura, umidade, qualidade do ar, CO₂, material particulado). Exemplos: DHT11/DHT22, MQ-135, MQ-7, PMS5003, SGP30 |
 
 Os dispositivos publicam payloads JSON em tópicos MQTT configurados via painel administrativo. Exemplo de payload:
 
