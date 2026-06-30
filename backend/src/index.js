@@ -106,6 +106,32 @@ io.on('connection', (socket) => {
   });
 });
 
+/**
+ * @swagger
+ * /api/health:
+ *   get:
+ *     tags: [Health]
+ *     summary: Verificar disponibilidade da API
+ *     description: Retorna o status de funcionamento do servidor. Não requer autenticação.
+ *     responses:
+ *       200:
+ *         description: API operacional.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: API funcionando!
+ *                 timestamp:
+ *                   type: string
+ *                   format: date-time
+ *                   example: "2025-03-15T14:30:00.000Z"
+ */
 // Rota de health check
 app.get('/api/health', (req, res) => {
   res.json({ 

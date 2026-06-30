@@ -365,6 +365,7 @@ const options = {
   },
   // Caminhos onde swagger-jsdoc buscará anotações @swagger
   apis: [
+    `${__dirname}/../index.js`,
     `${__dirname}/../routes/*.routes.js`
   ]
 };
