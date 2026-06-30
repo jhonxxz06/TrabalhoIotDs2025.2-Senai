@@ -199,7 +199,21 @@ const TableWidget = ({ deviceId, config, timeRange }) => {
           };
         });
 
-        setExceedances(transformedData);
+        // Deduplicar: registros com mesmo payload dentro de janela de 15 segundos
+        const seen = new Set();
+        const dedupedData = transformedData.filter(exc => {
+          const payloadStr = JSON.stringify(exc.payload);
+          // Bucket de 15 segundos: agrupa registros próximos com mesmo payload
+          const bucket = exc.timestamp
+            ? Math.floor(new Date(exc.timestamp).getTime() / 15000)
+            : `${exc.Data}_${exc.Hora}`;
+          const key = `${bucket}_${payloadStr}`;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+
+        setExceedances(dedupedData);
       } else {
         setExceedances([]);
       }
@@ -265,25 +279,9 @@ const TableWidget = ({ deviceId, config, timeRange }) => {
 
               return exc.alerts.map((alert, alertIndex) => (
                 <tr key={`${exc.id}-${alertIndex}`}>
-                  <td className="timestamp-cell">{
-                    (exc.Data && exc.Hora)
-                      ? (() => {
-                        // Parse dd/mm/yyyy HH:MM:SS
-                        const [d, m, y] = exc.Data.split('/').map(Number);
-                        const [hh, mm, ss] = exc.Hora.split(':').map(Number);
-                        const date = new Date(y, m - 1, d, hh, mm, ss);
-                        date.setHours(date.getHours() + 3);
-                        return date.toLocaleString('pt-BR', {
-                          day: '2-digit',
-                          month: '2-digit',
-                          year: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                          second: '2-digit'
-                        });
-                      })()
-                      : ''
-                  }</td>
+                  <td className="timestamp-cell">
+                    {(exc.Data && exc.Hora) ? `${exc.Data} ${exc.Hora}` : ''}
+                  </td>
                   <td className="field-cell">{alert.field || 'N/A'}</td>
                   <td className="value-cell">
                     <strong>{alert.value !== undefined ? alert.value : 'N/A'}</strong>

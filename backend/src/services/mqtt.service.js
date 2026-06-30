@@ -36,6 +36,45 @@ const latestData = new Map();
 // Buffer circular de payloads rejeitados por dispositivo (máx. 100 por device)
 const rejectedPayloads = new Map();
 
+// Deduplicação in-memory: evita processar retransmissões QoS 1 duplicadas.
+// JS é single-threaded, então Map ops são atômicas — sem race condition.
+const recentMessages = new Map();
+const DEDUP_WINDOW_MS = 15000; // 15 segundos
+
+function normalizePayload(rawPayload) {
+  // Compara apenas os campos de valor, ignorando campos que mudam por mensagem
+  // (ex: timestamp, millis, uptime) para detectar duplicatas mesmo com payload levemente diferente
+  try {
+    const parsed = JSON.parse(rawPayload);
+    // Filtrar apenas campos numéricos (dados de sensor) e ordenar chaves
+    const numericFields = {};
+    Object.keys(parsed).sort().forEach(k => {
+      const v = parsed[k];
+      if (typeof v === 'number') numericFields[k] = v;
+    });
+    return JSON.stringify(numericFields);
+  } catch (e) {
+    return rawPayload;
+  }
+}
+
+function isDuplicateMessage(deviceId, payload) {
+  const key = `${deviceId}:${normalizePayload(payload)}`;
+  const now = Date.now();
+  const lastSeen = recentMessages.get(key);
+  if (lastSeen !== undefined && (now - lastSeen) < DEDUP_WINDOW_MS) {
+    return true;
+  }
+  recentMessages.set(key, now);
+  // Limpeza periódica para evitar memory leak
+  if (recentMessages.size > 500) {
+    for (const [k, t] of recentMessages) {
+      if (now - t > DEDUP_WINDOW_MS * 2) recentMessages.delete(k);
+    }
+  }
+  return false;
+}
+
 // Instância do Socket.IO (será injetada)
 let io = null;
 
@@ -115,11 +154,23 @@ const MqttService = {
       });
     });
 
-    client.on('message', (topic, message) => {
+    client.on('message', (topic, message, packet) => {
       try {
+        // Descartar retransmissões QoS 1 sinalizadas pelo broker (flag DUP do protocolo MQTT)
+        if (packet && packet.dup) {
+          console.log(`[MQTT] Retransmissão QoS 1 (DUP=true) ignorada para device ${id}`);
+          return;
+        }
+
         const payload = message.toString();
         // Usar timestamp UTC ISO para emissões em tempo real
         const timestampIso = new Date().toISOString();
+
+        // Deduplicação in-memory: descarta payloads com mesmos valores numéricos dentro da janela
+        if (isDuplicateMessage(id, payload)) {
+          console.log(`[MQTT] Mensagem duplicada ignorada (device ${id})`);
+          return;
+        }
 
         console.log(`\n[MQTT]  MENSAGEM RECEBIDA!`);
         console.log(`[MQTT] Device ID: ${id}`);
@@ -255,7 +306,7 @@ const MqttService = {
         const lastTime = last.received_at ? new Date(last.received_at).getTime() : 0;
         const now = Date.now();
         const delta = Math.abs(now - lastTime);
-        if (lastPayloadStr === payloadStr && delta < 5000) {
+        if (lastPayloadStr === payloadStr && delta < 10000) {
           console.log(`[MQTT] ⚠️ Duplicate payload detected for device ${deviceId} (delta=${delta}ms) - skipping DB insert`);
           await client.query('COMMIT');
           return;
@@ -445,17 +496,18 @@ const MqttService = {
     console.log('[MQTT] Condições SQL:', conditions);
     console.log('[MQTT] Parâmetros:', params);
 
-    // Montar query SQL (usando operadores JSONB do PostgreSQL)
+    // Montar query SQL — subquery com DISTINCT ON elimina duplicatas de payload no mesmo segundo
     let sql = `
-      SELECT 
-        id,
-        device_id,
-        topic,
-        payload,
-        received_at as timestamp
-      FROM mqtt_data
-      WHERE device_id = $1
-        AND (${conditions.join(' OR ')})
+      SELECT id, device_id, topic, payload, timestamp FROM (
+        SELECT DISTINCT ON (date_trunc('second', received_at), payload)
+          id,
+          device_id,
+          topic,
+          payload,
+          received_at AS timestamp
+        FROM mqtt_data
+        WHERE device_id = $1
+          AND (${conditions.join(' OR ')})
     `;
 
     // Adicionar filtros de data se especificados
@@ -468,7 +520,10 @@ const MqttService = {
       params.push(until);
     }
 
-    sql += ` ORDER BY received_at DESC LIMIT $${paramCount}`;
+    // Fechar subquery e ordenar/limitar no resultado externo
+    sql += ` ORDER BY date_trunc('second', received_at) DESC, payload
+      ) AS deduped
+      ORDER BY timestamp DESC LIMIT $${paramCount}`;
     params.push(limit);
 
     console.log('[MQTT] SQL completo:', sql);
