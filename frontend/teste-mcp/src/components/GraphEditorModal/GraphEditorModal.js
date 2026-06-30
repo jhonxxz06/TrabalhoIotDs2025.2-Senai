@@ -211,14 +211,20 @@ const GraphEditorModal = ({
       
       // Se for tabela, criar estrutura diferente
       if (chartType === 'table') {
-        // Processar thresholds do state
+        // Processar thresholds apenas dos campos atualmente configurados em mqttField
+        const currentFields = mqttField
+          ? mqttField.split(',').map(f => f.trim()).filter(Boolean)
+          : [];
         const processedThresholds = {};
-        
-        Object.entries(thresholds).forEach(([field, limits]) => {
-          processedThresholds[field] = {
-            min: limits.min !== '' && limits.min !== undefined ? parseFloat(limits.min) : undefined,
-            max: limits.max !== '' && limits.max !== undefined ? parseFloat(limits.max) : undefined
-          };
+
+        currentFields.forEach(fieldTrim => {
+          const limits = thresholds[fieldTrim];
+          if (limits) {
+            processedThresholds[fieldTrim] = {
+              min: limits.min !== '' && limits.min !== undefined ? parseFloat(limits.min) : undefined,
+              max: limits.max !== '' && limits.max !== undefined ? parseFloat(limits.max) : undefined
+            };
+          }
         });
         
         // Montar config de notificações: apenas campos que têm threshold definido
@@ -513,15 +519,17 @@ const GraphEditorModal = ({
                 </div>
               )}
               {chartType === 'table' && domainPlan === 'empresarial' && (() => {
-                // Use threshold keys directly — mqttField may be null for table widgets
-                const fieldsWithThreshold = Object.entries(thresholds)
-                  .filter(([, limits]) =>
-                    limits && (
-                      (limits.min !== '' && limits.min !== undefined && limits.min !== null) ||
-                      (limits.max !== '' && limits.max !== undefined && limits.max !== null)
-                    )
-                  )
-                  .map(([field]) => field);
+                // Apenas campos que estão atualmente em mqttField e têm threshold configurado
+                const currentFields = mqttField
+                  ? mqttField.split(',').map(f => f.trim()).filter(Boolean)
+                  : [];
+                const fieldsWithThreshold = currentFields.filter(field => {
+                  const limits = thresholds[field];
+                  return limits && (
+                    (limits.min !== '' && limits.min !== undefined && limits.min !== null) ||
+                    (limits.max !== '' && limits.max !== undefined && limits.max !== null)
+                  );
+                });
 
                 return (
                   <div className="notifications-section">

@@ -115,7 +115,6 @@ async function processField(widget, fieldName, telegramFieldConfig, configFields
   if (!domain || domain.plan !== 'empresarial') return;
 
   if (!domain.telegram_enabled || !domain.telegram_chat_id) {
-    lastFailedAt.set(cooldownKey, Date.now());
     return;
   }
 

@@ -283,6 +283,7 @@ const remove = async (req, res) => {
 
     await Widget.delete(id);
 
+    notificationService.resetCounters(id);
     notificationService.refreshWidgetCache(widget.device_id);
 
     res.json({
