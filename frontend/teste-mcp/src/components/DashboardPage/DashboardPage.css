@@ -78,13 +78,11 @@
 .charts-whiteboard {
   position: relative;
   width: 100%;
-  max-width: 1400px;
+  max-width: 1200px;
   min-height: 600px;
   overflow: visible;
   padding-bottom: 50px;
   margin: 0 auto;
-  margin-left: calc(50% + 50px);
-  transform: translateX(-50%);
 }
 
 /* Charts Grid (fallback) */
@@ -106,6 +104,7 @@
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
   transition: all 0.3s ease;
   animation: fadeInUp 0.5s ease-out both;
+  overflow: visible;
 }
 
 .chart-card:hover {
@@ -169,6 +168,29 @@
   position: relative;
   width: 100%;
   height: 200px;
+}
+
+/* Container de gráfico com altura fixa (mesmo padrão do admin) */
+.admin-chart-container {
+  width: 100%;
+  height: 200px;
+  position: relative;
+  overflow-x: auto;
+}
+
+/* Scroll horizontal para modos históricos */
+.chart-scroll-outer {
+  width: 100%;
+  height: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.chart-scroll-inner {
+  display: inline-block;
+  min-width: 100%;
+  height: 100%;
+  position: relative;
 }
 
 .chart-pie .chart-wrapper {

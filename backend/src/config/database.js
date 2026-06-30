@@ -37,6 +37,25 @@ async function initDatabase() {
 // Cria todas as tabelas do sistema
 async function createTables(client) {
   try {
+    // Tabela de planos SaaS (deve existir antes de domains para a FK funcionar)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS plans (
+        name                VARCHAR(20) PRIMARY KEY,
+        max_users           INTEGER     NOT NULL,
+        max_devices         INTEGER     NOT NULL,
+        has_overage_tables  BOOLEAN     NOT NULL DEFAULT false,
+        has_notifications   BOOLEAN     NOT NULL DEFAULT false
+      )
+    `);
+    await client.query(`
+      INSERT INTO plans (name, max_users, max_devices, has_overage_tables, has_notifications)
+      VALUES
+        ('gratuito',    2,  3,  false, false),
+        ('comercial',   5,  10, true,  false),
+        ('empresarial', 25, 50, true,  true)
+      ON CONFLICT (name) DO NOTHING
+    `);
+
     // Tabela de domínios (deve ser criada antes de users e devices)
     await client.query(`
       CREATE TABLE IF NOT EXISTS domains (
@@ -44,41 +63,14 @@ async function createTables(client) {
         name TEXT NOT NULL,
         code TEXT UNIQUE NOT NULL,
         admin_id INTEGER,
-        max_users INTEGER DEFAULT 10,
+        plan VARCHAR(20) DEFAULT 'gratuito' REFERENCES plans(name),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
 
-    // Migração segura: adiciona max_users em domains se já existir a tabela sem a coluna
+    // Migração segura: adiciona plan em domains se já existir a tabela sem a coluna
     await client.query(`
-      ALTER TABLE domains ADD COLUMN IF NOT EXISTS max_users INTEGER DEFAULT 10
-    `);
-
-    // Migração segura: configuração de notificações via Telegram por domínio
-    await client.query(`
-      ALTER TABLE domains ADD COLUMN IF NOT EXISTS telegram_chat_id TEXT
-    `);
-    await client.query(`
-      ALTER TABLE domains ADD COLUMN IF NOT EXISTS telegram_enabled BOOLEAN DEFAULT false
-    `);
-
-    // Migração segura: fluxo de verificação por código para conectar grupo Telegram
-    await client.query(`
-      ALTER TABLE domains ADD COLUMN IF NOT EXISTS telegram_verification_code VARCHAR(10)
-    `);
-    await client.query(`
-      ALTER TABLE domains ADD COLUMN IF NOT EXISTS telegram_verification_expires_at TIMESTAMPTZ
-    `);
-    await client.query(`
-      ALTER TABLE domains ADD COLUMN IF NOT EXISTS telegram_chat_name VARCHAR(255)
-    `);
-
-    // Migração segura: plano SaaS e limite de dispositivos por domínio
-    await client.query(`
-      ALTER TABLE domains ADD COLUMN IF NOT EXISTS plan VARCHAR(20) DEFAULT 'gratuito' CHECK (plan IN ('gratuito','comercial','empresarial'))
-    `);
-    await client.query(`
-      ALTER TABLE domains ADD COLUMN IF NOT EXISTS max_devices INTEGER DEFAULT 3
+      ALTER TABLE domains ADD COLUMN IF NOT EXISTS plan VARCHAR(20) DEFAULT 'gratuito' REFERENCES plans(name)
     `);
 
     // Tabela de usuários
@@ -89,7 +81,7 @@ async function createTables(client) {
         email TEXT UNIQUE NOT NULL,
         password TEXT NOT NULL,
         role TEXT DEFAULT 'user' CHECK(role IN ('admin', 'user')),
-        has_access INTEGER DEFAULT 0,
+        has_access BOOLEAN DEFAULT false,
         domain_id INTEGER DEFAULT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
@@ -138,8 +130,8 @@ async function createTables(client) {
         device_id INTEGER NOT NULL,
         name TEXT NOT NULL,
         type TEXT NOT NULL,
-        config TEXT DEFAULT '{}',
-        position TEXT DEFAULT '{}',
+        config JSONB DEFAULT '{}',
+        position JSONB DEFAULT '{}',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (device_id) REFERENCES devices(id) ON DELETE CASCADE
       )
@@ -166,7 +158,7 @@ async function createTables(client) {
         id SERIAL PRIMARY KEY,
         device_id INTEGER NOT NULL,
         topic TEXT NOT NULL,
-        payload TEXT NOT NULL,
+        payload JSONB NOT NULL,
         received_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (device_id) REFERENCES devices(id) ON DELETE CASCADE
       )
@@ -234,6 +226,23 @@ async function createTables(client) {
     } catch (_) {
       // constraint já existe — ignorar
     }
+
+    // Configuração Telegram por domínio (relação 0..1)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS domain_telegram_configs (
+        domain_id               INTEGER PRIMARY KEY
+                                REFERENCES domains(id) ON DELETE CASCADE,
+        chat_id                 TEXT,
+        chat_name               VARCHAR(255),
+        enabled                 BOOLEAN NOT NULL DEFAULT false,
+        verification_code       VARCHAR(10),
+        verification_expires_at TIMESTAMPTZ
+      )
+    `);
+    // Migrações seguras: garante colunas de verificação mesmo em bancos criados antes delas existirem
+    await client.query(`ALTER TABLE domain_telegram_configs ADD COLUMN IF NOT EXISTS chat_name VARCHAR(255)`);
+    await client.query(`ALTER TABLE domain_telegram_configs ADD COLUMN IF NOT EXISTS verification_code VARCHAR(10)`);
+    await client.query(`ALTER TABLE domain_telegram_configs ADD COLUMN IF NOT EXISTS verification_expires_at TIMESTAMPTZ`);
 
     console.log('Tabelas criadas/verificadas com sucesso (incluindo domínios)');
   } catch (error) {

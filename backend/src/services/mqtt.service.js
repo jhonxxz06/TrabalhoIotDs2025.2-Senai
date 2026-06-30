@@ -90,6 +90,7 @@ const MqttService = {
       clean: true,
       reconnectPeriod: 5000,
       keepalive: 60,
+      resubscribe: false,
     };
 
     // Adiciona auth se configurado
@@ -226,7 +227,14 @@ const MqttService = {
    * Salva dados MQTT no banco
    */
   async saveData(deviceId, topic, payload) {
-    const payloadStr = typeof payload === 'string' ? payload : JSON.stringify(payload);
+    // Normaliza o payload para objeto e gera string com chaves ordenadas para comparação estável
+    const payloadObj = typeof payload === 'string' ? JSON.parse(payload) : payload;
+    const sortedStr = (obj) => {
+      const s = {};
+      Object.keys(obj).sort().forEach(k => { s[k] = obj[k]; });
+      return JSON.stringify(s);
+    };
+    const payloadStr = sortedStr(payloadObj);
 
     // Use a transaction with an advisory lock per device to prevent race inserts
     const client = await pool.connect();
@@ -243,7 +251,7 @@ const MqttService = {
 
       if (lastRes.rows && lastRes.rows.length > 0) {
         const last = lastRes.rows[0];
-        const lastPayloadStr = typeof last.payload === 'string' ? last.payload : JSON.stringify(last.payload);
+        const lastPayloadStr = sortedStr(typeof last.payload === 'string' ? JSON.parse(last.payload) : last.payload);
         const lastTime = last.received_at ? new Date(last.received_at).getTime() : 0;
         const now = Date.now();
         const delta = Math.abs(now - lastTime);
@@ -257,7 +265,7 @@ const MqttService = {
       // Insert new record
       await client.query(
         'INSERT INTO mqtt_data (device_id, topic, payload) VALUES ($1, $2, $3)',
-        [deviceId, topic, payloadStr]
+        [deviceId, topic, payloadObj]
       );
 
       await client.query('COMMIT');
@@ -358,6 +366,35 @@ const MqttService = {
   },
 
   /**
+   * Busca dados do dia atual (meia-noite de Brasília até agora)
+   */
+  async getTodayData(deviceId) {
+    const now = new Date();
+    // UTC+0: meia-noite de Brasília (UTC-3) equivale a 03:00 UTC
+    const midnightBrasilia = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 3, 0, 0)
+    );
+    // Se ainda não passamos das 03:00 UTC (antes da meia-noite BRT), recuamos um dia
+    if (midnightBrasilia > now) midnightBrasilia.setUTCDate(midnightBrasilia.getUTCDate() - 1);
+    return await this.getData(deviceId, { since: midnightBrasilia.toISOString(), limit: 10000 });
+  },
+
+  /**
+   * Busca dados em um intervalo arbitrário de datas
+   */
+  async getDataRange(deviceId, from, to, limit = 10000) {
+    return await query(`
+      SELECT id, device_id, topic, payload, received_at,
+        to_char(received_at AT TIME ZONE 'America/Sao_Paulo', 'DD/MM/YYYY') as "Data",
+        to_char(received_at AT TIME ZONE 'America/Sao_Paulo', 'HH24:MI:SS') as "Hora"
+      FROM mqtt_data
+      WHERE device_id = $1 AND received_at >= $2 AND received_at <= $3
+      ORDER BY received_at DESC
+      LIMIT $4
+    `, [deviceId, from, to, limit]);
+  },
+
+  /**
    * Limpa dados antigos (mais de 7 dias)
    */
   async cleanOldData() {
@@ -374,7 +411,7 @@ const MqttService = {
    * @returns {array} Registros com excedências
    */
   async getExceedances(deviceId, thresholds = {}, options = {}) {
-    const { limit = 100, since = null } = options;
+    const { limit = 100, since = null, until = null } = options;
 
     console.log('[MQTT] getExceedances chamado:', { deviceId, thresholds, options });
 
@@ -391,11 +428,11 @@ const MqttService = {
 
     Object.entries(thresholds).forEach(([field, limits]) => {
       if (limits.min !== undefined && limits.min !== null && limits.min !== '') {
-        conditions.push(`((payload::jsonb)->>'${field}')::float < $${paramCount++}`);
+        conditions.push(`(payload->>'${field}')::float < $${paramCount++}`);
         params.push(parseFloat(limits.min));
       }
       if (limits.max !== undefined && limits.max !== null && limits.max !== '') {
-        conditions.push(`((payload::jsonb)->>'${field}')::float > $${paramCount++}`);
+        conditions.push(`(payload->>'${field}')::float > $${paramCount++}`);
         params.push(parseFloat(limits.max));
       }
     });
@@ -421,10 +458,14 @@ const MqttService = {
         AND (${conditions.join(' OR ')})
     `;
 
-    // Adicionar filtro de data se especificado
+    // Adicionar filtros de data se especificados
     if (since) {
       sql += ` AND received_at >= $${paramCount++}`;
       params.push(since);
+    }
+    if (until) {
+      sql += ` AND received_at <= $${paramCount++}`;
+      params.push(until);
     }
 
     sql += ` ORDER BY received_at DESC LIMIT $${paramCount}`;
@@ -451,7 +492,7 @@ const MqttService = {
 
       // Adicionar informação de qual threshold foi excedido
       return results.map(row => {
-        const payload = typeof row.payload === 'string' ? JSON.parse(row.payload) : row.payload;
+        const payload = row.payload;
         const alerts = [];
 
         Object.entries(thresholds).forEach(([field, limits]) => {

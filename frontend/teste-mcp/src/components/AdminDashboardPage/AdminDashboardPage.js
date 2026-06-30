@@ -5,6 +5,7 @@ import AdminHeader from '../AdminHeader';
 import Footer from '../Footer';
 import GraphEditorModal from '../GraphEditorModal';
 import TableWidget from '../TableWidget';
+import TimeRangeSelector from '../TimeRangeSelector/TimeRangeSelector';
 import excelIcon from '../../assets/excel-icon.png';
 import { widgets as widgetsApi, mqtt as mqttApi } from '../../services/api';
 import { getSocket } from '../../services/socket';
@@ -26,26 +27,38 @@ const PIE_PALETTE = [
 ];
 
 // Componente para renderizar widgets dinâmicos com dados MQTT
-const DynamicWidgetCard = ({ widget, deviceId, position, dragging, onMouseDown, onEdit, onDelete, onDownload }) => {
+const DynamicWidgetCard = ({ widget, deviceId, position, dragging, onMouseDown, onEdit, onDelete, onDownload, timeRange }) => {
   const chartRef = useRef(null);
   const chartInstance = useRef(null);
   const [mqttData, setMqttData] = useState(null);
 
-  // Buscar dados MQTT
+  const isLive = !timeRange || timeRange.type === 'live';
+
+  // Buscar dados MQTT (modo live: limit 20; histórico: por período)
   const fetchMqttData = useCallback(async () => {
     if (!deviceId) return;
-
     try {
-      const response = await mqttApi.getData(deviceId, { limit: 20 });
-      if (response.success && response.data && response.data.length > 0) {
-        setMqttData(response.data);
+      if (isLive) {
+        const response = await mqttApi.getData(deviceId, { limit: 20 });
+        if (response.success && response.data?.length > 0) setMqttData(response.data);
+      } else if (timeRange.type === 'today') {
+        const response = await mqttApi.getTodayData(deviceId);
+        if (response.success) setMqttData(response.data || []);
+      } else if (timeRange.type === '7days') {
+        const response = await mqttApi.getWeekData(deviceId);
+        if (response.success) setMqttData(response.data || []);
+      } else if (timeRange.type === 'custom' && timeRange.from && timeRange.to) {
+        const from = new Date(timeRange.from + 'T00:00:00-03:00').toISOString();
+        const to = new Date(timeRange.to + 'T23:59:59-03:00').toISOString();
+        const response = await mqttApi.getDataByRange(deviceId, from, to);
+        if (response.success) setMqttData(response.data || []);
       }
     } catch (err) {
       // Aguardando dados MQTT
     }
-  }, [deviceId]);
+  }, [deviceId, timeRange, isLive]);
 
-  // WebSocket + polling fallback para atualizar dados
+  // WebSocket + atualização em tempo real
   useEffect(() => {
     if (!deviceId) return;
 
@@ -60,9 +73,11 @@ const DynamicWidgetCard = ({ widget, deviceId, position, dragging, onMouseDown, 
     }
 
     const handleMqttData = (data) => {
+      // Modos históricos: gráfico congelado — ignorar mensagens do WebSocket
+      if (!isLive) return;
       if (!data || data.deviceId.toString() !== deviceId.toString()) return;
+
       setMqttData(prev => {
-        // Formatar Data e Hora no fuso de Brasília
         const date = new Date(data.timestamp);
         const Data = date.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
         const Hora = date.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo' });
@@ -87,7 +102,7 @@ const DynamicWidgetCard = ({ widget, deviceId, position, dragging, onMouseDown, 
       try { socket.emit('unsubscribe:device', deviceId); } catch (e) { }
       socket.off('mqtt:data', handleMqttData);
     };
-  }, [deviceId, fetchMqttData]);
+  }, [deviceId, fetchMqttData, isLive]);
 
   // Criar/atualizar gráfico
   useEffect(() => {
@@ -111,10 +126,10 @@ const DynamicWidgetCard = ({ widget, deviceId, position, dragging, onMouseDown, 
             const payload = typeof d.payload === 'string' ? JSON.parse(d.payload) : d.payload;
             const raw = payload[config.mqttField];
             if (raw !== undefined && raw !== null) {
-              const key = typeof raw === 'number' ? String(Math.round(raw)) : String(raw);
+              const key = String(raw);
               counts[key] = (counts[key] || 0) + 1;
             }
-          } catch (e) {}
+          } catch (e) { }
         });
         const labels = Object.keys(counts).sort((a, b) => parseFloat(a) - parseFloat(b));
         const values = labels.map(l => counts[l]);
@@ -129,7 +144,8 @@ const DynamicWidgetCard = ({ widget, deviceId, position, dragging, onMouseDown, 
         };
       } else if (!isRadial && mqttData && mqttData.length > 0 && config.mqttField) {
         // Série temporal para gráficos de linha/barras
-        const labels = mqttData.map(d => d.Hora || 'N/A').reverse();
+        const showTimeOnly = isLive || timeRange?.type === 'today';
+        const labels = mqttData.map(d => showTimeOnly ? (d.Hora || 'N/A') : `${d.Data ? d.Data + ' ' : ''}${d.Hora || 'N/A'}`).reverse();
         const datasets = [];
 
         if (config.mqttField && config.mqttField.trim() !== '') {
@@ -141,16 +157,16 @@ const DynamicWidgetCard = ({ widget, deviceId, position, dragging, onMouseDown, 
           datasets.push({
             label: config.mqttField,
             data: values,
-            borderColor:           savedDs0.borderColor           || 'rgba(255, 99, 132, 1)',
-            backgroundColor:       savedDs0.backgroundColor       || 'rgba(255, 99, 132, 0.2)',
-            fill:                  savedDs0.fill !== undefined     ? savedDs0.fill : true,
-            tension:               savedDs0.tension               ?? 0.4,
-            borderWidth:           savedDs0.borderWidth           || 3,
-            pointRadius:           savedDs0.pointRadius           ?? 4,
-            pointHoverRadius:      savedDs0.pointHoverRadius      ?? 8,
-            pointBackgroundColor:  savedDs0.pointBackgroundColor  || savedDs0.borderColor || 'rgba(255, 99, 132, 1)',
-            pointBorderColor:      savedDs0.pointBorderColor      || savedDs0.borderColor || 'rgba(255, 99, 132, 1)',
-            pointBorderWidth:      savedDs0.pointBorderWidth      ?? 0,
+            borderColor: savedDs0.borderColor || 'rgba(255, 99, 132, 1)',
+            backgroundColor: savedDs0.backgroundColor || 'rgba(255, 99, 132, 0.2)',
+            fill: savedDs0.fill !== undefined ? savedDs0.fill : true,
+            tension: savedDs0.tension ?? 0.4,
+            borderWidth: savedDs0.borderWidth || 3,
+            pointRadius: savedDs0.pointRadius ?? 4,
+            pointHoverRadius: savedDs0.pointHoverRadius ?? 8,
+            pointBackgroundColor: savedDs0.pointBackgroundColor || savedDs0.borderColor || 'rgba(255, 99, 132, 1)',
+            pointBorderColor: savedDs0.pointBorderColor || savedDs0.borderColor || 'rgba(255, 99, 132, 1)',
+            pointBorderWidth: savedDs0.pointBorderWidth ?? 0,
             pointHoverBorderWidth: savedDs0.pointHoverBorderWidth ?? 0,
           });
         }
@@ -164,16 +180,16 @@ const DynamicWidgetCard = ({ widget, deviceId, position, dragging, onMouseDown, 
           datasets.push({
             label: config.mqttField2,
             data: values2,
-            borderColor:           savedDs1.borderColor           || 'rgba(54, 162, 235, 1)',
-            backgroundColor:       savedDs1.backgroundColor       || 'rgba(54, 162, 235, 0.2)',
-            fill:                  savedDs1.fill !== undefined     ? savedDs1.fill : true,
-            tension:               savedDs1.tension               ?? 0.4,
-            borderWidth:           savedDs1.borderWidth           || 3,
-            pointRadius:           savedDs1.pointRadius           ?? 4,
-            pointHoverRadius:      savedDs1.pointHoverRadius      ?? 8,
-            pointBackgroundColor:  savedDs1.pointBackgroundColor  || savedDs1.borderColor || 'rgba(54, 162, 235, 1)',
-            pointBorderColor:      savedDs1.pointBorderColor      || savedDs1.borderColor || 'rgba(54, 162, 235, 1)',
-            pointBorderWidth:      savedDs1.pointBorderWidth      ?? 0,
+            borderColor: savedDs1.borderColor || 'rgba(54, 162, 235, 1)',
+            backgroundColor: savedDs1.backgroundColor || 'rgba(54, 162, 235, 0.2)',
+            fill: savedDs1.fill !== undefined ? savedDs1.fill : true,
+            tension: savedDs1.tension ?? 0.4,
+            borderWidth: savedDs1.borderWidth || 3,
+            pointRadius: savedDs1.pointRadius ?? 4,
+            pointHoverRadius: savedDs1.pointHoverRadius ?? 8,
+            pointBackgroundColor: savedDs1.pointBackgroundColor || savedDs1.borderColor || 'rgba(54, 162, 235, 1)',
+            pointBorderColor: savedDs1.pointBorderColor || savedDs1.borderColor || 'rgba(54, 162, 235, 1)',
+            pointBorderWidth: savedDs1.pointBorderWidth ?? 0,
             pointHoverBorderWidth: savedDs1.pointHoverBorderWidth ?? 0,
           });
         }
@@ -186,7 +202,8 @@ const DynamicWidgetCard = ({ widget, deviceId, position, dragging, onMouseDown, 
           : mqttData[0].payload;
         const fields = Object.keys(lastPayload).filter(k => typeof lastPayload[k] === 'number');
         if (fields.length > 0) {
-          const labels = mqttData.map(d => d.Hora || 'N/A').reverse();
+          const showTimeOnly = isLive || timeRange?.type === 'today';
+          const labels = mqttData.map(d => showTimeOnly ? (d.Hora || 'N/A') : `${d.Data ? d.Data + ' ' : ''}${d.Hora || 'N/A'}`).reverse();
           const datasets = [fields[0]].map((field, idx) => {
             const savedDs = config.data?.datasets?.[idx] || {};
             return {
@@ -195,21 +212,32 @@ const DynamicWidgetCard = ({ widget, deviceId, position, dragging, onMouseDown, 
                 const payload = typeof d.payload === 'string' ? JSON.parse(d.payload) : d.payload;
                 return payload[field] || 0;
               }).reverse(),
-              borderColor:           savedDs.borderColor           || 'rgba(255, 99, 132, 1)',
-              backgroundColor:       savedDs.backgroundColor       || 'rgba(255, 99, 132, 0.2)',
-              fill:                  savedDs.fill !== undefined     ? savedDs.fill : true,
-              tension:               savedDs.tension               ?? 0.4,
-              borderWidth:           savedDs.borderWidth           || 3,
-              pointRadius:           savedDs.pointRadius           ?? 4,
-              pointHoverRadius:      savedDs.pointHoverRadius      ?? 8,
-              pointBackgroundColor:  savedDs.pointBackgroundColor  || savedDs.borderColor || 'rgba(255, 99, 132, 1)',
-              pointBorderColor:      savedDs.pointBorderColor      || savedDs.borderColor || 'rgba(255, 99, 132, 1)',
-              pointBorderWidth:      savedDs.pointBorderWidth      ?? 0,
+              borderColor: savedDs.borderColor || 'rgba(255, 99, 132, 1)',
+              backgroundColor: savedDs.backgroundColor || 'rgba(255, 99, 132, 0.2)',
+              fill: savedDs.fill !== undefined ? savedDs.fill : true,
+              tension: savedDs.tension ?? 0.4,
+              borderWidth: savedDs.borderWidth || 3,
+              pointRadius: savedDs.pointRadius ?? 4,
+              pointHoverRadius: savedDs.pointHoverRadius ?? 8,
+              pointBackgroundColor: savedDs.pointBackgroundColor || savedDs.borderColor || 'rgba(255, 99, 132, 1)',
+              pointBorderColor: savedDs.pointBorderColor || savedDs.borderColor || 'rgba(255, 99, 132, 1)',
+              pointBorderWidth: savedDs.pointBorderWidth ?? 0,
               pointHoverBorderWidth: savedDs.pointHoverBorderWidth ?? 0,
             };
           });
           chartData = { labels, datasets };
         }
+      }
+
+      // Scroll horizontal nos modos históricos não-radiais
+      const isToday = timeRange?.type === 'today';
+      const dataPoints = mqttData ? mqttData.length : 0;
+      const needsScroll = !isLive && !isRadial && (!isToday || dataPoints > 20);
+      if (needsScroll && chartRef.current) {
+        const scrollWidth = Math.max(600, dataPoints * 12);
+        chartRef.current.parentElement.style.width = `${scrollWidth}px`;
+      } else if (chartRef.current) {
+        chartRef.current.parentElement.style.width = '100%';
       }
 
       const configOptions = config.options || {};
@@ -233,13 +261,17 @@ const DynamicWidgetCard = ({ widget, deviceId, position, dragging, onMouseDown, 
           },
           legend: {
             position: isRadial ? 'bottom' : 'top',
+            align: needsScroll ? 'start' : 'center',
             labels: { padding: 15, font: { size: 12 } }
           },
           ...(configOptions.plugins || {})
         },
         ...(!isRadial && {
           scales: {
-            x: { grid: { display: true, color: 'rgba(0, 0, 0, 0.05)' }, ticks: { padding: 8 } },
+            x: {
+              grid: { display: true, color: 'rgba(0, 0, 0, 0.05)' },
+              ticks: { padding: 8, maxRotation: isLive ? 0 : 45, minRotation: isLive ? 0 : 45, font: { size: 10 } }
+            },
             y: { grid: { display: true, color: 'rgba(0, 0, 0, 0.05)' }, ticks: { padding: 8 } }
           }
         }),
@@ -270,7 +302,7 @@ const DynamicWidgetCard = ({ widget, deviceId, position, dragging, onMouseDown, 
         chartInstance.current.destroy();
       }
     };
-  }, [widget, mqttData]);
+  }, [widget, mqttData, isLive, timeRange?.type]);
 
   const config = typeof widget.config === 'string' ? JSON.parse(widget.config) : widget.config;
 
@@ -308,7 +340,7 @@ const DynamicWidgetCard = ({ widget, deviceId, position, dragging, onMouseDown, 
           </div>
         </div>
         <div className="admin-chart-container">
-          <TableWidget deviceId={deviceId} config={config} />
+          <TableWidget deviceId={deviceId} config={config} timeRange={timeRange} />
         </div>
       </div>
     );
@@ -353,7 +385,22 @@ const DynamicWidgetCard = ({ widget, deviceId, position, dragging, onMouseDown, 
         </div>
       </div>
       <div className="admin-chart-container">
-        <canvas ref={chartRef}></canvas>
+        {(() => {
+          const cfg = typeof widget.config === 'string' ? JSON.parse(widget.config) : widget.config;
+          const isRadialWidget = ['pie', 'doughnut'].includes(cfg?.type);
+          const isToday = timeRange?.type === 'today';
+          const dataPoints = mqttData ? mqttData.length : 0;
+          const needsScrollWidget = !isLive && !isRadialWidget && (!isToday || dataPoints > 20);
+          return needsScrollWidget ? (
+            <div className="chart-scroll-outer" onMouseDown={e => e.stopPropagation()}>
+              <div className="chart-scroll-inner">
+                <canvas ref={chartRef}></canvas>
+              </div>
+            </div>
+          ) : (
+            <canvas ref={chartRef}></canvas>
+          );
+        })()}
       </div>
     </div>
   );
@@ -384,7 +431,9 @@ const AdminDashboardPage = ({
   onRejectUser,
   user,
   onUserSaved,
-  onDomainSaved
+  onDomainSaved,
+  timeRange,
+  onTimeRangeChange
 }) => {
   const toast = useToast();
   const [showGraphEditor, setShowGraphEditor] = useState(false);
@@ -435,8 +484,6 @@ const AdminDashboardPage = ({
       widgetWidth: isTable ? 720 : 350,
       widgetHeight: isTable ? 450 : 280
     });
-
-    widget.style.zIndex = 1000;
   };
 
   const handleMouseMove = (e) => {
@@ -511,9 +558,9 @@ const AdminDashboardPage = ({
     setWhiteboardHeight(maxBottom);
   }, [widgets, widgetPositions]);
 
-  const handleDownload = (chartType) => {
+  const handleDownload = (widget) => {
     if (onDownloadExcel) {
-      onDownloadExcel(chartType);
+      onDownloadExcel(widget);
     }
   };
 
@@ -610,9 +657,7 @@ const AdminDashboardPage = ({
 
       <main className="admin-dashboard-content">
         {/* Device Title */}
-        <div className="admin-device-title-section">
-          <h1 className="admin-device-title">#{deviceName}</h1>
-        </div>
+        <h1 className="admin-device-title">#{deviceName}</h1>
 
         {/* Charts Whiteboard - Miro Style */}
         <div
@@ -620,6 +665,12 @@ const AdminDashboardPage = ({
           ref={whiteboardRef}
           style={{ height: `${whiteboardHeight}px` }}
         >
+          {/* Seletor de período — canto superior direito do whiteboard */}
+          {onTimeRangeChange && (
+            <div style={{ position: 'absolute', top: '-46px', right: '10px', zIndex: 1000 }}>
+              <TimeRangeSelector value={timeRange} onChange={onTimeRangeChange} />
+            </div>
+          )}
           {widgets.length === 0 ? (
             <div className="empty-whiteboard">
               <div className="empty-whiteboard-content">
@@ -650,7 +701,8 @@ const AdminDashboardPage = ({
                   onMouseDown={(e) => handleMouseDown(e, widget.id)}
                   onEdit={() => handleEditWidget(widget)}
                   onDelete={() => handleDeleteWidget(widget.id)}
-                  onDownload={() => handleDownload(widget.type)}
+                  onDownload={() => handleDownload(widget)}
+                  timeRange={timeRange}
                 />
               ))}
             </>

@@ -1,27 +1,26 @@
+const User = require('../models/User');
+
 /**
  * Middleware RBAC (Role-Based Access Control)
- * Verifica se o usuário tem a role necessária
+ * Verifica o role real do banco — não confia apenas no JWT, que pode estar desatualizado.
  * @param {string[]} allowedRoles - Array de roles permitidas
  */
 const requireRole = (allowedRoles) => {
-  return (req, res, next) => {
-    // Verifica se o usuário está autenticado
+  return async (req, res, next) => {
     if (!req.user) {
-      return res.status(401).json({
-        success: false,
-        error: 'Não autenticado'
-      });
+      return res.status(401).json({ success: false, error: 'Não autenticado' });
     }
 
-    // Verifica se a role do usuário está na lista de permitidas
-    if (!allowedRoles.includes(req.user.role)) {
-      return res.status(403).json({
-        success: false,
-        error: 'Acesso não autorizado'
-      });
+    try {
+      const user = await User.findById(req.user.id);
+      if (!user || !allowedRoles.includes(user.role)) {
+        return res.status(403).json({ success: false, error: 'Acesso não autorizado' });
+      }
+      req.user.role = user.role;
+      next();
+    } catch {
+      return res.status(500).json({ success: false, error: 'Erro interno do servidor' });
     }
-
-    next();
   };
 };
 

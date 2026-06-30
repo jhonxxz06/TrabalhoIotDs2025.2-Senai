@@ -5,6 +5,7 @@ import './DashboardPage.css';
 import Header from '../Header';
 import Footer from '../Footer';
 import TableWidget from '../TableWidget';
+import TimeRangeSelector from '../TimeRangeSelector/TimeRangeSelector';
 import excelIcon from '../../assets/excel-icon.png';
 import { mqtt as mqttApi } from '../../services/api';
 import logger from '../../utils/logger';
@@ -26,33 +27,43 @@ const PIE_PALETTE = [
 // Usaremos o socket centralizado via services/socket.js
 
 // Componente para renderizar widgets dinâmicos com dados MQTT
-const DynamicWidget = ({ widget, deviceId, onDownload }) => {
+const DynamicWidget = ({ widget, deviceId, onDownload, timeRange }) => {
   const chartRef = useRef(null);
   const chartInstance = useRef(null);
   const [mqttData, setMqttData] = useState([]);
 
-  // Buscar dados MQTT iniciais
+  const isLive = !timeRange || timeRange.type === 'live';
+
+  // Buscar dados MQTT iniciais (modo live: limit 20; histórico: por período)
   const fetchInitialData = useCallback(async () => {
     if (!deviceId) return;
-
     try {
-      const response = await mqttApi.getData(deviceId, { limit: 20 });
-      if (response.success && response.data && response.data.length > 0) {
-        setMqttData(response.data);
+      if (isLive) {
+        const response = await mqttApi.getData(deviceId, { limit: 20 });
+        if (response.success && response.data?.length > 0) setMqttData(response.data);
+      } else if (timeRange.type === 'today') {
+        const response = await mqttApi.getTodayData(deviceId);
+        if (response.success) setMqttData(response.data || []);
+      } else if (timeRange.type === '7days') {
+        const response = await mqttApi.getWeekData(deviceId);
+        if (response.success) setMqttData(response.data || []);
+      } else if (timeRange.type === 'custom' && timeRange.from && timeRange.to) {
+        const from = new Date(timeRange.from + 'T00:00:00-03:00').toISOString();
+        const to = new Date(timeRange.to + 'T23:59:59-03:00').toISOString();
+        const response = await mqttApi.getDataByRange(deviceId, from, to);
+        if (response.success) setMqttData(response.data || []);
       }
     } catch (err) {
       // Aguardando dados MQTT
     }
-  }, [deviceId]);
+  }, [deviceId, timeRange, isLive]);
 
   // WebSocket - Conectar e escutar dados em tempo real
   useEffect(() => {
     if (!deviceId) return;
 
-    // Buscar dados iniciais
     fetchInitialData();
 
-    // Conectar ao WebSocket (socket central)
     const socket = getSocket();
     try {
       if (!socket.connected) socket.connect();
@@ -61,13 +72,12 @@ const DynamicWidget = ({ widget, deviceId, onDownload }) => {
       logger.warn('Erro ao iniciar socket:', e.message);
     }
 
-    // Listener para dados MQTT em tempo real
     const handleMqttData = (data) => {
+      // Modos históricos: gráfico congelado — ignorar mensagens do WebSocket
+      if (!isLive) return;
 
       if (data.deviceId === deviceId) {
-        // Adicionar novo dado ao início do array
         setMqttData((prevData) => {
-          // Formatar Data e Hora no fuso de Brasília
           const date = new Date(data.timestamp);
           const Data = date.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
           const Hora = date.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo' });
@@ -83,7 +93,6 @@ const DynamicWidget = ({ widget, deviceId, onDownload }) => {
             Hora
           }, ...prevData];
 
-          // Manter apenas os últimos 20 registros
           return newData.slice(0, 20);
         });
       }
@@ -91,12 +100,11 @@ const DynamicWidget = ({ widget, deviceId, onDownload }) => {
 
     socket.on('mqtt:data', handleMqttData);
 
-    // Cleanup
     return () => {
       try { socket.emit('unsubscribe:device', deviceId); } catch (e) { }
       socket.off('mqtt:data', handleMqttData);
     };
-  }, [deviceId, fetchInitialData]);
+  }, [deviceId, fetchInitialData, isLive]);
 
   // Criar/atualizar gráfico
   useEffect(() => {
@@ -120,10 +128,10 @@ const DynamicWidget = ({ widget, deviceId, onDownload }) => {
             const payload = typeof d.payload === 'string' ? JSON.parse(d.payload) : d.payload;
             const raw = payload[config.mqttField];
             if (raw !== undefined && raw !== null) {
-              const key = typeof raw === 'number' ? String(Math.round(raw)) : String(raw);
+              const key = String(raw);
               counts[key] = (counts[key] || 0) + 1;
             }
-          } catch (e) {}
+          } catch (e) { }
         });
         const labels = Object.keys(counts).sort((a, b) => parseFloat(a) - parseFloat(b));
         const values = labels.map(l => counts[l]);
@@ -138,7 +146,8 @@ const DynamicWidget = ({ widget, deviceId, onDownload }) => {
         };
       } else if (!isRadial && mqttData && mqttData.length > 0 && config.mqttField) {
         // Série temporal para gráficos de linha/barras
-        const labels = mqttData.map(d => d.Hora || 'N/A').reverse();
+        const showTimeOnly = isLive || timeRange?.type === 'today';
+        const labels = mqttData.map(d => showTimeOnly ? (d.Hora || 'N/A') : `${d.Data ? d.Data + ' ' : ''}${d.Hora || 'N/A'}`).reverse();
         const datasets = [];
 
         if (config.mqttField && config.mqttField.trim() !== '') {
@@ -185,7 +194,8 @@ const DynamicWidget = ({ widget, deviceId, onDownload }) => {
           : mqttData[0].payload;
         const fields = Object.keys(lastPayload).filter(k => typeof lastPayload[k] === 'number');
         if (fields.length > 0) {
-          const labels = mqttData.map(d => d.Hora || 'N/A').reverse();
+          const showTimeOnly = isLive || timeRange?.type === 'today';
+          const labels = mqttData.map(d => showTimeOnly ? (d.Hora || 'N/A') : `${d.Data ? d.Data + ' ' : ''}${d.Hora || 'N/A'}`).reverse();
           const datasets = [fields[0]].map(field => ({
             label: field,
             data: mqttData.map(d => {
@@ -202,6 +212,17 @@ const DynamicWidget = ({ widget, deviceId, onDownload }) => {
           }));
           chartData = { labels, datasets };
         }
+      }
+
+      // Scroll horizontal: nos modos históricos não-radiais, o canvas expande
+      const isToday = timeRange?.type === 'today';
+      const dataPoints = mqttData ? mqttData.length : 0;
+      const needsScroll = !isLive && !isRadial && (!isToday || dataPoints > 20);
+      if (needsScroll && chartRef.current) {
+        const scrollWidth = Math.max(600, dataPoints * 20);
+        chartRef.current.parentElement.style.width = `${scrollWidth}px`;
+      } else if (chartRef.current) {
+        chartRef.current.parentElement.style.width = '100%';
       }
 
       const configOptions = config.options || {};
@@ -225,13 +246,17 @@ const DynamicWidget = ({ widget, deviceId, onDownload }) => {
           },
           legend: {
             position: isRadial ? 'bottom' : 'top',
+            align: needsScroll ? 'start' : 'center',
             labels: { padding: 15, font: { size: 12 } }
           },
           ...(configOptions.plugins || {})
         },
         ...(!isRadial && {
           scales: {
-            x: { grid: { display: true, color: 'rgba(0, 0, 0, 0.05)' }, ticks: { padding: 8 } },
+            x: {
+              grid: { display: true, color: 'rgba(0, 0, 0, 0.05)' },
+              ticks: { padding: 8, maxRotation: isLive ? 0 : 45, minRotation: isLive ? 0 : 45, font: { size: 10 } }
+            },
             y: { grid: { display: true, color: 'rgba(0, 0, 0, 0.05)' }, ticks: { padding: 8 } }
           }
         }),
@@ -262,13 +287,17 @@ const DynamicWidget = ({ widget, deviceId, onDownload }) => {
         chartInstance.current.destroy();
       }
     };
-  }, [widget, mqttData]);
+  }, [widget, mqttData, isLive, timeRange?.type]);
 
   const config = typeof widget.config === 'string' ? JSON.parse(widget.config) : widget.config;
+  const isRadialWidget = config && ['pie', 'doughnut'].includes(config.type);
+  const isToday = timeRange?.type === 'today';
+  const dataPoints = mqttData ? mqttData.length : 0;
+  const needsScrollWrapper = !isLive && !isRadialWidget && config?.type !== 'table' && (!isToday || dataPoints > 20);
 
   // Se for tabela, renderizar apenas TableWidget (sem wrapper)
   if (config && config.type === 'table') {
-    return <TableWidget deviceId={deviceId} config={config} />;
+    return <TableWidget deviceId={deviceId} config={config} timeRange={timeRange} />;
   }
 
   return (
@@ -279,14 +308,22 @@ const DynamicWidget = ({ widget, deviceId, onDownload }) => {
         </h3>
         <button
           className="chart-download-btn"
-          onClick={() => onDownload && onDownload(widget.type)}
+          onClick={() => onDownload && onDownload(widget)}
           title="Download Excel"
         >
           <img src={excelIcon} alt="Excel" className="excel-icon-small" />
         </button>
       </div>
-      <div className="chart-wrapper">
-        <canvas ref={chartRef}></canvas>
+      <div className="admin-chart-container">
+        {needsScrollWrapper ? (
+          <div className="chart-scroll-outer">
+            <div className="chart-scroll-inner">
+              <canvas ref={chartRef}></canvas>
+            </div>
+          </div>
+        ) : (
+          <canvas ref={chartRef}></canvas>
+        )}
       </div>
     </>
   );
@@ -305,7 +342,9 @@ const DashboardPage = ({
   onBackToDevices,
   onLogout,
   user,
-  onUserSaved
+  onUserSaved,
+  timeRange,
+  onTimeRangeChange
 }) => {
   const [widgetPositions, setWidgetPositions] = useState({});
   const [whiteboardHeight, setWhiteboardHeight] = useState(600);
@@ -339,7 +378,7 @@ const DashboardPage = ({
       const position = widgetPositions[widget.id] || { x: 50 + (index * 370), y: 30 };
       const config = typeof widget.config === 'string' ? JSON.parse(widget.config) : widget.config;
 
-      const widgetHeight = config?.type === 'table' ? 450 : 280;
+      const widgetHeight = config?.type === 'table' ? 450 : 300;
       const bottom = position.y + widgetHeight + 50;
 
       if (bottom > maxBottom) {
@@ -350,9 +389,9 @@ const DashboardPage = ({
     setWhiteboardHeight(maxBottom);
   }, [widgets, widgetPositions]);
 
-  const handleDownload = (chartType) => {
+  const handleDownload = (widget) => {
     if (onDownloadExcel) {
-      onDownloadExcel(chartType);
+      onDownloadExcel(widget);
     }
   };
 
@@ -385,6 +424,12 @@ const DashboardPage = ({
 
         {/* Charts Whiteboard */}
         <div className="charts-whiteboard" style={{ height: `${whiteboardHeight}px`, minHeight: '600px', position: 'relative' }}>
+          {/* Seletor de período — canto superior direito do whiteboard */}
+          {onTimeRangeChange && (
+            <div style={{ position: 'absolute', top: '-46px', right: '10px', zIndex: 1000 }}>
+              <TimeRangeSelector value={timeRange} onChange={onTimeRangeChange} />
+            </div>
+          )}
           {widgets.length === 0 ? (
             <div className="empty-charts">
               <div className="empty-charts-content">
@@ -411,16 +456,17 @@ const DashboardPage = ({
                     left: `${position.x}px`,
                     top: `${position.y}px`,
                     width: isTable ? '720px' : '350px',
-                    height: isTable ? '450px' : '280px'
+                    height: isTable ? '450px' : '300px'
                   }}
                 >
                   {isTable ? (
-                    <TableWidget deviceId={device?.id} config={config} />
+                    <TableWidget deviceId={device?.id} config={config} timeRange={timeRange} />
                   ) : (
                     <DynamicWidget
                       widget={widget}
                       deviceId={device?.id}
                       onDownload={handleDownload}
+                      timeRange={timeRange}
                     />
                   )}
                 </div>

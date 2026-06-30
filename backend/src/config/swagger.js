@@ -1,9 +1,11 @@
 const swaggerJsdoc = require('swagger-jsdoc');
 const { zodToJsonSchema } = require('zod-to-json-schema');
 
-const { loginSchema, registerSchema } = require('../schemas/auth.schema');
+const { loginSchema, registerSchema, joinDomainSchema, createDomainSchema, leaveDomainSchema } = require('../schemas/auth.schema');
 const { createDeviceSchema, updateDeviceSchema } = require('../schemas/device.schema');
 const { createWidgetSchema, updateWidgetSchema } = require('../schemas/widget.schema');
+const { roleUpdateSchema } = require('../schemas/user.schema');
+const { updateDomainSchema, updateTelegramSchema } = require('../schemas/domain.schema');
 
 /**
  * Converte um schema Zod para JSON Schema compatível com OpenAPI 3.
@@ -112,6 +114,58 @@ const CreateWidgetRequest = {
 const UpdateWidgetRequest = {
   ...fromZod(updateWidgetSchema),
   description: 'Campos a atualizar no widget. Todos são opcionais.'
+};
+
+const JoinDomainRequest = {
+  ...fromZod(joinDomainSchema),
+  description: 'Dados para ingressar em um domínio existente (usuário sem domínio). Cria solicitação de acesso pendente para aprovação do admin.',
+  example: {
+    domainCode: 'EMP01',
+    requestedDevices: [1, 2]
+  }
+};
+
+const CreateDomainRequest = {
+  ...fromZod(createDomainSchema),
+  description: 'Dados para criar um novo domínio. O usuário autenticado (sem domínio) torna-se admin do novo domínio.',
+  example: {
+    domainName: 'Empresa ABC',
+    domainCode: 'ABC01'
+  }
+};
+
+const LeaveDomainRequest = {
+  ...fromZod(leaveDomainSchema),
+  description: 'Dados opcionais para sair do domínio. `transferToUserId` é necessário apenas quando o usuário é o único administrador e há outros membros.',
+  example: {
+    transferToUserId: 5
+  }
+};
+
+const RoleUpdateRequest = {
+  ...fromZod(roleUpdateSchema),
+  description: 'Novo papel a atribuir ao usuário-alvo.',
+  example: {
+    role: 'admin'
+  }
+};
+
+const UpdateDomainRequest = {
+  ...fromZod(updateDomainSchema),
+  description: 'Dados para atualizar nome e código do domínio. Alterar o código não remove membros (vínculo é por domain_id).',
+  example: {
+    name: 'Empresa ABC Ltda',
+    code: 'ABC02'
+  }
+};
+
+const UpdateTelegramRequest = {
+  ...fromZod(updateTelegramSchema),
+  description: 'Configuração de notificações via Telegram para o domínio.',
+  example: {
+    chatId: '-1001234567890',
+    enabled: true
+  }
 };
 
 // ─── Schemas de resposta (definidos manualmente — não há Zod para respostas) ─
@@ -259,8 +313,8 @@ const options = {
     },
     servers: [
       {
-        url: 'http://localhost:3001',
-        description: 'Desenvolvimento local'
+        url: process.env.SWAGGER_SERVER_URL || 'http://localhost:3001',
+        description: process.env.NODE_ENV === 'production' ? 'Produção (Render)' : 'Desenvolvimento local'
       }
     ],
     tags: [
@@ -290,6 +344,12 @@ const options = {
         UpdateDeviceRequest,
         CreateWidgetRequest,
         UpdateWidgetRequest,
+        JoinDomainRequest,
+        CreateDomainRequest,
+        LeaveDomainRequest,
+        RoleUpdateRequest,
+        UpdateDomainRequest,
+        UpdateTelegramRequest,
         // ── Responses definidos manualmente ───────────────────────────────
         User:           UserSchema,
         Device:         DeviceSchema,
@@ -305,6 +365,7 @@ const options = {
   },
   // Caminhos onde swagger-jsdoc buscará anotações @swagger
   apis: [
+    `${__dirname}/../index.js`,
     `${__dirname}/../routes/*.routes.js`
   ]
 };

@@ -122,7 +122,11 @@ export const auth = {
       headers: headers(),
       body: JSON.stringify({ domainName, domainCode })
     });
-    return handleResponse(response);
+    const data = await handleResponse(response);
+    if (data.data?.token) {
+      localStorage.setItem('token', data.data.token);
+    }
+    return data;
   },
 
   logout() {
@@ -488,6 +492,18 @@ export const mqtt = {
 
   async getWeekData(deviceId) {
     return this.getData(deviceId, { period: 'week' });
+  },
+
+  async getTodayData(deviceId) {
+    return this.getData(deviceId, { period: 'today' });
+  },
+
+  async getDataByRange(deviceId, from, to) {
+    const params = new URLSearchParams({ from, to, limit: 10000 });
+    const response = await fetch(`${API_URL}/mqtt/${deviceId}/data?${params}`, {
+      headers: headers()
+    });
+    return handleResponse(response);
   },
 
   async getExceedances(deviceId, queryString = '') {

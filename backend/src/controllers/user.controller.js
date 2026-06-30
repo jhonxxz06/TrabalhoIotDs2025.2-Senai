@@ -134,7 +134,7 @@ const userController = {
 
         await User.update(targetId, { role: 'user' });
       } else if (role === 'admin' && target.role !== 'admin') {
-        await User.update(targetId, { role: 'admin', has_access: 1 });
+        await User.update(targetId, { role: 'admin', has_access: true });
       }
 
       const updatedUser = await User.findById(targetId);
@@ -197,7 +197,7 @@ const userController = {
         }
       }
 
-      await User.update(targetId, { domain_id: null, role: 'user', has_access: 0 });
+      await User.update(targetId, { domain_id: null, role: 'user', has_access: false });
       await Device.removeAllUserAccess(targetId);
       await AccessRequest.deleteByUserId(targetId);
 

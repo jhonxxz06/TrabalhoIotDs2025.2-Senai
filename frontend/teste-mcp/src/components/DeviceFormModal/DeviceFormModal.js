@@ -146,11 +146,11 @@ const DeviceFormModal = ({
             </div>
           </div>
 
-          {allUsers.length > 0 && (
+          {allUsers.filter(u => u.role !== 'admin').length > 0 && (
             <div className="form-section">
               <h3>Usuários com Acesso</h3>
               <div className="users-list">
-                {allUsers.map(user => (
+                {allUsers.filter(u => u.role !== 'admin').map(user => (
                   <label key={user.id} className="user-checkbox">
                     <input
                       type="checkbox"

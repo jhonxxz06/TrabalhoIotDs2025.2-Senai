@@ -385,11 +385,6 @@ const domainController = {
         return res.status(403).json({ success: false, error: 'Acesso negado a este domínio' });
       }
 
-      const { VALID_PLANS } = require('../constants/plans');
-      if (!plan || !VALID_PLANS.includes(plan)) {
-        return res.status(400).json({ success: false, error: `Plano inválido: ${plan}` });
-      }
-
       const updated = await Domain.updatePlan(domain.id, plan);
       const deviceCount = await Domain.countDevices(domain.id);
 

@@ -11,7 +11,7 @@ const users = [
     email: 'admin@teste.com',
     password: 'admin123',
     role: 'admin',
-    has_access: 1,
+    has_access: true,
     domain: {
       name: 'Senai Lauro',
       code: 'SenaiLauro123'
